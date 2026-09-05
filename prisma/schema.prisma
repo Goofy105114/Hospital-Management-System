@@ -1,0 +1,116 @@
+// Going Merry Hospital Management System — Database Schema
+// Conforming to PRD Section A.5 and Feature Specifications
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  PATIENT
+  RECEPTIONIST
+  DOCTOR
+  NURSE
+  PHARMACIST
+  LAB_TECH
+  RADIOLOGIST
+  INVENTORY_MANAGER
+  BILLING_STAFF
+  ADMIN
+  MANAGEMENT
+  SUPER_ADMIN
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  LOCKED
+  PENDING_VERIFICATION
+}
+
+// ==========================================
+// IAM-01: User & Authentication Entities
+// ==========================================
+
+model User {
+  id               String        @id @default(uuid())
+  email            String        @unique
+  phone            String        @unique
+  passwordHash     String        @map("password_hash")
+  name             String
+  role             Role          @default(PATIENT)
+  status           AccountStatus @default(ACTIVE)
+  failedLoginCount Int           @default(0) @map("failed_login_count")
+  lockedUntil      DateTime?     @map("locked_until")
+  lastLoginAt      DateTime?     @map("last_login_at")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+
+  refreshTokens  RefreshToken[]
+  securityEvents SecurityEvent[]
+
+  @@index([email])
+  @@index([phone])
+  @@index([role])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash")
+  familyId  String    @map("family_id")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@index([familyId])
+  @@map("refresh_tokens")
+}
+
+// ==========================================
+// SEC-03: Security Telemetry & Audit Logs
+// ==========================================
+
+model SecurityEvent {
+  id         String   @id @default(uuid())
+  userId     String?  @map("user_id")
+  eventType  String   @map("event_type")
+  identifier String
+  ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent")
+  metadata   String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([eventType])
+  @@index([createdAt])
+  @@map("security_events")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String?  @map("actor_id")
+  actorRole  String?  @map("actor_role")
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id")
+  changes    String?
+  timestamp  DateTime @default(now())
+
+  @@index([actorId])
+  @@index([action])
+  @@index([entityType])
+  @@index([timestamp])
+  @@map("audit_logs")
+}

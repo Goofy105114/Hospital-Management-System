@@ -7,6 +7,8 @@ build/
 .env
 .env.local
 .env.*.local
+.next/
+coverage/
 .DS_Store
 *.log
 npm-debug.log*

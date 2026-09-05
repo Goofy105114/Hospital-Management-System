@@ -1,69 +1,90 @@
 # Going Merry Hospital Management System (HMS)
 
-A modular, high-reliability enterprise clinical platform built for modern hospital operations, outpatient department (OPD) queueing, electronic medical records (EMR), and administrative governance.
+An enterprise-grade, NABH-compliant Hospital Information and Clinical Management System (HIMS) built with **Next.js (App Router), React, Prisma ORM, PostgreSQL (Neon DB / Azure), Upstash Redis, Upstash QStash, Tailwind CSS + shadcn/ui, TanStack Query/Table, and Vitest**.
 
 ---
 
 ## 1. System Architecture
 
-Going Merry HMS follows a decoupled client-server architecture with an integrated SQLite WAL database and role-based access control (RBAC).
+Going Merry HMS provides a unified full-stack architecture running seamlessly on Next.js 14 App Router:
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      Client Layer (SPA)                     │
-│  React 18 + Vite + Tailwind CSS + Design Tokens             │
-│  - Clinical Light Theme & Approachable Rounded Geometry     │
-│  - Role-gated Clinical Workspaces (Physician, Patient, etc) │
-│  - Shared UI Primitives (Button, FormField, Badge, Card)    │
-└──────────────────────────────┬──────────────────────────────┘
-                               │ JSON / REST API (JWT Bearer)
-                               ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      Server Layer (API)                     │
-│  Node.js + Express + TypeScript (ESM)                       │
-│  - IAM-01 Authentication & Session Management               │
-│  - Cryptographic Refresh Token Rotation & Family Tracking   │
-│  - SEC-03 Immutable Security & Audit Logging Engine         │
-│  - Concurrency & 5-Attempt Lockout Security Policy          │
-└──────────────────────────────┬──────────────────────────────┘
-                               │ SQLite DatabaseSync
-                               ▼
-┌─────────────────────────────────────────────────────────────┐
-│                      Data Layer                             │
-│  SQLite (WAL Mode + Foreign Keys ON)                        │
-│  - users, refresh_tokens, security_events, audit_logs       │
-└─────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────┐
+│                   Clinical User Experience (Web Layer)                 │
+│  Next.js App Router + React + Tailwind CSS + shadcn/ui Design Tokens   │
+│  - Professional Clinical Light Palette (Slate / Hospital Teal / Navy)  │
+│  - Role-Tailored Workspaces (Physician, Reception, Pharmacy, Admin)    │
+│  - TanStack React Query + React Hook Form + Zod Validation             │
+│  - TanStack Table & Recharts Security Analytics                        │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │ Axios / REST API (JWT Bearer)
+                                    ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                   Hospital API & Backend Core Services                 │
+│  Next.js Server API Routes (/api/v1/*) + Node.js 20+ Runtime           │
+│  - IAM-01 Authentication & Session Management                          │
+│  - Stateless Access Tokens (15m) + Cryptographic Refresh Rotation (7d) │
+│  - Brute-Force Lockout Defense (5 attempts / 30 mins)                  │
+│  - OpenAPI / Swagger Interactive Documentation (/api/docs)             │
+│  - OpenRouter AI Integration Hook & Cloudinary Object Storage Hook     │
+└───────────────────┬───────────────────┬────────────────────────────────┘
+                    │                   │
+                    ▼                   ▼
+┌───────────────────────────┐ ┌──────────────────────────────────────────┐
+│   Caching & Messaging     │ │           Database Layer                 │
+│  - Upstash Redis (Cache)  │ │  PostgreSQL (Neon DB / Azure) via Prisma │
+│  - Upstash QStash (Queue) │ │  - Users, RefreshTokens, SecurityEvents, │
+│  - In-Memory Fallback     │ │    AuditLogs (Enums: Role, Status)       │
+└───────────────────────────┘ └──────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. Sprint & Module Roadmap (PRD & SOW Traceability)
+## 2. Sprint & Module Roadmap (PRD Traceability)
 
-The master project roadmap conforms to the **Going Merry HMS Master Engineering PRD**:
+In accordance with the **Going Merry HMS Master Engineering PRD**:
 
 | Module | Feature Scope | Owner / Status | Key Capabilities |
 | :--- | :--- | :--- | :--- |
-| **IAM** | **IAM-01 Authentication** | **✅ Completed (Current)** | Multi-role login, JWT pair, token rotation, 5-attempt account lockout, audit trail |
-| **IAM** | IAM-02..05 Identity & Roles | Planned (Sprint 1) | Self-registration, MFA/step-up, permission management |
+| **IAM** | **IAM-01 Authentication** | **✅ Completed (Current)** | Multi-role login, JWT pair, family token rotation, 5-attempt lockout, audit logs |
+| **IAM** | IAM-02..05 Identity & Roles | Planned (Sprint 1) | Self-registration, MFA/step-up, granular permission matrices |
 | **PAT** | PAT-01..04 Patient Management | Teammate Scope (Sprint 1) | Master Patient Index, MRN assignment, demographics, alerts |
-| **SCH** | SCH-01..04 Doctor Scheduling | Teammate Scope (Sprint 1) | Clinic session schedules, room assignment, leave management |
+| **SCH** | SCH-01..04 Doctor Scheduling | Teammate Scope (Sprint 1) | Clinic session schedules, consultation room assignment |
 | **APT** | APT-01..06 Appointments | Teammate Scope (Sprint 1-2) | Slot discovery, booking engine, rescheduling, waitlists |
 | **QUE** | QUE-01..05 Queue & Triage | Teammate Scope (Sprint 2) | Patient check-in, token generation, live doctor calling |
 | **EMR** | EMR-01..06 Clinical Records | Teammate Scope (Sprint 2-3) | Encounter documentation, vitals, diagnosis, e-prescriptions |
-| **PHA** | PHA-01..04 Pharmacy | Teammate Scope (Sprint 3) | Formulary dispensing, barcode check, prescription queue |
-| **INV** | INV-01..04 Inventory | Teammate Scope (Sprint 3) | Stock ledger, reorder levels, batch expiry tracking |
+| **PHA** | PHA-01..04 Pharmacy | Teammate Scope (Sprint 3) | Formulary dispensing, barcode verification, order fulfillment |
+| **INV** | INV-01..04 Inventory | Teammate Scope (Sprint 3) | Stock ledger, reorder thresholds, batch expiry tracking |
 | **BIL** | BIL-01..05 Billing & Claims | Teammate Scope (Sprint 4) | Invoicing, fee schedules, payments, insurance claims |
-| **SEC** | SEC-01..03 Governance & Audit | Baseline Active | Centralized audit log hooks, tamper-evident security events |
+| **SEC** | SEC-01..03 Governance & Audit | Baseline Active | Centralized audit log hooks, tamper-evident security telemetry |
 
 ---
 
-## 3. Getting Started
+## 3. Technology Stack
+
+- **Framework**: [Next.js 14 (App Router)](https://nextjs.org/) + React 18
+- **Styling**: Tailwind CSS + [shadcn/ui](https://ui.shadcn.com/) component primitives
+- **State Management & Caching**: [Zustand](https://zustand-demo.pmnd.rs/) (session persistence) & [TanStack React Query](https://tanstack.com/query)
+- **Forms & Validation**: [React Hook Form](https://react-hook-form.com/) + [Zod](https://zod.dev/)
+- **Data Tables & Charts**: [TanStack Table](https://tanstack.com/table) + [Recharts](https://recharts.org/)
+- **API Client**: [Axios](https://axios-http.com/) with automatic 401 refresh interceptor
+- **Database & ORM**: [Prisma ORM](https://www.prisma.io/) with [PostgreSQL (Neon DB / Azure PostgreSQL)](https://neon.tech/)
+- **Redis & Queues**: [Upstash Redis](https://upstash.com/docs/redis) (caching) & [Upstash QStash](https://upstash.com/docs/qstash) (background message queues)
+- **AI Integration**: [OpenRouter API](https://openrouter.ai/) for clinical decision support hooks
+- **Object Storage**: [Cloudinary](https://cloudinary.com/) for medical documents and scan storage
+- **API Documentation**: OpenAPI / Swagger 3.0 via `/api/docs`
+- **Testing**: [Vitest](https://vitest.dev/) + [React Testing Library](https://testing-library.com/)
+- **Code Quality**: ESLint + Prettier + TypeScript strict mode + GitHub Actions CI
+
+---
+
+## 4. Getting Started
 
 ### Prerequisites
-- **Node.js**: `v20.x` or `v22.x` (LTS recommended)
+- **Node.js**: `v20.x` or higher
 - **npm**: `v10.x` or higher
 
-### Quickstart Installation
+### Installation
 
 1. **Clone the repository**:
    ```bash
@@ -71,110 +92,76 @@ The master project roadmap conforms to the **Going Merry HMS Master Engineering 
    cd Hospital-Management-System
    ```
 
-2. **Install all dependencies** (workspace root installs both client and server packages):
+2. **Install dependencies**:
    ```bash
    npm install
    ```
 
-3. **Start Development Environment**:
+3. **Configure Environment Variables**:
+   Copy `.env.example` to `.env` and fill in your connection credentials:
+   ```bash
+   cp .env.example .env
+   ```
+
+4. **Initialize Prisma (Optional for local PostgreSQL)**:
+   ```bash
+   npx prisma generate
+   # If connected to live Neon DB/Azure:
+   npx prisma db push
+   ```
+   *(Note: The system contains an automatic high-resilience in-memory fallback for all 10 clinical personas so development and testing can proceed seamlessly even when offline).*
+
+5. **Start Development Server**:
    ```bash
    npm run dev
    ```
-   This concurrently boots:
-   - **Backend API**: `http://localhost:5001`
-   - **Frontend Clinical Portal**: `http://localhost:5173`
+   Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
-## 4. Test Accounts & Pre-Seeded Clinical Personas
+## 5. Test Accounts & Clinical Personas
 
-The database automatically seeds with 10 demo clinical accounts across all roles:
+The system includes pre-configured clinical personas across all key hospital workflows:
 
-| Role | Default Identifier | Default Password | Workspace Dashboard |
+| Role | Default Identifier | Default Password | Workspace Capabilities |
 | :--- | :--- | :--- | :--- |
-| **Physician** | `doctor.sharma@goingmerry.com` | `Doctor@123` | Doctor Consultation Desk & OPD Queue |
-| **Patient** | `patient.john@goingmerry.com` | `Patient@123` | Patient Health Portal & Appointments |
-| **Receptionist** | `reception@goingmerry.com` | `Reception@123` | Front Desk Triage & Walk-in Tokens |
-| **Pharmacist** | `pharmacy@goingmerry.com` | `Pharmacy@123` | Pharmacy Dispensing & Formulary |
-| **Nurse** | `nurse.mary@goingmerry.com` | `Nurse@123` | Clinical Inpatient Care Desk |
-| **Administrator** | `admin@goingmerry.com` | `Admin@123` | Security Telemetry & User Governance |
-| **Locked Account** | `locked.user@goingmerry.com` | `Locked@123` | Verifies lockout protection (IAM-01-S05) |
-| **Suspended Account**| `suspended.user@goingmerry.com`| `Suspended@123` | Verifies suspension check (IAM-01-S03) |
-
-> 💡 **Tip**: On the login screen, click the **"Test Accounts"** button in the top right to open the slide-over directory and auto-fill credentials with one click.
-
----
-
-## 5. Development Guidelines for Teammates
-
-### Design System & Shared Components
-Per **PRD Section A.4.11**, all UI development must use the standardized tokens and components rather than hardcoded styles:
-
-- **Design Tokens**: `client/src/tokens.ts` (colors, radii, typography)
-- **UI Primitives**:
-  - `<Button variant="primary|secondary|outline|danger|ghost">`
-  - `<FormField label="..." hint="..." error="...">`
-  - `<Input leftIcon={<Mail />} />`
-  - `<Badge variant="success|warning|danger|doctor|patient|admin">`
-  - `<Card>` / `<CardHeader>` / `<CardTitle>` / `<CardContent>`
-  - `<RequireRole roles={['DOCTOR', 'ADMIN']}>`
-
-### API Response Envelope Standard
-Every backend response must conform to **PRD Section A.4.2**:
-
-**Success Response**:
-```json
-{
-  "success": true,
-  "data": { ... },
-  "meta": {
-    "timestamp": "2026-09-05T12:00:00.000Z"
-  }
-}
-```
-
-**Error Response**:
-```json
-{
-  "success": false,
-  "error": {
-    "code": "AUTH_INVALID_CREDENTIALS",
-    "message": "Invalid identifier or password",
-    "details": { ... }
-  }
-}
-```
-
-### Module Integration Slots
-Pre-wired role landing pages in `client/src/workspaces/` contain clearly designated integration slots:
-- `DoctorWorkspace.tsx`: Hook in `QUE-02` live token queue and `EMR-01` consultation notes.
-- `PatientWorkspace.tsx`: Hook in `APT-03` appointment booking and `PAT-02` records.
-- `ReceptionWorkspace.tsx`: Hook in `QUE-01` check-in validation and walk-in token printer.
-- `PharmacyWorkspace.tsx`: Hook in `PHA-02` prescription dispensing and `INV-01` inventory.
+| **Doctor** | `doctor.sharma@goingmerry.com` | `Doctor@123` | OPD queue call, active encounter notes, appointment overview |
+| **Patient** | `patient.john@goingmerry.com` | `Patient@123` | Personal health portal, upcoming consultations, MRN GM-2026-88194 |
+| **Receptionist** | `reception@goingmerry.com` | `Reception@123` | Patient check-in, triage desk, walk-in token issuance |
+| **Pharmacist** | `pharmacy@goingmerry.com` | `Pharmacy@123` | Medication verification, e-prescriptions, stock status |
+| **Nurse** | `nurse.mary@goingmerry.com` | `Nurse@123` | Inpatient care, vitals observation desk |
+| **Administrator** | `admin@goingmerry.com` | `Admin@123` | User directory table, security event audit log, access governance |
+| **Locked User** | `locked.user@goingmerry.com` | `Locked@123` | Verifies 5-attempt brute force lockout protection |
+| **Suspended User**| `suspended.user@goingmerry.com` | `Suspended@123` | Verifies account suspension handling |
+| **Unverified User**| `unverified.user@goingmerry.com` | `Pending@123` | Verifies unverified account gating |
 
 ---
 
-## 6. Testing & Quality Assurance
+## 6. Verification & Quality Assurance
 
-Run the automated integration test suite:
+Run the automated test suite:
 ```bash
 npm test
 ```
-The test suite validates:
-- Credential validation by Email and E.164 phone
-- JWT access token issue & cryptographically hashed refresh token rotation
-- Account status enforcement (`ACTIVE`, `SUSPENDED`, `LOCKED`, `PENDING_VERIFICATION`)
-- 5-attempt consecutive failed login lockout policy (IAM-01-S05)
-- Full logout and refresh token invalidation
-- Security event and audit trail logging (SEC-03)
 
-### Production Build
-Build all workspaces for deployment:
+Run code formatting and lint verification:
+```bash
+npm run lint
+```
+
+Execute production build:
 ```bash
 npm run build
 ```
 
 ---
 
-## 7. License & Compliance
-Proprietary — Developed for Going Merry Health System in conformance with PRD specifications, DISHA standards, and HIPAA electronic access controls.
+## 7. Integration Guidelines for Teammates
+
+This repository provides the core authentication, RBAC, session management, and UI component foundation. Teammates building subsequent modules (e.g., PAT, SCH, APT, QUE, EMR, PHA, BIL) should follow these patterns:
+
+1. **API Endpoints**: Place new route handlers in `app/api/v1/<module>/route.ts`. Use standard response envelopes via `lib/envelope.ts` (`apiSuccess`, `apiError`).
+2. **Database Models**: Add entity definitions to `prisma/schema.prisma` and run `npx prisma generate`.
+3. **Data Fetching**: Use TanStack React Query (`useQuery`, `useMutation`) with the configured Axios client in `lib/api.ts`.
+4. **UI Components**: Use the shared shadcn/ui primitives in `components/ui/` (`Button`, `Card`, `Badge`, `Input`, `FormField`).
+5. **Session & Auth Context**: Access current user identity and tokens from `useAuthStore()` (`store/auth.store.ts`).
