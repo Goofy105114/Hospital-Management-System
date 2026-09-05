@@ -1,0 +1,20 @@
+{
+  "name": "going-merry-hms",
+  "version": "1.0.0",
+  "description": "Going Merry Hospital Management System",
+  "private": true,
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "build": "npm --prefix server run build && npm --prefix client run build",
+    "test": "npm --prefix server test"
+  },
+  "keywords": ["hms", "hospital-management-system"],
+  "author": "Going Merry Team",
+  "license": "ISC"
+}
