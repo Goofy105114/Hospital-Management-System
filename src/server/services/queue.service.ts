@@ -17,6 +17,8 @@ export class QueueService {
       const token = await prisma.$transaction(
         async (tx) => {
           await tx.$queryRaw`SELECT id FROM "Doctor" WHERE id = ${doctorId} FOR UPDATE`;
+          const queueState = await tx.doctorQueueState.findUnique({ where: { doctorId } });
+          if (queueState?.isPaused) throw new QueueStateError("QUE_DOCTOR_PAUSED", 422);
           const active = await tx.queueToken.findFirst({
             where: {
               doctorId,
@@ -128,6 +130,190 @@ export class QueueService {
     return { ...result, nextToken: next.success ? next.data : null };
   }
 
+  static async transferToken(
+    tokenId: string,
+    toDoctorId: string,
+    reason: string,
+    actorId?: string,
+    actorRole?: string
+  ) {
+    try {
+      const newToken = await prisma.$transaction(
+        async (tx) => {
+          await tx.$queryRaw`SELECT id FROM "QueueToken" WHERE id = ${tokenId} FOR UPDATE`;
+          const current = await tx.queueToken.findUnique({
+            where: { id: tokenId },
+            include: { patient: { select: { userId: true } } },
+          });
+          if (!current) throw new QueueStateError("QUE_TOKEN_NOT_FOUND", 404);
+          assertQueueTransition(current.status, QueueTokenStatus.TRANSFERRED);
+          if (current.doctorId === toDoctorId) {
+            throw new QueueStateError("QUE_TRANSFER_SAME_DOCTOR", 422);
+          }
+
+          const targetDoctor = await tx.doctor.findFirst({
+            where: { id: toDoctorId, isActive: true },
+          });
+          if (!targetDoctor) throw new QueueStateError("QUE_TRANSFER_TARGET_UNAVAILABLE", 422);
+          await tx.$queryRaw`SELECT id FROM "Doctor" WHERE id = ${toDoctorId} FOR UPDATE`;
+          const todayStart = new Date();
+          todayStart.setHours(0, 0, 0, 0);
+          const [count, waiting] = await Promise.all([
+            tx.queueToken.count({
+              where: { doctorId: toDoctorId, checkedInAt: { gte: todayStart } },
+            }),
+            tx.queueToken.count({
+              where: { doctorId: toDoctorId, status: QueueTokenStatus.WAITING },
+            }),
+          ]);
+          const appointmentId = current.appointmentId;
+          await tx.queueToken.update({
+            where: { id: tokenId },
+            data: {
+              status: QueueTokenStatus.TRANSFERRED,
+              transferredToDoctorId: toDoctorId,
+              transferReason: reason,
+              appointmentId: null,
+            },
+          });
+          const created = await tx.queueToken.create({
+            data: {
+              tokenNumber: `#A-${String(count + 1).padStart(2, "0")}`,
+              doctorId: toDoctorId,
+              patientId: current.patientId,
+              appointmentId,
+              source: current.source,
+              priorityTier: current.priorityTier,
+              status: QueueTokenStatus.WAITING,
+              position: waiting + 1,
+              estimatedWaitMinutes: Math.max(5, (waiting + 1) * 12),
+              checkedInAt: current.checkedInAt,
+              transferredFromTokenId: current.id,
+              transferReason: reason,
+            },
+          });
+          await this.recordQueueMutation(
+            tx,
+            current.id,
+            "TRANSFERRED",
+            actorId,
+            actorRole,
+            { toDoctorId, newTokenId: created.id, reason },
+            current.patient.userId
+          );
+          return created;
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+      );
+      return { success: true as const, data: newToken };
+    } catch (error) {
+      return this.queueError(error);
+    }
+  }
+
+  static async setQueuePaused(
+    doctorId: string,
+    paused: boolean,
+    reason: string | undefined,
+    actorId?: string,
+    actorRole?: string
+  ) {
+    if (paused && !reason?.trim()) {
+      return { success: false as const, code: "QUE_PAUSE_REASON_REQUIRED", status: 400 };
+    }
+    try {
+      const state = await prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT id FROM "Doctor" WHERE id = ${doctorId} FOR UPDATE`;
+        const doctor = await tx.doctor.findUnique({ where: { id: doctorId } });
+        if (!doctor) throw new QueueStateError("QUE_DOCTOR_NOT_FOUND", 404);
+        const updated = await tx.doctorQueueState.upsert({
+          where: { doctorId },
+          create: {
+            doctorId,
+            isPaused: paused,
+            reason: paused ? reason : null,
+            pausedBy: paused ? actorId : null,
+            pausedAt: paused ? new Date() : null,
+            resumedAt: paused ? null : new Date(),
+          },
+          update: {
+            isPaused: paused,
+            reason: paused ? reason : null,
+            pausedBy: paused ? actorId : null,
+            pausedAt: paused ? new Date() : undefined,
+            resumedAt: paused ? null : new Date(),
+          },
+        });
+        await tx.auditLog.create({
+          data: {
+            actorId,
+            actorRole,
+            action: AuditAction.UPDATE,
+            entityType: "DoctorQueueState",
+            entityId: updated.id,
+            changes: { after: { isPaused: paused, reason: reason ?? null } },
+          },
+        });
+        await tx.outboxEvent.create({
+          data: {
+            topic: paused ? "queue.paused" : "queue.resumed",
+            aggregateType: "DoctorQueueState",
+            aggregateId: updated.id,
+            payload: { doctorId, reason: reason ?? null },
+          },
+        });
+        return updated;
+      });
+      return { success: true as const, data: state };
+    } catch (error) {
+      return this.queueError(error);
+    }
+  }
+
+  static async cancelToken(
+    tokenId: string,
+    reason: string,
+    actorId?: string,
+    actorRole?: string,
+    patientUserId?: string
+  ) {
+    try {
+      const result = await prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT id FROM "QueueToken" WHERE id = ${tokenId} FOR UPDATE`;
+        const current = await tx.queueToken.findUnique({
+          where: { id: tokenId },
+          include: { patient: { select: { userId: true } } },
+        });
+        if (!current) throw new QueueStateError("QUE_TOKEN_NOT_FOUND", 404);
+        if (patientUserId && current.patient.userId !== patientUserId) {
+          throw new QueueStateError("QUE_PATIENT_SCOPE_DENIED", 403);
+        }
+        assertQueueTransition(current.status, QueueTokenStatus.CANCELLED);
+        const updated = await tx.queueToken.update({
+          where: { id: tokenId },
+          data: {
+            status: QueueTokenStatus.CANCELLED,
+            cancelledAt: new Date(),
+            cancellationReason: reason,
+          },
+        });
+        await this.recordQueueMutation(
+          tx,
+          tokenId,
+          "CANCELLED",
+          actorId,
+          actorRole,
+          { before: current.status, after: updated.status, reason },
+          current.patient.userId
+        );
+        return updated;
+      });
+      return { success: true as const, data: result };
+    } catch (error) {
+      return this.queueError(error);
+    }
+  }
+
   private static async transitionToken(
     tokenId: string,
     target: QueueTokenStatus,
@@ -156,6 +342,12 @@ export class QueueService {
           await tx.appointment.update({
             where: { id: current.appointmentId },
             data: { status: AppointmentStatus.COMPLETED },
+          });
+        }
+        if (target === QueueTokenStatus.NO_RESPONSE && current.appointmentId) {
+          await tx.appointment.update({
+            where: { id: current.appointmentId },
+            data: { status: AppointmentStatus.NO_SHOW },
           });
         }
         await this.recordQueueMutation(

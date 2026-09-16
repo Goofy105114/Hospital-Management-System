@@ -441,7 +441,8 @@ model Doctor {
   queueTokens    QueueToken[]
   encounters     Encounter[]
   prescriptions  Prescription[]
-  admissions     Admission[]     @relation("AdmittingDoctor")
+  admissions     Admission[]       @relation("AdmittingDoctor")
+  queueState     DoctorQueueState?
 
   @@index([departmentId, isActive])
 }
@@ -529,29 +530,35 @@ model WaitlistEntry {
 // -------------------------------------------------------------
 
 model QueueToken {
-  id                    String           @id @default(uuid())
-  tokenNumber           String // e.g. #A-24 or DR01-024
-  doctorId              String
-  doctor                Doctor           @relation(fields: [doctorId], references: [id])
-  patientId             String
-  patient               Patient          @relation(fields: [patientId], references: [id])
-  appointmentId         String?          @unique
-  appointment           Appointment?     @relation(fields: [appointmentId], references: [id])
-  source                QueueSource      @default(APPOINTMENT)
-  priorityTier          PriorityTier     @default(NORMAL)
-  status                QueueTokenStatus @default(WAITING)
-  position              Int              @default(1)
-  estimatedWaitMinutes  Int              @default(15)
-  checkedInAt           DateTime         @default(now())
-  calledAt              DateTime?
-  recallCount           Int              @default(0)
-  lastRecalledAt        DateTime?
-  noResponseAt          DateTime?
-  completedAt           DateTime?
-  transferredToDoctorId String?
-  notes                 String?
-  createdAt             DateTime         @default(now())
-  updatedAt             DateTime         @updatedAt
+  id                     String           @id @default(uuid())
+  tokenNumber            String // e.g. #A-24 or DR01-024
+  doctorId               String
+  doctor                 Doctor           @relation(fields: [doctorId], references: [id])
+  patientId              String
+  patient                Patient          @relation(fields: [patientId], references: [id])
+  appointmentId          String?          @unique
+  appointment            Appointment?     @relation(fields: [appointmentId], references: [id])
+  source                 QueueSource      @default(APPOINTMENT)
+  priorityTier           PriorityTier     @default(NORMAL)
+  status                 QueueTokenStatus @default(WAITING)
+  position               Int              @default(1)
+  estimatedWaitMinutes   Int              @default(15)
+  checkedInAt            DateTime         @default(now())
+  calledAt               DateTime?
+  recallCount            Int              @default(0)
+  lastRecalledAt         DateTime?
+  noResponseAt           DateTime?
+  completedAt            DateTime?
+  transferredToDoctorId  String?
+  transferredFromTokenId String?
+  transferredFrom        QueueToken?      @relation("QueueTransfers", fields: [transferredFromTokenId], references: [id])
+  transferChildren       QueueToken[]     @relation("QueueTransfers")
+  transferReason         String?
+  cancelledAt            DateTime?
+  cancellationReason     String?
+  notes                  String?
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
 
   events     QueueEvent[]
   encounters Encounter[]
@@ -559,6 +566,19 @@ model QueueToken {
   @@index([doctorId, status])
   @@index([checkedInAt])
   @@index([patientId])
+  @@index([transferredFromTokenId])
+}
+
+model DoctorQueueState {
+  id        String    @id @default(uuid())
+  doctorId  String    @unique
+  doctor    Doctor    @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  isPaused  Boolean   @default(false)
+  reason    String?
+  pausedBy  String?
+  pausedAt  DateTime?
+  resumedAt DateTime?
+  updatedAt DateTime  @updatedAt
 }
 
 model QueueEvent {
