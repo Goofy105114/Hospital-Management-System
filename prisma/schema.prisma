@@ -224,25 +224,25 @@ enum AuditAction {
 // -------------------------------------------------------------
 
 model User {
-  id               String      @id @default(uuid())
-  email            String?     @unique
-  phone            String?     @unique
+  id               String     @id @default(uuid())
+  email            String?    @unique
+  phone            String?    @unique
   passwordHash     String?
   name             String
-  role             UserRole    @default(PATIENT)
-  status           UserStatus  @default(ACTIVE)
-  failedLoginCount Int         @default(0)
+  role             UserRole   @default(PATIENT)
+  status           UserStatus @default(ACTIVE)
+  failedLoginCount Int        @default(0)
   lockedUntil      DateTime?
   lastLoginAt      DateTime?
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
 
   // Extensions
-  patientProfile   Patient?
-  doctorProfile    Doctor?
-  refreshTokens    RefreshToken[]
-  otpChallenges    OtpChallenge[]
-  auditLogs        AuditLog[]  @relation("ActorAuditLogs")
+  patientProfile Patient?
+  doctorProfile  Doctor?
+  refreshTokens  RefreshToken[]
+  otpChallenges  OtpChallenge[]
+  auditLogs      AuditLog[]     @relation("ActorAuditLogs")
 
   @@index([role])
   @@index([status])
@@ -304,21 +304,21 @@ model SystemSetting {
 // -------------------------------------------------------------
 
 model Patient {
-  id                String      @id @default(uuid())
-  userId            String      @unique
-  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  mrn               String      @unique // e.g. MRN-2026-000123
+  id                String    @id @default(uuid())
+  userId            String    @unique
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mrn               String    @unique // e.g. MRN-2026-000123
   dob               DateTime
-  gender            Gender      @default(UNKNOWN)
-  bloodGroup        String?     // e.g. "O+", "A-", "B+"
+  gender            Gender    @default(UNKNOWN)
+  bloodGroup        String? // e.g. "O+", "A-", "B+"
   address           String?
   secondaryPhone    String?
   secondaryEmail    String?
-  preferredLanguage String?     @default("en")
-  isMerged          Boolean     @default(false)
+  preferredLanguage String?   @default("en")
+  isMerged          Boolean   @default(false)
   mergedIntoId      String?
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
   deletedAt         DateTime?
 
   // Relations
@@ -346,7 +346,7 @@ model EmergencyContact {
   patientId    String
   patient      Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
   name         String
-  relationship String   // e.g. Spouse, Parent, Child
+  relationship String // e.g. Spouse, Parent, Child
   phone        String
   createdAt    DateTime @default(now())
 
@@ -357,7 +357,7 @@ model PatientAlert {
   id             String    @id @default(uuid())
   patientId      String
   patient        Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  type           String    // e.g. ALLERGY_ON_FILE, HIGH_RISK, VIP, DNR_NOTED
+  type           String // e.g. ALLERGY_ON_FILE, HIGH_RISK, VIP, DNR_NOTED
   note           String
   isActive       Boolean   @default(true)
   resolvedReason String?
@@ -369,17 +369,17 @@ model PatientAlert {
 }
 
 model PatientDocument {
-  id          String    @id @default(uuid())
-  patientId   String
-  patient     Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  type        String    // LAB_REPORT, PRESCRIPTION_SCAN, ID_PROOF, OTHER
-  title       String
-  fileUrl     String
-  fileSize    Int?
-  mimeType    String?
-  uploadedBy  String?
-  createdAt   DateTime  @default(now())
-  deletedAt   DateTime?
+  id         String    @id @default(uuid())
+  patientId  String
+  patient    Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  type       String // LAB_REPORT, PRESCRIPTION_SCAN, ID_PROOF, OTHER
+  title      String
+  fileUrl    String
+  fileSize   Int?
+  mimeType   String?
+  uploadedBy String?
+  createdAt  DateTime  @default(now())
+  deletedAt  DateTime?
 
   @@index([patientId])
 }
@@ -389,42 +389,59 @@ model PatientDocument {
 // -------------------------------------------------------------
 
 model Department {
-  id          String        @id @default(uuid())
-  name        String        @unique
-  code        String        @unique // e.g. CARD, NEUR, DERM, ORTH, PEDI
+  id          String   @id @default(uuid())
+  name        String   @unique
+  code        String   @unique // e.g. CARD, NEUR, DERM, ORTH, PEDI
   description String?
-  isActive    Boolean       @default(true)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  doctors     Doctor[]
+  doctors      Doctor[]
   appointments Appointment[]
+  services     ClinicalService[]
+}
+
+model ClinicalService {
+  id              String     @id @default(uuid())
+  departmentId    String
+  department      Department @relation(fields: [departmentId], references: [id])
+  code            String     @unique
+  name            String
+  durationMinutes Int        @default(15)
+  isActive        Boolean    @default(true)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  appointments Appointment[]
+
+  @@index([departmentId, isActive])
 }
 
 model Doctor {
-  id              String          @id @default(uuid())
-  userId          String          @unique
-  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id              String     @id @default(uuid())
+  userId          String     @unique
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   departmentId    String
-  department      Department      @relation(fields: [departmentId], references: [id])
-  specialization  String          // e.g. "Senior Interventional Cardiologist"
-  qualifications  String?         // e.g. "MD, FACC, MBBS"
+  department      Department @relation(fields: [departmentId], references: [id])
+  specialization  String // e.g. "Senior Interventional Cardiologist"
+  qualifications  String? // e.g. "MD, FACC, MBBS"
   licenseNumber   String?
-  consultationFee Decimal         @default(120.00) @db.Decimal(10, 2)
-  roomNumber      String?         // e.g. "Suite 304, Clinic B"
+  consultationFee Decimal    @default(120.00) @db.Decimal(10, 2)
+  roomNumber      String? // e.g. "Suite 304, Clinic B"
   bio             String?
   photoUrl        String?
-  isActive        Boolean         @default(true)
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  isActive        Boolean    @default(true)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
 
-  clinicSessions  ClinicSession[]
-  leaves          DoctorLeave[]
-  appointments    Appointment[]
-  queueTokens     QueueToken[]
-  encounters      Encounter[]
-  prescriptions   Prescription[]
-  admissions      Admission[]     @relation("AdmittingDoctor")
+  clinicSessions ClinicSession[]
+  leaves         DoctorLeave[]
+  appointments   Appointment[]
+  queueTokens    QueueToken[]
+  encounters     Encounter[]
+  prescriptions  Prescription[]
+  admissions     Admission[]     @relation("AdmittingDoctor")
 
   @@index([departmentId, isActive])
 }
@@ -433,9 +450,9 @@ model ClinicSession {
   id                  String   @id @default(uuid())
   doctorId            String
   doctor              Doctor   @relation(fields: [doctorId], references: [id], onDelete: Cascade)
-  dayOfWeek           Int      // 0 (Sun) - 6 (Sat)
-  startTime           String   // e.g. "09:00"
-  endTime             String   // e.g. "17:00"
+  dayOfWeek           Int // 0 (Sun) - 6 (Sat)
+  startTime           String // e.g. "09:00"
+  endTime             String // e.g. "17:00"
   slotDurationMinutes Int      @default(15)
   maxCapacity         Int      @default(30)
   roomNumber          String?
@@ -472,6 +489,8 @@ model Appointment {
   doctor             Doctor            @relation(fields: [doctorId], references: [id])
   departmentId       String
   department         Department        @relation(fields: [departmentId], references: [id])
+  serviceId          String?
+  service            ClinicalService?  @relation(fields: [serviceId], references: [id])
   appointmentType    AppointmentType   @default(NEW)
   slotStart          DateTime
   slotEnd            DateTime
@@ -484,12 +503,12 @@ model Appointment {
   updatedAt          DateTime          @updatedAt
   deletedAt          DateTime?
 
-  queueToken         QueueToken?
-  encounter          Encounter?
+  queueToken QueueToken?
+  encounter  Encounter?
 
-  @@unique([doctorId, slotStart, status])
   @@index([patientId, slotStart])
   @@index([doctorId, slotStart])
+  @@index([serviceId])
   @@index([status])
 }
 
@@ -510,29 +529,29 @@ model WaitlistEntry {
 // -------------------------------------------------------------
 
 model QueueToken {
-  id                   String           @id @default(uuid())
-  tokenNumber          String           // e.g. #A-24 or DR01-024
-  doctorId             String
-  doctor               Doctor           @relation(fields: [doctorId], references: [id])
-  patientId            String
-  patient              Patient          @relation(fields: [patientId], references: [id])
-  appointmentId        String?          @unique
-  appointment          Appointment?     @relation(fields: [appointmentId], references: [id])
-  source               QueueSource      @default(APPOINTMENT)
-  priorityTier         PriorityTier     @default(NORMAL)
-  status               QueueTokenStatus @default(WAITING)
-  position             Int              @default(1)
-  estimatedWaitMinutes Int              @default(15)
-  checkedInAt          DateTime         @default(now())
-  calledAt             DateTime?
-  completedAt          DateTime?
+  id                    String           @id @default(uuid())
+  tokenNumber           String // e.g. #A-24 or DR01-024
+  doctorId              String
+  doctor                Doctor           @relation(fields: [doctorId], references: [id])
+  patientId             String
+  patient               Patient          @relation(fields: [patientId], references: [id])
+  appointmentId         String?          @unique
+  appointment           Appointment?     @relation(fields: [appointmentId], references: [id])
+  source                QueueSource      @default(APPOINTMENT)
+  priorityTier          PriorityTier     @default(NORMAL)
+  status                QueueTokenStatus @default(WAITING)
+  position              Int              @default(1)
+  estimatedWaitMinutes  Int              @default(15)
+  checkedInAt           DateTime         @default(now())
+  calledAt              DateTime?
+  completedAt           DateTime?
   transferredToDoctorId String?
-  notes                String?
-  createdAt            DateTime         @default(now())
-  updatedAt            DateTime         @updatedAt
+  notes                 String?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
 
-  events               QueueEvent[]
-  encounters           Encounter[]
+  events     QueueEvent[]
+  encounters Encounter[]
 
   @@index([doctorId, status])
   @@index([checkedInAt])
@@ -543,7 +562,7 @@ model QueueEvent {
   id        String     @id @default(uuid())
   tokenId   String
   token     QueueToken @relation(fields: [tokenId], references: [id], onDelete: Cascade)
-  eventType String     // ISSUED, CALLED, RECALLED, STARTED, COMPLETED, TRANSFERRED
+  eventType String // ISSUED, CALLED, RECALLED, STARTED, COMPLETED, TRANSFERRED
   payload   Json?
   createdAt DateTime   @default(now())
 
@@ -555,26 +574,26 @@ model QueueEvent {
 // -------------------------------------------------------------
 
 model Encounter {
-  id               String          @id @default(uuid())
-  encounterNumber  String          @unique // e.g. ENC-20261024-0012
-  patientId        String
-  patient          Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  doctorId         String
-  doctor           Doctor          @relation(fields: [doctorId], references: [id])
-  appointmentId    String?         @unique
-  appointment      Appointment?    @relation(fields: [appointmentId], references: [id])
-  tokenId          String?
-  queueToken       QueueToken?     @relation(fields: [tokenId], references: [id])
-  status           EncounterStatus @default(IN_PROGRESS)
-  chiefComplaint   String?
-  subjectiveNotes  String?         @db.Text
-  objectiveNotes   String?         @db.Text
-  assessmentNotes  String?         @db.Text
-  planNotes        String?         @db.Text
-  signedAt         DateTime?
-  signedBy         String?
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  id              String          @id @default(uuid())
+  encounterNumber String          @unique // e.g. ENC-20261024-0012
+  patientId       String
+  patient         Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId        String
+  doctor          Doctor          @relation(fields: [doctorId], references: [id])
+  appointmentId   String?         @unique
+  appointment     Appointment?    @relation(fields: [appointmentId], references: [id])
+  tokenId         String?
+  queueToken      QueueToken?     @relation(fields: [tokenId], references: [id])
+  status          EncounterStatus @default(IN_PROGRESS)
+  chiefComplaint  String?
+  subjectiveNotes String?         @db.Text
+  objectiveNotes  String?         @db.Text
+  assessmentNotes String?         @db.Text
+  planNotes       String?         @db.Text
+  signedAt        DateTime?
+  signedBy        String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 
   vitalSigns       VitalSign[]
   diagnoses        Diagnosis[]
@@ -587,23 +606,23 @@ model Encounter {
 }
 
 model VitalSign {
-  id                 String    @id @default(uuid())
+  id                 String     @id @default(uuid())
   encounterId        String?
   encounter          Encounter? @relation(fields: [encounterId], references: [id], onDelete: SetNull)
   patientId          String
-  patient            Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  patient            Patient    @relation(fields: [patientId], references: [id], onDelete: Cascade)
   recordedBy         String?
-  systolicBp         Int?      // e.g. 118
-  diastolicBp        Int?      // e.g. 76
-  heartRate          Int?      // e.g. 72 bpm
-  respiratoryRate    Int?      // e.g. 16
-  temperatureCelsius Decimal?  @db.Decimal(4, 1) // e.g. 36.8
-  oxygenSaturation   Int?      // e.g. 99%
-  fastingGlucose     Int?      // e.g. 94 mg/dL
-  heightCm           Decimal?  @db.Decimal(5, 2)
-  weightKg           Decimal?  @db.Decimal(5, 2)
-  bmi                Decimal?  @db.Decimal(4, 1)
-  recordedAt         DateTime  @default(now())
+  systolicBp         Int? // e.g. 118
+  diastolicBp        Int? // e.g. 76
+  heartRate          Int? // e.g. 72 bpm
+  respiratoryRate    Int? // e.g. 16
+  temperatureCelsius Decimal?   @db.Decimal(4, 1) // e.g. 36.8
+  oxygenSaturation   Int? // e.g. 99%
+  fastingGlucose     Int? // e.g. 94 mg/dL
+  heightCm           Decimal?   @db.Decimal(5, 2)
+  weightKg           Decimal?   @db.Decimal(5, 2)
+  bmi                Decimal?   @db.Decimal(4, 1)
+  recordedAt         DateTime   @default(now())
 
   @@index([patientId, recordedAt])
 }
@@ -612,7 +631,7 @@ model Diagnosis {
   id          String    @id @default(uuid())
   encounterId String
   encounter   Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
-  icdCode     String    // e.g. "I10" (Essential hypertension), "E11.9"
+  icdCode     String // e.g. "I10" (Essential hypertension), "E11.9"
   description String
   type        String    @default("PRIMARY") // PRIMARY, SECONDARY, PROVISIONAL
   createdAt   DateTime  @default(now())
@@ -624,8 +643,8 @@ model Allergy {
   id         String   @id @default(uuid())
   patientId  String
   patient    Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  allergen   String   // e.g. "Penicillin", "Sulfa drugs", "Peanuts"
-  reaction   String?  // e.g. "Anaphylaxis", "Rash"
+  allergen   String // e.g. "Penicillin", "Sulfa drugs", "Peanuts"
+  reaction   String? // e.g. "Anaphylaxis", "Rash"
   severity   String   @default("MODERATE") // MILD, MODERATE, SEVERE
   recordedAt DateTime @default(now())
 
@@ -633,13 +652,13 @@ model Allergy {
 }
 
 model MedicalHistory {
-  id          String   @id @default(uuid())
-  patientId   String
-  patient     Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  condition   String   // e.g. "Type 2 Diabetes", "Hypertension"
+  id            String   @id @default(uuid())
+  patientId     String
+  patient       Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  condition     String // e.g. "Type 2 Diabetes", "Hypertension"
   diagnosedYear Int?
-  notes       String?
-  createdAt   DateTime @default(now())
+  notes         String?
+  createdAt     DateTime @default(now())
 
   @@index([patientId])
 }
@@ -650,11 +669,11 @@ model MedicalHistory {
 
 model Medicine {
   id           String       @id @default(uuid())
-  name         String       // e.g. "Atorvastatin 20mg"
-  genericName  String       // e.g. "Atorvastatin Calcium"
+  name         String // e.g. "Atorvastatin 20mg"
+  genericName  String // e.g. "Atorvastatin Calcium"
   manufacturer String?
   form         MedicineForm @default(TABLET)
-  strength     String?      // e.g. "20mg"
+  strength     String? // e.g. "20mg"
   unit         String       @default("Tablet")
   unitPrice    Decimal      @default(1.50) @db.Decimal(10, 2)
   isActive     Boolean      @default(true)
@@ -686,41 +705,41 @@ model Prescription {
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
-  items              PrescriptionItem[]
-  dispensations      Dispensation[]
+  items         PrescriptionItem[]
+  dispensations Dispensation[]
 
   @@index([patientId])
   @@index([status])
 }
 
 model PrescriptionItem {
-  id                 String             @id @default(uuid())
+  id                 String       @id @default(uuid())
   prescriptionId     String
-  prescription       Prescription       @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  prescription       Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
   medicineId         String
-  medicine           Medicine           @relation(fields: [medicineId], references: [id])
-  dosage             String             // e.g. "20mg"
-  frequency          String             // e.g. "Once daily at bedtime"
-  durationDays       Int                @default(30)
-  quantityPrescribed Int                @default(30)
-  quantityDispensed  Int                @default(0)
+  medicine           Medicine     @relation(fields: [medicineId], references: [id])
+  dosage             String // e.g. "20mg"
+  frequency          String // e.g. "Once daily at bedtime"
+  durationDays       Int          @default(30)
+  quantityPrescribed Int          @default(30)
+  quantityDispensed  Int          @default(0)
   instructions       String?
 
-  dispensationItems  DispensationItem[]
+  dispensationItems DispensationItem[]
 
   @@index([prescriptionId])
 }
 
 model Dispensation {
-  id             String             @id @default(uuid())
+  id             String       @id @default(uuid())
   prescriptionId String
-  prescription   Prescription       @relation(fields: [prescriptionId], references: [id])
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id])
   dispensedBy    String
-  dispensedAt    DateTime           @default(now())
-  totalAmount    Decimal            @db.Decimal(10, 2)
-  status         String             @default("COMPLETED")
+  dispensedAt    DateTime     @default(now())
+  totalAmount    Decimal      @db.Decimal(10, 2)
+  status         String       @default("COMPLETED")
 
-  items          DispensationItem[]
+  items DispensationItem[]
 
   @@index([prescriptionId])
 }
@@ -751,15 +770,15 @@ model StockLocation {
   isActive  Boolean           @default(true)
   createdAt DateTime          @default(now())
 
-  batches   StockBatch[]
-  ledger    StockLedgerEntry[]
+  batches StockBatch[]
+  ledger  StockLedgerEntry[]
 }
 
 model InventoryItem {
   id                 String            @id @default(uuid())
   medicineId         String?
   medicine           Medicine?         @relation(fields: [medicineId], references: [id], onDelete: SetNull)
-  name               String            // e.g. "Atorvastatin 20mg" or "Disposable Syringe 5ml"
+  name               String // e.g. "Atorvastatin 20mg" or "Disposable Syringe 5ml"
   category           InventoryCategory @default(MEDICINE)
   unit               String            @default("Box")
   reorderThreshold   Int               @default(100)
@@ -768,29 +787,29 @@ model InventoryItem {
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
 
-  batches            StockBatch[]
-  ledger             StockLedgerEntry[]
+  batches StockBatch[]
+  ledger  StockLedgerEntry[]
 
   @@index([category])
   @@index([name])
 }
 
 model StockBatch {
-  id                String            @id @default(uuid())
+  id                String        @id @default(uuid())
   itemId            String
-  item              InventoryItem     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  item              InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
   locationId        String
-  location          StockLocation     @relation(fields: [locationId], references: [id])
-  lotNumber         String            // e.g. "LOT-2024-8841"
+  location          StockLocation @relation(fields: [locationId], references: [id])
+  lotNumber         String // e.g. "LOT-2024-8841"
   manufacturingDate DateTime?
   expiryDate        DateTime
-  quantityAvailable Int               @default(0)
-  unitCost          Decimal           @default(0.80) @db.Decimal(10, 2)
-  status            BatchStatus       @default(ACTIVE)
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
+  quantityAvailable Int           @default(0)
+  unitCost          Decimal       @default(0.80) @db.Decimal(10, 2)
+  status            BatchStatus   @default(ACTIVE)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
 
-  ledger            StockLedgerEntry[]
+  ledger StockLedgerEntry[]
 
   @@index([itemId, status])
   @@index([expiryDate])
@@ -804,9 +823,9 @@ model StockLedgerEntry {
   batch         StockBatch?         @relation(fields: [batchId], references: [id])
   locationId    String
   location      StockLocation       @relation(fields: [locationId], references: [id])
-  quantityDelta Int                 // Positive for in (+), Negative for out (-)
+  quantityDelta Int // Positive for in (+), Negative for out (-)
   reason        StockMovementReason
-  refType       String?             // e.g. "DISPENSATION", "PURCHASE_ORDER", "ADJUSTMENT"
+  refType       String? // e.g. "DISPENSATION", "PURCHASE_ORDER", "ADJUSTMENT"
   refId         String?
   createdBy     String?
   createdAt     DateTime            @default(now())
@@ -817,29 +836,29 @@ model StockLedgerEntry {
 }
 
 model Supplier {
-  id            String          @id @default(uuid())
+  id            String   @id @default(uuid())
   name          String
   contactPerson String?
   email         String?
   phone         String?
   address       String?
-  isActive      Boolean         @default(true)
-  createdAt     DateTime        @default(now())
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
 
   purchaseOrders PurchaseOrder[]
 }
 
 model PurchaseOrder {
-  id          String              @id @default(uuid())
-  poNumber    String              @unique // e.g. PO-20261024-0005
+  id          String   @id @default(uuid())
+  poNumber    String   @unique // e.g. PO-20261024-0005
   supplierId  String
-  supplier    Supplier            @relation(fields: [supplierId], references: [id])
-  status      String              @default("DRAFT") // DRAFT, APPROVED, ORDERED, RECEIVED, CANCELLED
-  totalAmount Decimal             @default(0.00) @db.Decimal(10, 2)
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
+  supplier    Supplier @relation(fields: [supplierId], references: [id])
+  status      String   @default("DRAFT") // DRAFT, APPROVED, ORDERED, RECEIVED, CANCELLED
+  totalAmount Decimal  @default(0.00) @db.Decimal(10, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  items       PurchaseOrderItem[]
+  items PurchaseOrderItem[]
 
   @@index([supplierId])
   @@index([status])
@@ -863,17 +882,17 @@ model PurchaseOrderItem {
 
 model DiagnosticCatalog {
   id             String             @id @default(uuid())
-  name           String             // e.g. "Comprehensive Metabolic Panel (CMP)"
+  name           String // e.g. "Comprehensive Metabolic Panel (CMP)"
   code           String             @unique // e.g. "LAB-CMP", "RAD-XRAY-CHEST"
   category       DiagnosticCategory @default(LABORATORY)
-  sampleType     String?            // e.g. "Venous Blood", "Urine", "N/A"
-  referenceRange String?            // e.g. "Normal Adult Standards"
+  sampleType     String? // e.g. "Venous Blood", "Urine", "N/A"
+  referenceRange String? // e.g. "Normal Adult Standards"
   price          Decimal            @default(65.00) @db.Decimal(10, 2)
   isActive       Boolean            @default(true)
   createdAt      DateTime           @default(now())
 
-  orderItems     DiagnosticOrderItem[]
-  results        DiagnosticResult[]
+  orderItems DiagnosticOrderItem[]
+  results    DiagnosticResult[]
 }
 
 model DiagnosticOrder {
@@ -889,20 +908,20 @@ model DiagnosticOrder {
   createdAt   DateTime              @default(now())
   updatedAt   DateTime              @updatedAt
 
-  items       DiagnosticOrderItem[]
-  results     DiagnosticResult[]
+  items   DiagnosticOrderItem[]
+  results DiagnosticResult[]
 
   @@index([patientId])
   @@index([status])
 }
 
 model DiagnosticOrderItem {
-  id        String            @id @default(uuid())
-  orderId   String
-  order     DiagnosticOrder   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  testId    String
-  test      DiagnosticCatalog @relation(fields: [testId], references: [id])
-  price     Decimal           @db.Decimal(10, 2)
+  id      String            @id @default(uuid())
+  orderId String
+  order   DiagnosticOrder   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  testId  String
+  test    DiagnosticCatalog @relation(fields: [testId], references: [id])
+  price   Decimal           @db.Decimal(10, 2)
 
   @@index([orderId])
 }
@@ -931,7 +950,7 @@ model DiagnosticResult {
 
 model Tariff {
   id          String   @id @default(uuid())
-  serviceType String   // CONSULTATION, PROCEDURE, ROOM, DIAGNOSTIC, MEDICINE
+  serviceType String // CONSULTATION, PROCEDURE, ROOM, DIAGNOSTIC, MEDICINE
   serviceName String
   amount      Decimal  @db.Decimal(10, 2)
   isActive    Boolean  @default(true)
@@ -956,23 +975,23 @@ model Invoice {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
-  items          InvoiceItem[]
-  payments       Payment[]
-  claims         InsuranceClaim[]
+  items    InvoiceItem[]
+  payments Payment[]
+  claims   InsuranceClaim[]
 
   @@index([patientId])
   @@index([status])
 }
 
 model InvoiceItem {
-  id           String   @id @default(uuid())
+  id           String  @id @default(uuid())
   invoiceId    String
-  invoice      Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  description  String   // e.g. "Cardiology Specialist Consultation", "Atorvastatin 20mg"
-  quantity     Int      @default(1)
-  unitPrice    Decimal  @db.Decimal(10, 2)
-  totalPrice   Decimal  @db.Decimal(10, 2)
-  sourceModule String?  // APT, EMR, PHA, DIA, IPD
+  invoice      Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  description  String // e.g. "Cardiology Specialist Consultation", "Atorvastatin 20mg"
+  quantity     Int     @default(1)
+  unitPrice    Decimal @db.Decimal(10, 2)
+  totalPrice   Decimal @db.Decimal(10, 2)
+  sourceModule String? // APT, EMR, PHA, DIA, IPD
   sourceRefId  String?
 
   @@index([invoiceId])
@@ -997,7 +1016,7 @@ model InsuranceClaim {
   invoiceId      String
   invoice        Invoice              @relation(fields: [invoiceId], references: [id])
   patientId      String
-  providerName   String               // e.g. "BlueCross BlueShield PPO"
+  providerName   String // e.g. "BlueCross BlueShield PPO"
   policyNumber   String
   authNumber     String?
   claimAmount    Decimal              @db.Decimal(10, 2)
@@ -1020,17 +1039,17 @@ model Ward {
   totalBeds Int      @default(20)
   createdAt DateTime @default(now())
 
-  beds      Bed[]
+  beds Bed[]
 }
 
 model Bed {
-  id         String     @id @default(uuid())
-  wardId     String
-  ward       Ward       @relation(fields: [wardId], references: [id], onDelete: Cascade)
-  bedNumber  String     // e.g. "BED-301-A"
-  status     BedStatus  @default(AVAILABLE)
-  dailyRate  Decimal    @default(250.00) @db.Decimal(10, 2)
-  createdAt  DateTime   @default(now())
+  id        String    @id @default(uuid())
+  wardId    String
+  ward      Ward      @relation(fields: [wardId], references: [id], onDelete: Cascade)
+  bedNumber String // e.g. "BED-301-A"
+  status    BedStatus @default(AVAILABLE)
+  dailyRate Decimal   @default(250.00) @db.Decimal(10, 2)
+  createdAt DateTime  @default(now())
 
   admissions Admission[]
 
@@ -1074,4 +1093,19 @@ model NotificationLog {
   createdAt   DateTime            @default(now())
 
   @@index([recipientId, status])
+}
+
+model OutboxEvent {
+  id            String    @id @default(uuid())
+  topic         String
+  aggregateType String
+  aggregateId   String
+  payload       Json
+  attempts      Int       @default(0)
+  availableAt   DateTime  @default(now())
+  processedAt   DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([processedAt, availableAt])
+  @@index([aggregateType, aggregateId])
 }
