@@ -136,6 +136,13 @@ enum StockMovementReason {
   RETURN
 }
 
+enum StockTransferStatus {
+  REQUESTED
+  DISPATCHED
+  RECEIVED
+  CANCELLED
+}
+
 enum DiagnosticCategory {
   LABORATORY
   RADIOLOGY
@@ -805,8 +812,10 @@ model StockLocation {
   isActive  Boolean           @default(true)
   createdAt DateTime          @default(now())
 
-  batches StockBatch[]
-  ledger  StockLedgerEntry[]
+  batches       StockBatch[]
+  ledger        StockLedgerEntry[]
+  transfersFrom StockTransfer[]    @relation("TransferSource")
+  transfersTo   StockTransfer[]    @relation("TransferDestination")
 }
 
 model InventoryItem {
@@ -822,8 +831,9 @@ model InventoryItem {
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
 
-  batches StockBatch[]
-  ledger  StockLedgerEntry[]
+  batches   StockBatch[]
+  ledger    StockLedgerEntry[]
+  transfers StockTransfer[]
 
   @@index([category])
   @@index([name])
@@ -844,11 +854,55 @@ model StockBatch {
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
-  ledger            StockLedgerEntry[]
-  dispensationItems DispensationItem[]
+  ledger               StockLedgerEntry[]
+  dispensationItems    DispensationItem[]
+  sourceTransfers      StockTransfer[]    @relation("TransferSourceBatch")
+  destinationTransfers StockTransfer[]    @relation("TransferDestinationBatch")
 
   @@index([itemId, status])
   @@index([expiryDate])
+}
+
+model StockTransfer {
+  id                  String              @id @default(uuid())
+  itemId              String
+  item                InventoryItem       @relation(fields: [itemId], references: [id])
+  sourceBatchId       String
+  sourceBatch         StockBatch          @relation("TransferSourceBatch", fields: [sourceBatchId], references: [id])
+  destinationBatchId  String?
+  destinationBatch    StockBatch?         @relation("TransferDestinationBatch", fields: [destinationBatchId], references: [id])
+  fromLocationId      String
+  fromLocation        StockLocation       @relation("TransferSource", fields: [fromLocationId], references: [id])
+  toLocationId        String
+  toLocation          StockLocation       @relation("TransferDestination", fields: [toLocationId], references: [id])
+  quantity            Int
+  receivedQuantity    Int?
+  discrepancyQuantity Int?
+  status              StockTransferStatus @default(REQUESTED)
+  requestedBy         String
+  dispatchedBy        String?
+  receivedBy          String?
+  dispatchedAt        DateTime?
+  receivedAt          DateTime?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  events StockTransferEvent[]
+
+  @@index([status, createdAt])
+  @@index([itemId, fromLocationId, toLocationId])
+}
+
+model StockTransferEvent {
+  id         String        @id @default(uuid())
+  transferId String
+  transfer   StockTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  action     String
+  actorId    String
+  payload    Json?
+  createdAt  DateTime      @default(now())
+
+  @@index([transferId, createdAt])
 }
 
 model StockLedgerEntry {
