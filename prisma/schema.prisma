@@ -1312,3 +1312,17 @@ model OutboxEvent {
   @@index([processedAt, availableAt])
   @@index([aggregateType, aggregateId])
 }
+
+model AiPredictionLog {
+  id             String   @id @default(uuid())
+  predictionType String
+  subjectId      String
+  inputs         Json
+  output         Json
+  source         String
+  confidence     Float?
+  actualOutcome  Json?
+  createdAt      DateTime @default(now())
+
+  @@index([predictionType, subjectId, createdAt])
+}
