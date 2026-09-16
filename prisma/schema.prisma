@@ -347,6 +347,7 @@ model Patient {
   medicalHistories  MedicalHistory[]
   prescriptions     Prescription[]
   diagnosticOrders  DiagnosticOrder[]
+  diagnosticReports DiagnosticReport[]
   invoices          Invoice[]
   admissions        Admission[]
   dispensations     Dispensation[]
@@ -1044,6 +1045,7 @@ model DiagnosticOrder {
 
   items   DiagnosticOrderItem[]
   results DiagnosticResult[]
+  reports DiagnosticReport[]
 
   @@index([patientId])
   @@index([status])
@@ -1061,21 +1063,42 @@ model DiagnosticOrderItem {
 }
 
 model DiagnosticResult {
-  id             String            @id @default(uuid())
-  orderId        String
-  order          DiagnosticOrder   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  testId         String
-  test           DiagnosticCatalog @relation(fields: [testId], references: [id])
-  numericValue   Decimal?          @db.Decimal(10, 2)
-  textValue      String?
-  referenceRange String?
-  isAbnormal     Boolean           @default(false)
-  reportFileUrl  String?
-  verifiedBy     String?
-  verifiedAt     DateTime?
-  createdAt      DateTime          @default(now())
+  id                 String            @id @default(uuid())
+  orderId            String
+  order              DiagnosticOrder   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  testId             String
+  test               DiagnosticCatalog @relation(fields: [testId], references: [id])
+  numericValue       Decimal?          @db.Decimal(10, 2)
+  textValue          String?
+  referenceRange     String?
+  isAbnormal         Boolean           @default(false)
+  isCritical         Boolean           @default(false)
+  criticalNotifiedAt DateTime?
+  reportFileUrl      String?
+  verifiedBy         String?
+  verifiedAt         DateTime?
+  createdAt          DateTime          @default(now())
 
   @@index([orderId])
+}
+
+model DiagnosticReport {
+  id             String          @id @default(uuid())
+  orderId        String
+  order          DiagnosticOrder @relation(fields: [orderId], references: [id])
+  patientId      String
+  patient        Patient         @relation(fields: [patientId], references: [id])
+  version        Int
+  title          String
+  structuredData Json
+  fileUrl        String?
+  generatedBy    String
+  generatedAt    DateTime        @default(now())
+  releasedAt     DateTime?
+  releasedBy     String?
+
+  @@unique([orderId, version])
+  @@index([patientId, releasedAt, generatedAt])
 }
 
 // -------------------------------------------------------------
