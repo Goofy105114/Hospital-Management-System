@@ -544,6 +544,9 @@ model QueueToken {
   estimatedWaitMinutes  Int              @default(15)
   checkedInAt           DateTime         @default(now())
   calledAt              DateTime?
+  recallCount           Int              @default(0)
+  lastRecalledAt        DateTime?
+  noResponseAt          DateTime?
   completedAt           DateTime?
   transferredToDoctorId String?
   notes                 String?
