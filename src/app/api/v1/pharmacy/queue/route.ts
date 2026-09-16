@@ -2,17 +2,35 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { apiSuccess } from "@/lib/api-envelope";
 import { PrescriptionStatus } from "@prisma/client";
+import { getAuthUser, requireRole } from "@/lib/auth";
+import { apiError } from "@/lib/api-envelope";
+import { UserRole } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
+    const auth = getAuthUser(req);
+    if (!auth) return apiError("UNAUTHENTICATED", "Authentication required", 401);
+    if (!requireRole(auth, [UserRole.PHARMACIST])) {
+      return apiError("UNAUTHORIZED_ROLE", "Pharmacist role required", 403);
+    }
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status") as PrescriptionStatus | null;
 
     const prescriptions = await prisma.prescription.findMany({
       where: {
-        ...(status ? { status } : {}),
+        ...(status
+          ? { status }
+          : {
+              status: {
+                in: [
+                  PrescriptionStatus.FINALIZED,
+                  PrescriptionStatus.PENDING,
+                  PrescriptionStatus.ON_HOLD,
+                ],
+              },
+            }),
       },
       include: {
         patient: {
@@ -21,7 +39,7 @@ export async function GET(req: NextRequest) {
         doctor: { select: { specialization: true, user: { select: { name: true } } } },
         items: { include: { medicine: true } },
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ priority: "desc" }, { createdAt: "asc" }],
     });
 
     const formatted = prescriptions.map((p) => ({
@@ -33,6 +51,11 @@ export async function GET(req: NextRequest) {
       patientMrn: p.patient.mrn,
       doctorName: p.doctor.user.name,
       status: p.status,
+      priority: p.priority,
+      validUntil:
+        p.validUntil?.toISOString() ??
+        new Date(p.createdAt.getTime() + 30 * 86_400_000).toISOString(),
+      waitMinutes: Math.max(0, Math.floor((Date.now() - p.createdAt.getTime()) / 60_000)),
       createdAt: p.createdAt.toISOString(),
       itemsCount: p.items.length,
       items: p.items.map((i) => ({
@@ -49,33 +72,8 @@ export async function GET(req: NextRequest) {
     }));
 
     return apiSuccess(formatted);
-  } catch {
-    return apiSuccess([
-      {
-        id: "rx-101",
-        prescriptionNumber: "RX-2026-0042",
-        encounterId: "enc-01",
-        patientId: "pat-01",
-        patientName: "Eleanor Pena",
-        patientMrn: "MRN-2026-001842",
-        doctorName: "Dr. Marcus Vance",
-        status: "READY_TO_DISPENSE",
-        createdAt: new Date().toISOString(),
-        itemsCount: 2,
-        items: [
-          {
-            id: "i-01",
-            medicineId: "med-02",
-            medicineName: "Metoprolol Succinate",
-            dosage: "25mg",
-            frequency: "Once daily",
-            durationDays: 30,
-            quantityPrescribed: 30,
-            quantityDispensed: 0,
-            instructions: "Take 1 tablet daily with morning meal",
-          },
-        ],
-      },
-    ]);
+  } catch (error) {
+    console.error("[PHARMACY QUEUE ERROR]", error);
+    return apiError("PHA_QUEUE_UNAVAILABLE", "Unable to load pharmacy queue", 500);
   }
 }

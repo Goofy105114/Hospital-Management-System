@@ -87,6 +87,7 @@ enum EncounterStatus {
 
 enum PrescriptionStatus {
   PENDING
+  FINALIZED
   VALIDATED
   PARTIALLY_DISPENSED
   DISPENSED
@@ -721,10 +722,14 @@ model Prescription {
   doctorId           String
   doctor             Doctor             @relation(fields: [doctorId], references: [id])
   status             PrescriptionStatus @default(PENDING)
+  priority           PriorityTier       @default(NORMAL)
+  validUntil         DateTime?
   pharmacistNotes    String?
   holdReason         String?
+  rejectionReason    String?
   validatedBy        String?
   validatedAt        DateTime?
+  reviewedAt         DateTime?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
 
@@ -733,6 +738,7 @@ model Prescription {
 
   @@index([patientId])
   @@index([status])
+  @@index([priority, createdAt])
 }
 
 model PrescriptionItem {

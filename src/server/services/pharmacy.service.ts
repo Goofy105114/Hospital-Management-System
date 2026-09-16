@@ -2,8 +2,111 @@ import { prisma } from "@/lib/prisma";
 import { SafetyCheckService } from "@/lib/safety-check";
 import { logAuditEvent } from "@/lib/audit";
 import { PrescriptionStatus, StockMovementReason, AuditAction } from "@prisma/client";
+import { assessPrescriptionEligibility } from "@/server/domain/prescription-eligibility";
 
 export class PharmacyService {
+  static async validatePrescription(prescriptionId: string, pharmacistId: string) {
+    const prescription = await prisma.prescription.findUnique({
+      where: { id: prescriptionId },
+      include: {
+        items: { include: { medicine: true } },
+        patient: { include: { allergies: true } },
+      },
+    });
+    if (!prescription) return { success: false as const, code: "PHA_RX_NOT_FOUND", status: 404 };
+    const eligibilityError = assessPrescriptionEligibility({
+      status: prescription.status,
+      createdAt: prescription.createdAt,
+      validUntil: prescription.validUntil,
+      hasInactiveMedicine: prescription.items.some((item) => !item.medicine.isActive),
+    });
+    if (eligibilityError) {
+      return {
+        success: false as const,
+        code: eligibilityError,
+        status: eligibilityError === "PHA_RX_ALREADY_DISPENSED" ? 409 : 422,
+      };
+    }
+
+    const warnings = SafetyCheckService.checkPrescriptionSafety(
+      prescription.items.map((item) => item.medicine.name),
+      prescription.patient.allergies.map((allergy) => ({
+        allergen: allergy.allergen,
+        severity: allergy.severity,
+      }))
+    );
+    const updated = await prisma.$transaction(async (tx) => {
+      const result = await tx.prescription.update({
+        where: { id: prescriptionId },
+        data: {
+          status: PrescriptionStatus.VALIDATED,
+          validatedBy: pharmacistId,
+          validatedAt: new Date(),
+          reviewedAt: new Date(),
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorId: pharmacistId,
+          action: AuditAction.APPROVE,
+          entityType: "Prescription",
+          entityId: prescriptionId,
+          changes: { before: { status: prescription.status }, after: { status: result.status } },
+        },
+      });
+      return result;
+    });
+    return { success: true as const, data: { validated: true, warnings, prescription: updated } };
+  }
+
+  static async reviewPrescription(
+    prescriptionId: string,
+    action: "HOLD" | "REJECT",
+    reason: string,
+    pharmacistId: string,
+    queryToDoctor?: string
+  ) {
+    const current = await prisma.prescription.findUnique({ where: { id: prescriptionId } });
+    if (!current) return { success: false as const, code: "PHA_RX_NOT_FOUND", status: 404 };
+    if (
+      current.status === PrescriptionStatus.DISPENSED ||
+      current.status === PrescriptionStatus.REJECTED
+    ) {
+      return { success: false as const, code: "PHA_RX_NOT_REVIEWABLE", status: 422 };
+    }
+    const status = action === "HOLD" ? PrescriptionStatus.ON_HOLD : PrescriptionStatus.REJECTED;
+    const result = await prisma.$transaction(async (tx) => {
+      const updated = await tx.prescription.update({
+        where: { id: prescriptionId },
+        data: {
+          status,
+          holdReason: action === "HOLD" ? reason : null,
+          rejectionReason: action === "REJECT" ? reason : null,
+          pharmacistNotes: queryToDoctor,
+          reviewedAt: new Date(),
+        },
+      });
+      await tx.auditLog.create({
+        data: {
+          actorId: pharmacistId,
+          action: AuditAction.UPDATE,
+          entityType: "Prescription",
+          entityId: prescriptionId,
+          changes: { before: { status: current.status }, after: { status, reason } },
+        },
+      });
+      await tx.outboxEvent.create({
+        data: {
+          topic: action === "HOLD" ? "prescription.held" : "prescription.rejected",
+          aggregateType: "Prescription",
+          aggregateId: prescriptionId,
+          payload: { doctorId: current.doctorId, reason, queryToDoctor: queryToDoctor ?? null },
+        },
+      });
+      return updated;
+    });
+    return { success: true as const, data: result };
+  }
   /**
    * Run double-check safety analysis on prescription (PHA-03)
    */
