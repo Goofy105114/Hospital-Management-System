@@ -173,6 +173,22 @@ enum InvoiceStatus {
   CANCELLED
 }
 
+enum InvoiceAdjustmentType {
+  DISCOUNT
+  WAIVER
+}
+
+enum InvoiceAdjustmentMethod {
+  PERCENT
+  FLAT
+}
+
+enum ApprovalStatus {
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+}
+
 enum PaymentMethod {
   CASH
   CARD
@@ -1132,26 +1148,56 @@ model Invoice {
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
-  items    InvoiceItem[]
-  payments Payment[]
-  claims   InsuranceClaim[]
+  items       InvoiceItem[]
+  payments    Payment[]
+  claims      InsuranceClaim[]
+  adjustments InvoiceAdjustment[]
 
   @@index([patientId])
   @@index([status])
 }
 
 model InvoiceItem {
-  id           String  @id @default(uuid())
-  invoiceId    String
-  invoice      Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  description  String // e.g. "Cardiology Specialist Consultation", "Atorvastatin 20mg"
-  quantity     Int     @default(1)
-  unitPrice    Decimal @db.Decimal(10, 2)
-  totalPrice   Decimal @db.Decimal(10, 2)
-  sourceModule String? // APT, EMR, PHA, DIA, IPD
-  sourceRefId  String?
+  id              String  @id @default(uuid())
+  invoiceId       String
+  invoice         Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  description     String // e.g. "Cardiology Specialist Consultation", "Atorvastatin 20mg"
+  quantity        Int     @default(1)
+  unitPrice       Decimal @db.Decimal(10, 2)
+  totalPrice      Decimal @db.Decimal(10, 2)
+  sourceModule    String? // APT, EMR, PHA, DIA, IPD
+  sourceRefId     String?
+  serviceCategory String?
 
   @@index([invoiceId])
+}
+
+model InvoiceAdjustment {
+  id            String                  @id @default(uuid())
+  invoiceId     String
+  invoice       Invoice                 @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoiceItemId String?
+  type          InvoiceAdjustmentType
+  method        InvoiceAdjustmentMethod @default(FLAT)
+  value         Decimal                 @db.Decimal(10, 2)
+  appliedAmount Decimal                 @default(0) @db.Decimal(10, 2)
+  reason        String
+  status        ApprovalStatus          @default(APPROVED)
+  requestedBy   String
+  approvedBy    String?
+  approvedAt    DateTime?
+  createdAt     DateTime                @default(now())
+
+  @@index([invoiceId, status])
+}
+
+model TaxRule {
+  id              String   @id @default(uuid())
+  serviceCategory String   @unique
+  ratePercent     Decimal  @db.Decimal(5, 2)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model Payment {
