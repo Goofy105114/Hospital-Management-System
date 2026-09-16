@@ -1,0 +1,9 @@
+node_modules
+.next
+dist
+build
+coverage
+*.log
+.system_generated
+prisma/*.db
+PRDs

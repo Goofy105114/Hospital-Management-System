@@ -1,0 +1,21 @@
+import { NextRequest } from "next/server";
+import { AppointmentService } from "@/server/services/appointment.service";
+import { apiSuccess, apiError } from "@/lib/api-envelope";
+
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const doctorId = searchParams.get("doctorId");
+  const date = searchParams.get("date") || new Date().toISOString().slice(0, 10);
+
+  if (!doctorId) {
+    return apiError("APT_MISSING_DOCTOR", "doctorId is required", 400);
+  }
+
+  const slots = await AppointmentService.getAvailability(doctorId, date);
+
+  return apiSuccess({
+    doctorId,
+    date,
+    slots,
+  });
+}
