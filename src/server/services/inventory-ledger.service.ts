@@ -1,4 +1,5 @@
 import { BatchStatus, Prisma, StockMovementReason } from "@prisma/client";
+import { StockAlertService } from "@/server/services/stock-alert.service";
 
 export class InventoryLedgerService {
   static async recordMovement(
@@ -45,7 +46,9 @@ export class InventoryLedgerService {
       where: { id: input.itemId },
       data: { currentStockOnHand: { increment: input.quantityDelta } },
     });
-    return tx.stockLedgerEntry.create({ data: input });
+    const entry = await tx.stockLedgerEntry.create({ data: input });
+    await StockAlertService.evaluate(tx, input.itemId, input.locationId);
+    return entry;
   }
 }
 

@@ -143,6 +143,12 @@ enum StockTransferStatus {
   CANCELLED
 }
 
+enum StockAlertStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+}
+
 enum DiagnosticCategory {
   LABORATORY
   RADIOLOGY
@@ -812,10 +818,12 @@ model StockLocation {
   isActive  Boolean           @default(true)
   createdAt DateTime          @default(now())
 
-  batches       StockBatch[]
-  ledger        StockLedgerEntry[]
-  transfersFrom StockTransfer[]    @relation("TransferSource")
-  transfersTo   StockTransfer[]    @relation("TransferDestination")
+  batches           StockBatch[]
+  ledger            StockLedgerEntry[]
+  transfersFrom     StockTransfer[]    @relation("TransferSource")
+  transfersTo       StockTransfer[]    @relation("TransferDestination")
+  reorderThresholds ReorderThreshold[]
+  stockAlerts       StockAlert[]
 }
 
 model InventoryItem {
@@ -831,12 +839,48 @@ model InventoryItem {
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
 
-  batches   StockBatch[]
-  ledger    StockLedgerEntry[]
-  transfers StockTransfer[]
+  batches           StockBatch[]
+  ledger            StockLedgerEntry[]
+  transfers         StockTransfer[]
+  reorderThresholds ReorderThreshold[]
+  stockAlerts       StockAlert[]
 
   @@index([category])
   @@index([name])
+}
+
+model ReorderThreshold {
+  id              String        @id @default(uuid())
+  itemId          String
+  item            InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  locationId      String
+  location        StockLocation @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  minQuantity     Int
+  reorderQuantity Int
+  updatedBy       String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([itemId, locationId])
+}
+
+model StockAlert {
+  id              String           @id @default(uuid())
+  itemId          String
+  item            InventoryItem    @relation(fields: [itemId], references: [id])
+  locationId      String
+  location        StockLocation    @relation(fields: [locationId], references: [id])
+  currentQuantity Int
+  threshold       Int
+  status          StockAlertStatus @default(OPEN)
+  acknowledgedBy  String?
+  acknowledgedAt  DateTime?
+  resolvedAt      DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([status, createdAt])
+  @@index([itemId, locationId, status])
 }
 
 model StockBatch {
