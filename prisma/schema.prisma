@@ -336,6 +336,7 @@ model Patient {
   diagnosticOrders  DiagnosticOrder[]
   invoices          Invoice[]
   admissions        Admission[]
+  dispensations     Dispensation[]
 
   @@index([mrn])
   @@index([dob])
@@ -763,6 +764,8 @@ model Dispensation {
   id             String       @id @default(uuid())
   prescriptionId String
   prescription   Prescription @relation(fields: [prescriptionId], references: [id])
+  patientId      String
+  patient        Patient      @relation(fields: [patientId], references: [id])
   dispensedBy    String
   dispensedAt    DateTime     @default(now())
   totalAmount    Decimal      @db.Decimal(10, 2)
@@ -771,6 +774,7 @@ model Dispensation {
   items DispensationItem[]
 
   @@index([prescriptionId])
+  @@index([patientId, dispensedAt])
 }
 
 model DispensationItem {
@@ -781,11 +785,13 @@ model DispensationItem {
   prescriptionItem   PrescriptionItem @relation(fields: [prescriptionItemId], references: [id])
   medicineId         String
   medicine           Medicine         @relation(fields: [medicineId], references: [id])
-  batchId            String?
+  batchId            String
+  batch              StockBatch       @relation(fields: [batchId], references: [id])
   quantityDispensed  Int
   unitPrice          Decimal          @db.Decimal(10, 2)
 
   @@index([dispensationId])
+  @@index([batchId])
 }
 
 // -------------------------------------------------------------
@@ -838,7 +844,8 @@ model StockBatch {
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
-  ledger StockLedgerEntry[]
+  ledger            StockLedgerEntry[]
+  dispensationItems DispensationItem[]
 
   @@index([itemId, status])
   @@index([expiryDate])
