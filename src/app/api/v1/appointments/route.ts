@@ -1,9 +1,9 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { AppointmentService } from "@/server/services/appointment.service";
-import { getAuthUser } from "@/lib/auth";
+import { getAuthUser, requireRole } from "@/lib/auth";
 import { apiSuccess, apiError } from "@/lib/api-envelope";
-import { AppointmentStatus, AppointmentType } from "@prisma/client";
+import { AppointmentStatus, AppointmentType, UserRole } from "@prisma/client";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -72,9 +72,13 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const auth = getAuthUser(req);
+    if (!auth) return apiError("UNAUTHENTICATED", "Authentication required", 401);
+    if (!requireRole(auth, [UserRole.PATIENT, UserRole.RECEPTIONIST])) {
+      return apiError("UNAUTHORIZED_ROLE", "Role cannot book appointments", 403);
+    }
     const body = await req.json();
 
-    const { patientId, doctorId, slotStart, slotEnd, appointmentType, notes } = body;
+    const { patientId, doctorId, serviceId, slotStart, slotEnd, appointmentType, notes } = body;
 
     if (!patientId || !doctorId || !slotStart || !slotEnd) {
       return apiError(
@@ -84,9 +88,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (auth.role === UserRole.PATIENT) {
+      const patient = await prisma.patient.findUnique({
+        where: { id: patientId },
+        select: { userId: true },
+      });
+      if (patient?.userId !== auth.sub) {
+        return apiError("APT_PATIENT_SCOPE_DENIED", "Patients may only book for themselves", 403);
+      }
+    }
+
     const result = await AppointmentService.bookAppointment({
       patientId,
       doctorId,
+      serviceId,
       slotStart,
       slotEnd,
       appointmentType: appointmentType as AppointmentType,

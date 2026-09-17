@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { acquireLock, releaseLock } from "@/lib/redis";
 import { logAuditEvent } from "@/lib/audit";
 import { AppointmentStatus, AppointmentType, AuditAction } from "@prisma/client";
+import { Prisma } from "@prisma/client";
+import { sessionContainsSlot, validateBookingWindow } from "@/server/domain/appointment-booking";
 
 export class AppointmentService {
   /**
@@ -99,7 +101,7 @@ export class AppointmentService {
   static async bookAppointment(params: {
     patientId: string;
     doctorId: string;
-    departmentId?: string;
+    serviceId?: string;
     slotStart: string;
     slotEnd: string;
     appointmentType?: AppointmentType;
@@ -110,6 +112,11 @@ export class AppointmentService {
     const slotStartDate = new Date(params.slotStart);
     const slotEndDate = new Date(params.slotEnd);
 
+    const windowError = validateBookingWindow({ slotStart: slotStartDate, slotEnd: slotEndDate });
+    if (windowError) {
+      return { success: false, code: windowError, status: 400 };
+    }
+
     // Concurrency Lock on (doctorId + slotStart)
     const lockKey = `appt:${params.doctorId}:${slotStartDate.getTime()}`;
     const acquired = await acquireLock(lockKey, 5);
@@ -119,74 +126,135 @@ export class AppointmentService {
     }
 
     try {
-      // 1. Double check DB inside lock
-      const existing = await prisma.appointment.findFirst({
-        where: {
-          doctorId: params.doctorId,
-          slotStart: slotStartDate,
-          status: {
-            in: [
+      try {
+        const appointment = await prisma.$transaction(
+          async (tx) => {
+            const doctor = await tx.doctor.findUnique({
+              where: { id: params.doctorId },
+              include: {
+                clinicSessions: { where: { dayOfWeek: slotStartDate.getDay(), isActive: true } },
+              },
+            });
+            if (!doctor?.isActive) throw new BookingError("APT_DOCTOR_UNAVAILABLE", 422);
+
+            const patient = await tx.patient.findFirst({
+              where: { id: params.patientId, deletedAt: null, user: { status: "ACTIVE" } },
+            });
+            if (!patient) throw new BookingError("APT_PATIENT_UNAVAILABLE", 422);
+
+            const service = params.serviceId
+              ? await tx.clinicalService.findFirst({
+                  where: {
+                    id: params.serviceId,
+                    departmentId: doctor.departmentId,
+                    isActive: true,
+                  },
+                })
+              : null;
+            if (params.serviceId && !service)
+              throw new BookingError("APT_SERVICE_UNAVAILABLE", 422);
+
+            const validSession = doctor.clinicSessions.some((session) =>
+              sessionContainsSlot({ slotStart: slotStartDate, slotEnd: slotEndDate }, session)
+            );
+            if (!validSession) throw new BookingError("APT_SLOT_NO_LONGER_VALID", 422);
+
+            const leave = await tx.doctorLeave.findFirst({
+              where: {
+                doctorId: params.doctorId,
+                status: "APPROVED",
+                startDate: { lte: slotEndDate },
+                endDate: { gte: slotStartDate },
+              },
+            });
+            if (leave) throw new BookingError("APT_SLOT_NO_LONGER_VALID", 422);
+
+            await tx.$queryRaw`SELECT id FROM "Doctor" WHERE id = ${params.doctorId} FOR UPDATE`;
+
+            const activeStatuses = [
               AppointmentStatus.CONFIRMED,
               AppointmentStatus.CHECKED_IN,
               AppointmentStatus.IN_PROGRESS,
-            ],
+            ];
+            const occupied = await tx.appointment.findFirst({
+              where: {
+                doctorId: params.doctorId,
+                slotStart: slotStartDate,
+                status: { in: activeStatuses },
+              },
+            });
+            if (occupied) throw new BookingError("APT_SLOT_ALREADY_BOOKED", 409);
+
+            const patientConflict = await tx.appointment.findFirst({
+              where: {
+                patientId: params.patientId,
+                status: { in: activeStatuses },
+                slotStart: { lt: slotEndDate },
+                slotEnd: { gt: slotStartDate },
+              },
+            });
+            if (patientConflict) throw new BookingError("APT_PATIENT_DOUBLE_BOOKING", 422);
+
+            const sequence = await tx.$queryRaw<Array<{ value: bigint }>>`
+            SELECT nextval('appointment_number_seq') AS value
+          `;
+            const datePart = slotStartDate.toISOString().slice(0, 10).replace(/-/g, "");
+            const appointmentNumber = `APT-${datePart}-${String(sequence[0].value).padStart(4, "0")}`;
+            const created = await tx.appointment.create({
+              data: {
+                appointmentNumber,
+                patientId: params.patientId,
+                doctorId: params.doctorId,
+                departmentId: doctor.departmentId,
+                serviceId: service?.id,
+                appointmentType: params.appointmentType || AppointmentType.NEW,
+                slotStart: slotStartDate,
+                slotEnd: slotEndDate,
+                status: AppointmentStatus.CONFIRMED,
+                notes: params.notes,
+                createdBy: params.actorId,
+              },
+            });
+
+            await tx.auditLog.create({
+              data: {
+                actorId: params.actorId,
+                actorRole: params.actorRole,
+                action: AuditAction.CREATE,
+                entityType: "Appointment",
+                entityId: created.id,
+                changes: {
+                  after: { appointmentNumber, slotStart: params.slotStart, status: "CONFIRMED" },
+                },
+              },
+            });
+            await tx.outboxEvent.create({
+              data: {
+                topic: "appointment.confirmed",
+                aggregateType: "Appointment",
+                aggregateId: created.id,
+                payload: {
+                  patientId: params.patientId,
+                  doctorId: params.doctorId,
+                  appointmentNumber,
+                },
+              },
+            });
+            return created;
           },
-        },
-      });
+          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+        );
 
-      if (existing) {
-        return { success: false, code: "APT_SLOT_ALREADY_BOOKED", status: 409 };
+        return { success: true, data: appointment };
+      } catch (error) {
+        if (error instanceof BookingError) {
+          return { success: false, code: error.code, status: error.status };
+        }
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+          return { success: false, code: "APT_SLOT_ALREADY_BOOKED", status: 409 };
+        }
+        throw error;
       }
-
-      // 2. Resolve department if not passed
-      let deptId = params.departmentId;
-      if (!deptId) {
-        const doctor = await prisma.doctor.findUnique({
-          where: { id: params.doctorId },
-          select: { departmentId: true },
-        });
-        deptId = doctor?.departmentId || "";
-      }
-
-      // 3. Generate human readable appointment number: APT-YYYYMMDD-XXXX
-      const datePart = slotStartDate.toISOString().slice(0, 10).replace(/-/g, "");
-      const count = await prisma.appointment.count();
-      const seq = String(count + 1).padStart(4, "0");
-      const appointmentNumber = `APT-${datePart}-${seq}`;
-
-      const appointment = await prisma.appointment.create({
-        data: {
-          appointmentNumber,
-          patientId: params.patientId,
-          doctorId: params.doctorId,
-          departmentId: deptId,
-          appointmentType: params.appointmentType || AppointmentType.NEW,
-          slotStart: slotStartDate,
-          slotEnd: slotEndDate,
-          status: AppointmentStatus.CONFIRMED,
-          notes: params.notes,
-          createdBy: params.actorId,
-        },
-        include: {
-          doctor: { select: { specialization: true, user: { select: { name: true } } } },
-          patient: { select: { mrn: true, user: { select: { name: true } } } },
-          department: { select: { name: true } },
-        },
-      });
-
-      await logAuditEvent({
-        actorId: params.actorId,
-        actorRole: params.actorRole,
-        action: AuditAction.CREATE,
-        entityType: "Appointment",
-        entityId: appointment.id,
-        changes: { after: { appointmentNumber, slotStart: params.slotStart, status: "CONFIRMED" } },
-      });
-
-      return {
-        success: true,
-        data: appointment,
-      };
     } finally {
       await releaseLock(lockKey);
     }
@@ -234,5 +302,14 @@ export class AppointmentService {
     });
 
     return { success: true, data: updated };
+  }
+}
+
+class BookingError extends Error {
+  constructor(
+    public readonly code: string,
+    public readonly status: number
+  ) {
+    super(code);
   }
 }
