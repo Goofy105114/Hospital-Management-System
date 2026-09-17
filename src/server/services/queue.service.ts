@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { predictWaitTime } from "@/lib/openrouter";
 import { logAuditEvent } from "@/lib/audit";
 import {
   AppointmentStatus,
@@ -10,6 +9,8 @@ import {
 } from "@prisma/client";
 import { Prisma } from "@prisma/client";
 import { assertQueueTransition, QueueStateError } from "@/server/domain/queue-state";
+import { WaitTimePredictionService } from "@/server/services/wait-time-prediction.service";
+import { deterministicWaitEstimate } from "@/server/domain/wait-time";
 
 export class QueueService {
   static async callNext(doctorId: string, actorId?: string, actorRole?: string) {
@@ -475,8 +476,19 @@ export class QueueService {
     const position = waitingAhead + 1;
 
     // AI wait-time estimation with fallback (AI-01)
-    const waitTimeRes = await predictWaitTime(position, 12);
-    const estimatedWaitMinutes = waitTimeRes.data.estimatedMinutes;
+    let estimatedWaitMinutes: number;
+    try {
+      estimatedWaitMinutes = (
+        await WaitTimePredictionService.predict({ doctorId, queuePosition: position })
+      ).estimatedMinutes;
+    } catch {
+      estimatedWaitMinutes = deterministicWaitEstimate({
+        queuePosition: position,
+        avgConsultationMinutes: 12,
+        activeWalkIns: 0,
+        doctorAvailable: true,
+      });
+    }
 
     // Create queue token
     const token = await prisma.queueToken.create({

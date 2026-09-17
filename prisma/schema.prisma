@@ -835,12 +835,13 @@ model StockLocation {
   isActive  Boolean           @default(true)
   createdAt DateTime          @default(now())
 
-  batches           StockBatch[]
-  ledger            StockLedgerEntry[]
-  transfersFrom     StockTransfer[]    @relation("TransferSource")
-  transfersTo       StockTransfer[]    @relation("TransferDestination")
-  reorderThresholds ReorderThreshold[]
-  stockAlerts       StockAlert[]
+  batches            StockBatch[]
+  ledger             StockLedgerEntry[]
+  transfersFrom      StockTransfer[]     @relation("TransferSource")
+  transfersTo        StockTransfer[]     @relation("TransferDestination")
+  reorderThresholds  ReorderThreshold[]
+  stockAlerts        StockAlert[]
+  reorderSuggestions ReorderSuggestion[]
 }
 
 model InventoryItem {
@@ -856,11 +857,12 @@ model InventoryItem {
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
 
-  batches           StockBatch[]
-  ledger            StockLedgerEntry[]
-  transfers         StockTransfer[]
-  reorderThresholds ReorderThreshold[]
-  stockAlerts       StockAlert[]
+  batches            StockBatch[]
+  ledger             StockLedgerEntry[]
+  transfers          StockTransfer[]
+  reorderThresholds  ReorderThreshold[]
+  stockAlerts        StockAlert[]
+  reorderSuggestions ReorderSuggestion[]
 
   @@index([category])
   @@index([name])
@@ -898,6 +900,29 @@ model StockAlert {
 
   @@index([status, createdAt])
   @@index([itemId, locationId, status])
+}
+
+model ReorderSuggestion {
+  id                 String         @id @default(uuid())
+  itemId             String
+  item               InventoryItem  @relation(fields: [itemId], references: [id])
+  locationId         String
+  location           StockLocation  @relation(fields: [locationId], references: [id])
+  suggestedQuantity  Int
+  averageDailyDemand Float
+  currentQuantity    Int
+  confidence         Float
+  source             String
+  lowConfidence      Boolean        @default(false)
+  inputs             Json
+  generatedAt        DateTime       @default(now())
+  expiresAt          DateTime
+  acceptedAt         DateTime?
+  acceptedBy         String?
+  purchaseOrder      PurchaseOrder?
+
+  @@index([locationId, generatedAt])
+  @@index([itemId, locationId, expiresAt])
 }
 
 model StockBatch {
@@ -1000,14 +1025,16 @@ model Supplier {
 }
 
 model PurchaseOrder {
-  id          String   @id @default(uuid())
-  poNumber    String   @unique // e.g. PO-20261024-0005
-  supplierId  String
-  supplier    Supplier @relation(fields: [supplierId], references: [id])
-  status      String   @default("DRAFT") // DRAFT, APPROVED, ORDERED, RECEIVED, CANCELLED
-  totalAmount Decimal  @default(0.00) @db.Decimal(10, 2)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                 String             @id @default(uuid())
+  poNumber           String             @unique // e.g. PO-20261024-0005
+  supplierId         String
+  supplier           Supplier           @relation(fields: [supplierId], references: [id])
+  status             String             @default("DRAFT") // DRAFT, APPROVED, ORDERED, RECEIVED, CANCELLED
+  totalAmount        Decimal            @default(0.00) @db.Decimal(10, 2)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  sourceSuggestionId String?            @unique
+  sourceSuggestion   ReorderSuggestion? @relation(fields: [sourceSuggestionId], references: [id])
 
   items PurchaseOrderItem[]
 
@@ -1311,4 +1338,18 @@ model OutboxEvent {
 
   @@index([processedAt, availableAt])
   @@index([aggregateType, aggregateId])
+}
+
+model AiPredictionLog {
+  id             String   @id @default(uuid())
+  predictionType String
+  subjectId      String
+  inputs         Json
+  output         Json
+  source         String
+  confidence     Float?
+  actualOutcome  Json?
+  createdAt      DateTime @default(now())
+
+  @@index([predictionType, subjectId, createdAt])
 }
