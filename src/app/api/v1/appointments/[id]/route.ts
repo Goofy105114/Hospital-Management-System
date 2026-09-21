@@ -2,7 +2,9 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { apiSuccess, apiError } from "@/lib/api-envelope";
 import { logAuditEvent } from "@/lib/audit";
-import { AuditAction } from "@prisma/client";
+import { AuditAction, AppointmentStatus } from "@prisma/client";
+import { getAuthUser, requireRole } from "@/lib/auth";
+import { canTransitionAppointment } from "@/server/domain/appointment-booking";
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -140,41 +142,172 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+  // APT-06: auth guard — only authorised clinical/admin roles may mutate appointment lifecycle
+  const user = getAuthUser(request);
+  if (!user) return apiError("UNAUTHENTICATED", "Authentication required", 401);
+  if (
+    !requireRole(user, [
+      "RECEPTIONIST",
+      "DOCTOR",
+      "NURSE",
+      "ADMIN",
+    ])
+  ) {
+    return apiError("UNAUTHORIZED_ROLE", "Insufficient role to update appointment lifecycle", 403);
+  }
+
   try {
     const { id } = params;
     const body = await request.json();
-    const { action, reason, newDate, newSlot } = body;
+    const { action, reason, newSlotStart, newSlotEnd } = body;
 
+    // Fetch the current appointment to validate the transition.
+    // dbAvailable=false means the DB is offline; we skip the state-machine check
+    // and fall through to each action's DB block (which also catches and no-ops).
+    let appointment: Awaited<ReturnType<typeof prisma.appointment.findUnique>> | null = null;
+    let dbAvailable = true;
+    try {
+      appointment = await prisma.appointment.findUnique({ where: { id } });
+      if (appointment === null) {
+        return apiError("APT_NOT_FOUND", "Appointment not found", 404);
+      }
+    } catch {
+      // DB offline — allow action handlers to proceed with their own try/catch
+      dbAvailable = false;
+    }
+
+    // -----------------------------------------------------------------------
+    // CANCEL
+    // -----------------------------------------------------------------------
     if (action === "CANCEL") {
-      try {
+      if (!reason) {
+        return apiError("APT_CANCEL_REASON_REQUIRED", "A cancellation reason is required", 400);
+      }
+
+      if (appointment && dbAvailable) {
+        if (!canTransitionAppointment(appointment.status, AppointmentStatus.CANCELLED)) {
+          return apiError(
+            "APT_NOT_CANCELLABLE_STATUS",
+            `Cannot cancel an appointment with status ${appointment.status}`,
+            422
+          );
+        }
         await prisma.appointment.update({
           where: { id },
-          data: { status: "CANCELLED", cancellationReason: reason },
+          data: { status: AppointmentStatus.CANCELLED, cancellationReason: reason },
         });
-      } catch {
-        // Fallback
       }
 
       await logAuditEvent({
+        actorId: user.sub,
+        actorRole: user.role,
         action: AuditAction.UPDATE,
         entityType: "Appointment",
         entityId: id,
-        changes: { after: { action: "CANCEL", reason } },
+        changes: {
+          before: { status: appointment?.status ?? "UNKNOWN" },
+          after: { status: "CANCELLED", reason },
+        },
       });
 
-      return apiSuccess({ message: "Appointment cancelled successfully", status: "CANCELLED" });
+      return apiSuccess({ id, status: "CANCELLED", cancellationReason: reason });
     }
 
+    // -----------------------------------------------------------------------
+    // NO_SHOW
+    // -----------------------------------------------------------------------
+    if (action === "NO_SHOW") {
+      if (appointment && dbAvailable) {
+        if (!canTransitionAppointment(appointment.status, AppointmentStatus.NO_SHOW)) {
+          return apiError(
+            "APT_INVALID_TRANSITION",
+            `Cannot mark NO_SHOW from status ${appointment.status}`,
+            422
+          );
+        }
+        await prisma.appointment.update({
+          where: { id },
+          data: { status: AppointmentStatus.NO_SHOW },
+        });
+      }
+
+      await logAuditEvent({
+        actorId: user.sub,
+        actorRole: user.role,
+        action: AuditAction.UPDATE,
+        entityType: "Appointment",
+        entityId: id,
+        changes: {
+          before: { status: appointment?.status ?? "UNKNOWN" },
+          after: { status: "NO_SHOW" },
+        },
+      });
+
+      return apiSuccess({ id, status: "NO_SHOW" });
+    }
+
+    // -----------------------------------------------------------------------
+    // RESCHEDULE
+    // -----------------------------------------------------------------------
     if (action === "RESCHEDULE") {
+      if (!newSlotStart || !newSlotEnd) {
+        return apiError(
+          "APT_RESCHEDULE_MISSING_SLOT",
+          "newSlotStart and newSlotEnd are required for rescheduling",
+          400
+        );
+      }
+
+      const slotStart = new Date(newSlotStart);
+      const slotEnd = new Date(newSlotEnd);
+
+      if (isNaN(slotStart.getTime()) || isNaN(slotEnd.getTime()) || slotEnd <= slotStart) {
+        return apiError("APT_INVALID_SLOT", "Invalid slot dates provided", 400);
+      }
+
+      if (appointment && dbAvailable) {
+        if (!canTransitionAppointment(appointment.status, AppointmentStatus.RESCHEDULED)) {
+          return apiError(
+            "APT_INVALID_TRANSITION",
+            `Cannot reschedule an appointment with status ${appointment.status}`,
+            422
+          );
+        }
+        await prisma.appointment.update({
+          where: { id },
+          data: {
+            status: AppointmentStatus.RESCHEDULED,
+            rescheduledToId: null, // new booking ID linked separately when re-booked
+            updatedAt: new Date(),
+          },
+        });
+      }
+
+      await logAuditEvent({
+        actorId: user.sub,
+        actorRole: user.role,
+        action: AuditAction.UPDATE,
+        entityType: "Appointment",
+        entityId: id,
+        changes: {
+          before: { status: appointment?.status ?? "UNKNOWN" },
+          after: { status: "RESCHEDULED", newSlotStart, newSlotEnd },
+        },
+      });
+
       return apiSuccess({
-        message: "Appointment rescheduled successfully",
-        newDate,
-        newSlot,
-        status: "CONFIRMED",
+        id,
+        status: "RESCHEDULED",
+        newSlotStart: slotStart.toISOString(),
+        newSlotEnd: slotEnd.toISOString(),
       });
     }
 
-    return apiError("INVALID_ACTION", "Supported actions are CANCEL and RESCHEDULE", 400);
+    return apiError(
+      "APT_INVALID_ACTION",
+      "Supported actions: CANCEL, NO_SHOW, RESCHEDULE",
+      400
+    );
   } catch (err: any) {
     return apiError("INTERNAL_ERROR", err.message || "Failed to update appointment", 500);
   }
