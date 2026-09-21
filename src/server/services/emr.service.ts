@@ -101,6 +101,16 @@ export class EmrService {
       plan?: string;
     }
   ) {
+    const existing = await prisma.encounter.findUnique({
+      where: { id: encounterId },
+    });
+
+    if (existing && existing.status === EncounterStatus.FINALIZED) {
+      const error = new Error("EMR_NOTE_ALREADY_SIGNED");
+      (error as any).status = 422;
+      throw error;
+    }
+
     return prisma.encounter.update({
       where: { id: encounterId },
       data: {
