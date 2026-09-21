@@ -13,6 +13,10 @@ export function canTransitionEncounter(
   return ENCOUNTER_TRANSITIONS[from]?.includes(to) ?? false;
 }
 
+export function canEditEncounterNotes(status: EncounterStatus | string): boolean {
+  return status === EncounterStatus.IN_PROGRESS;
+}
+
 export function validateEncounterCreation(input: {
   patientId?: string;
   doctorId?: string;
