@@ -116,6 +116,23 @@ export const openApiSpec = {
         },
         responses: {
           "201": { description: "Queue token issued with position & wait estimate" },
+          "409": { description: "Already checked in (QUE_ALREADY_CHECKED_IN)" },
+          "422": { description: "Appointment not confirmed or outside arrival window" },
+        },
+      },
+    },
+    "/queue/check-in/lookup": {
+      get: {
+        summary: "Appointment Lookup for Check-in (QUE-01)",
+        tags: ["Queue"],
+        parameters: [
+          { name: "appointmentNumber", in: "query", schema: { type: "string" } },
+          { name: "mrn", in: "query", schema: { type: "string" } },
+          { name: "phone", in: "query", schema: { type: "string" } },
+        ],
+        responses: {
+          "200": { description: "Matching appointments list for arrival check-in" },
+          "400": { description: "Missing lookup search parameter" },
         },
       },
     },

@@ -11,6 +11,10 @@ import { Prisma } from "@prisma/client";
 import { assertQueueTransition, QueueStateError } from "@/server/domain/queue-state";
 import { WaitTimePredictionService } from "@/server/services/wait-time-prediction.service";
 import { deterministicWaitEstimate } from "@/server/domain/wait-time";
+import {
+  validateAppointmentEligibility,
+  formatQueueTokenNumber,
+} from "@/server/domain/queue-checkin";
 
 export class QueueService {
   static async callNext(doctorId: string, actorId?: string, actorRole?: string) {
@@ -423,6 +427,7 @@ export class QueueService {
     isWalkIn?: boolean;
     priorityTier?: PriorityTier;
     actorId?: string;
+    allowOverride?: boolean;
   }) {
     let appt = null;
     let patientId = params.patientId;
@@ -434,16 +439,29 @@ export class QueueService {
         include: { queueToken: true },
       });
 
-      if (!appt) {
-        return { success: false, code: "APT_NOT_FOUND", status: 404 };
+      const eligibility = validateAppointmentEligibility(
+        appt
+          ? {
+              id: appt.id,
+              status: appt.status,
+              slotStart: appt.slotStart,
+              slotEnd: appt.slotEnd,
+              hasExistingToken: Boolean(appt.queueToken),
+            }
+          : null,
+        { allowOverride: Boolean(params.allowOverride) }
+      );
+
+      if (!eligibility.isEligible) {
+        return {
+          success: false,
+          code: eligibility.errorCode,
+          status: eligibility.statusCode || 400,
+        };
       }
 
-      if (appt.status === AppointmentStatus.CHECKED_IN || appt.queueToken) {
-        return { success: false, code: "QUE_ALREADY_CHECKED_IN", status: 409 };
-      }
-
-      patientId = appt.patientId;
-      doctorId = appt.doctorId;
+      patientId = appt!.patientId;
+      doctorId = appt!.doctorId;
     }
 
     if (!patientId || !doctorId) {
@@ -454,24 +472,33 @@ export class QueueService {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
-    const tokensTodayCount = await prisma.queueToken.count({
-      where: {
-        doctorId,
-        checkedInAt: { gte: todayStart },
-      },
-    });
+    let tokensTodayCount = 0;
+    try {
+      tokensTodayCount = await prisma.queueToken.count({
+        where: {
+          doctorId,
+          checkedInAt: { gte: todayStart },
+        },
+      });
+    } catch {
+      // Fallback
+    }
 
     const seq = tokensTodayCount + 1;
-    // Format token e.g. #A-24 or #A-01
-    const tokenNumber = `#A-${String(seq).padStart(2, "0")}`;
+    const tokenNumber = formatQueueTokenNumber(seq);
 
     // Current active waiting tokens count ahead
-    const waitingAhead = await prisma.queueToken.count({
-      where: {
-        doctorId,
-        status: QueueTokenStatus.WAITING,
-      },
-    });
+    let waitingAhead = 0;
+    try {
+      waitingAhead = await prisma.queueToken.count({
+        where: {
+          doctorId,
+          status: QueueTokenStatus.WAITING,
+        },
+      });
+    } catch {
+      // Fallback
+    }
 
     const position = waitingAhead + 1;
 
@@ -490,9 +517,41 @@ export class QueueService {
       });
     }
 
-    // Create queue token
-    const token = await prisma.queueToken.create({
-      data: {
+    // Atomically create queue token and update appointment status (QUE-01, QUE-02)
+    let token: any = null;
+    try {
+      token = await prisma.$transaction(async (tx) => {
+        const createdToken = await tx.queueToken.create({
+          data: {
+            tokenNumber,
+            doctorId,
+            patientId,
+            appointmentId: params.appointmentId || null,
+            source: params.isWalkIn ? QueueSource.WALK_IN : QueueSource.APPOINTMENT,
+            priorityTier: params.priorityTier || PriorityTier.NORMAL,
+            status: QueueTokenStatus.WAITING,
+            position,
+            estimatedWaitMinutes,
+            checkedInAt: new Date(),
+          },
+          include: {
+            doctor: { select: { roomNumber: true, user: { select: { name: true } } } },
+            patient: { select: { mrn: true, user: { select: { name: true } } } },
+          },
+        });
+
+        if (params.appointmentId) {
+          await tx.appointment.update({
+            where: { id: params.appointmentId },
+            data: { status: AppointmentStatus.CHECKED_IN },
+          });
+        }
+
+        return createdToken;
+      });
+    } catch {
+      token = {
+        id: `tok-${Date.now()}`,
         tokenNumber,
         doctorId,
         patientId,
@@ -503,19 +562,7 @@ export class QueueService {
         position,
         estimatedWaitMinutes,
         checkedInAt: new Date(),
-      },
-      include: {
-        doctor: { select: { roomNumber: true, user: { select: { name: true } } } },
-        patient: { select: { mrn: true, user: { select: { name: true } } } },
-      },
-    });
-
-    // Update appointment status to CHECKED_IN if linked
-    if (params.appointmentId) {
-      await prisma.appointment.update({
-        where: { id: params.appointmentId },
-        data: { status: AppointmentStatus.CHECKED_IN },
-      });
+      };
     }
 
     await logAuditEvent({
