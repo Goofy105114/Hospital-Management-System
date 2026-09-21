@@ -152,5 +152,79 @@ export const openApiSpec = {
         },
       },
     },
+    "/admin/system-settings": {
+      get: {
+        summary: "Retrieve System Configuration (ADM-04)",
+        tags: ["Administration"],
+        responses: {
+          "200": { description: "Current system settings and operational controls" },
+          "401": { description: "Unauthorized" },
+          "403": { description: "Forbidden" },
+        },
+      },
+      put: {
+        summary: "Update System Configuration (ADM-04)",
+        tags: ["Administration"],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  sessionTimeoutMinutes: { type: "integer", example: 15 },
+                  allowMultipleSessions: { type: "boolean", example: true },
+                  maintenanceMode: { type: "boolean", example: false },
+                  featureFlags: { type: "object" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "System settings updated and audited" },
+          "400": { description: "Invalid payload" },
+          "401": { description: "Unauthorized" },
+          "403": { description: "Forbidden" },
+        },
+      },
+    },
+    "/admin/integration-settings": {
+      get: {
+        summary: "Retrieve Integration Settings (ADM-04)",
+        tags: ["Administration"],
+        responses: {
+          "200": { description: "Current integration provider settings" },
+          "401": { description: "Unauthorized" },
+          "403": { description: "Forbidden" },
+        },
+      },
+      put: {
+        summary: "Update Integration Settings (ADM-04)",
+        tags: ["Administration"],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  smsProvider: { type: "string", example: "TWILIO" },
+                  emailProvider: { type: "string", example: "SENDGRID" },
+                  paymentProvider: { type: "string", example: "STRIPE" },
+                  webhookUrl: { type: "string", example: "https://api.goingmerry.org/webhook" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": { description: "Integration settings updated and audited" },
+          "400": { description: "Invalid payload" },
+          "401": { description: "Unauthorized" },
+          "403": { description: "Forbidden" },
+        },
+      },
+    },
   },
 };
