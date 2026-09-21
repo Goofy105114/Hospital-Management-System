@@ -33,3 +33,20 @@ export class QueueStateError extends Error {
     super(code);
   }
 }
+
+// ---------------------------------------------------------------------------
+// QUE-02 — Token number format helper
+// ---------------------------------------------------------------------------
+
+/**
+ * Generates a display token number in the format {DEPTPREFIX}-{3-digit seq}
+ * per QUE-02 PRD: e.g. "CA-014" (Cardiology, 14th token today).
+ *
+ * deptCode: the Department.code value (e.g. "CARD", "NEUR", "PEDI").
+ *           First 2 characters are taken, uppercased.
+ * seq:      1-based daily sequence number per doctor.
+ */
+export function generateTokenNumber(deptCode: string, seq: number): string {
+  const prefix = deptCode.slice(0, 2).toUpperCase();
+  return `${prefix}-${String(seq).padStart(3, "0")}`;
+}
