@@ -1,10 +1,21 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { apiSuccess, apiError } from "@/lib/api-envelope";
+import { getAuthUser } from "@/lib/auth";
+import { hasPiiAccess, maskPhone, maskEmail } from "@/lib/pii";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
+  // SEC-02: auth required — PII is never returned to unauthenticated callers
+  const user = getAuthUser(req);
+  if (!user) return apiError("UNAUTHENTICATED", "Authentication required", 401);
+
+  // Determine whether this caller sees full or masked PII.
+  // PATIENT role can only see their own record (handled below); for the list
+  // they see masked PII for all other patients.
+  const fullPii = hasPiiAccess(user.role);
+
   try {
     const { searchParams } = new URL(req.url);
     const query = searchParams.get("query") || "";
@@ -57,8 +68,12 @@ export async function GET(req: NextRequest) {
         age: calculatedAge || 35,
         gender: p.gender === "FEMALE" ? "Female" : p.gender === "MALE" ? "Male" : "Other",
         bloodGroup: p.bloodGroup || "O+",
-        phone: p.user.phone || "+1 (555) 000-0000",
-        email: p.user.email || "patient@example.com",
+        phone: fullPii
+          ? p.user.phone || "+1 (555) 000-0000"
+          : maskPhone(p.user.phone) || "+X-XXXXX-0000",
+        email: fullPii
+          ? p.user.email || "patient@example.com"
+          : maskEmail(p.user.email) || "p*****@example.com",
         alertsCount: p.alerts.length,
         lastVisit: lastVisitStr,
         status: p.user.status === "ACTIVE" ? "ACTIVE" : "INACTIVE",
