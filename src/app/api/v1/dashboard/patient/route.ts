@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { apiSuccess, apiError } from "@/lib/api-envelope";
 import { prisma } from "@/lib/prisma";
+import { getAuthUser, requireRole } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -127,9 +128,17 @@ const FALLBACK_PATIENT_DASHBOARD = {
 
 export async function GET(req: NextRequest) {
   try {
+    const { searchParams } = new URL(req.url);
+    const patientIdParam = searchParams.get("patientId");
+    const mrnParam = searchParams.get("mrn");
+
     try {
       const patient = await prisma.patient.findFirst({
-        where: { deletedAt: null },
+        where: {
+          deletedAt: null,
+          ...(patientIdParam ? { id: patientIdParam } : {}),
+          ...(mrnParam ? { mrn: mrnParam } : {}),
+        },
         include: {
           user: true,
           vitalSigns: { orderBy: { recordedAt: "desc" }, take: 1 },
