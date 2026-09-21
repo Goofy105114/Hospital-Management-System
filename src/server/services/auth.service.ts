@@ -108,7 +108,8 @@ export class AuthService {
     const accessToken = generateAccessToken(tokenPayload);
     const refreshToken = generateRefreshToken(user.id);
 
-    // Store refresh token
+    // Clear old refresh tokens for this user, then store new one
+    await prisma.refreshToken.deleteMany({ where: { userId: user.id } });
     await prisma.refreshToken.create({
       data: {
         userId: user.id,
