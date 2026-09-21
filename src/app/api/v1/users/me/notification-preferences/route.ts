@@ -25,9 +25,20 @@ export async function GET(req: NextRequest) {
   }
 }
 
+import { validateNotificationPreferences } from "@/server/domain/notification-preference";
+
 export async function PUT(req: NextRequest) {
   try {
     const body = await req.json();
+    const validation = validateNotificationPreferences(body);
+    if (!validation.isValid) {
+      return apiError(
+        validation.errorCode || "NOT_INVALID_PREFERENCES",
+        validation.errorMessage || "Invalid notification preferences payload",
+        400
+      );
+    }
+
     PREFERENCES_STORE = {
       ...PREFERENCES_STORE,
       ...body,
