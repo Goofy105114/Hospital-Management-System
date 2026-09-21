@@ -132,4 +132,31 @@ export class EmrService {
 
     return encounter;
   }
+
+  static async getPatientContext(patientId: string) {
+    try {
+      const patient = await prisma.patient.findUnique({
+        where: { id: patientId },
+        include: {
+          user: { select: { name: true, email: true, phone: true } },
+          allergies: true,
+          vitalSigns: { take: 5, orderBy: { recordedAt: "desc" } },
+          encounters: {
+            take: 5,
+            orderBy: { createdAt: "desc" },
+            select: {
+              id: true,
+              encounterNumber: true,
+              status: true,
+              chiefComplaint: true,
+              createdAt: true,
+            },
+          },
+        },
+      });
+      return patient;
+    } catch {
+      return null;
+    }
+  }
 }
