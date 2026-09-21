@@ -7,126 +7,166 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 
-interface StaffUser {
+export type UserRole =
+  | "DOCTOR"
+  | "NURSE"
+  | "PHARMACIST"
+  | "LAB_TECH"
+  | "RADIOLOGIST"
+  | "INVENTORY_MANAGER"
+  | "BILLING_STAFF"
+  | "RECEPTIONIST"
+  | "ADMIN"
+  | "MANAGEMENT"
+  | "SUPER_ADMIN";
+
+export type UserLifecycleStatus = "ACTIVE" | "LOCKED" | "SUSPENDED" | "PENDING_VERIFICATION";
+
+export interface StaffUser {
   id: string;
-  name: string;
+  fullName: string;
+  name?: string;
   email: string;
-  phone: string;
+  phone?: string;
   role: string;
   department: string;
-  status: "ACTIVE" | "LOCKED" | "SUSPENDED" | "PENDING_VERIFICATION";
-  lastLoginAt: string;
+  departmentName?: string;
+  licenseNumber?: string;
+  status: UserLifecycleStatus;
+  requiresElevatedApproval?: boolean;
+  lastLoginAt?: string;
+  createdAt?: string;
 }
 
-const INITIAL_FALLBACK_STAFF: StaffUser[] = [
+const INITIAL_STAFF_USERS: StaffUser[] = [
   {
     id: "usr-01",
-    name: "Dr. Marcus Vance",
+    fullName: "Dr. Marcus Vance",
     email: "marcus.vance@goingmerry.org",
     phone: "+1 (555) 100-2001",
     role: "DOCTOR",
     department: "Cardiology",
+    departmentName: "Cardiology & CCU",
+    licenseNumber: "MED-LIC-99401",
     status: "ACTIVE",
+    requiresElevatedApproval: false,
     lastLoginAt: "Today, 08:30 AM",
+    createdAt: "2026-08-01",
   },
   {
     id: "usr-02",
-    name: "Dr. Sarah Jenkins",
-    email: "sarah.jenkins@goingmerry.org",
-    phone: "+1 (555) 100-2002",
-    role: "DOCTOR",
-    department: "Pediatrics",
+    fullName: "Elena Rostova",
+    email: "elena.rostova@goingmerry.org",
+    phone: "+1 (555) 100-3001",
+    role: "NURSE",
+    department: "Intensive Care Unit",
+    departmentName: "Intensive Care Unit",
+    licenseNumber: "NUR-LIC-44812",
     status: "ACTIVE",
-    lastLoginAt: "Today, 08:45 AM",
+    requiresElevatedApproval: false,
+    lastLoginAt: "Today, 07:00 AM",
+    createdAt: "2026-08-15",
   },
   {
     id: "usr-03",
-    name: "Elena Rostova",
-    email: "elena.rostova@goingmerry.org",
-    phone: "+1 (555) 100-3001",
+    fullName: "Kavita Sharma",
+    email: "kavita.s@goingmerry.org",
+    phone: "+1 (555) 100-3002",
     role: "PHARMACIST",
     department: "Central Pharmacy",
+    departmentName: "Central Pharmacy Dispensary",
+    licenseNumber: "PHM-LIC-11093",
     status: "ACTIVE",
-    lastLoginAt: "Today, 07:50 AM",
+    requiresElevatedApproval: false,
+    lastLoginAt: "Today, 09:15 AM",
+    createdAt: "2026-09-01",
   },
   {
     id: "usr-04",
-    name: "Alex Morgan",
+    fullName: "David Sterling",
+    email: "david.s@goingmerry.org",
+    phone: "+1 (555) 100-7002",
+    role: "ADMIN",
+    department: "Hospital Administration",
+    departmentName: "Executive Administration",
+    licenseNumber: "ADM-88210",
+    status: "PENDING_VERIFICATION",
+    requiresElevatedApproval: true,
+    lastLoginAt: "Never",
+    createdAt: "2026-10-23",
+  },
+  {
+    id: "usr-05",
+    fullName: "Alex Morgan",
     email: "alex.morgan@goingmerry.org",
     phone: "+1 (555) 100-4001",
     role: "LAB_TECH",
     department: "Diagnostics Laboratory",
+    departmentName: "Diagnostics Laboratory",
+    licenseNumber: "LAB-LIC-55019",
     status: "ACTIVE",
+    requiresElevatedApproval: false,
     lastLoginAt: "Yesterday, 04:20 PM",
-  },
-  {
-    id: "usr-05",
-    name: "David Ross",
-    email: "david.ross@goingmerry.org",
-    phone: "+1 (555) 100-5001",
-    role: "NURSE",
-    department: "Emergency Triage",
-    status: "ACTIVE",
-    lastLoginAt: "Today, 07:00 AM",
+    createdAt: "2026-08-20",
   },
   {
     id: "usr-06",
-    name: "Rachel Zane",
+    fullName: "Rachel Zane",
     email: "rachel.zane@goingmerry.org",
     phone: "+1 (555) 100-6001",
     role: "BILLING_STAFF",
     department: "Cashier & Billing",
+    departmentName: "Cashier & Billing",
+    licenseNumber: "BIL-LIC-99014",
     status: "ACTIVE",
+    requiresElevatedApproval: false,
     lastLoginAt: "Today, 09:10 AM",
-  },
-  {
-    id: "usr-07",
-    name: "Arthur Pendelton (Former)",
-    email: "arthur.pendelton@goingmerry.org",
-    phone: "+1 (555) 100-7001",
-    role: "ADMIN",
-    department: "Hospital Administration",
-    status: "LOCKED",
-    lastLoginAt: "Oct 10, 2026",
+    createdAt: "2026-09-10",
   },
 ];
 
 export default function StaffUsersManagementPage() {
-  const [staffList, setStaffList] = useState<StaffUser[]>(INITIAL_FALLBACK_STAFF);
+  const [users, setUsers] = useState<StaffUser[]>(INITIAL_STAFF_USERS);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("ALL");
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [createdPasswordInfo, setCreatedPasswordInfo] = useState<{ name: string; email: string; pass: string } | null>(null);
+  const [tempPasswordModal, setTempPasswordModal] = useState<{
+    name: string;
+    email: string;
+    pass: string;
+  } | null>(null);
 
-  // New Staff State
-  const [newName, setNewName] = useState("");
-  const [newEmail, setNewEmail] = useState("");
-  const [newPhone, setNewPhone] = useState("");
-  const [newRole, setNewRole] = useState("DOCTOR");
-  const [newDept, setNewDept] = useState("Cardiology");
+  const [formData, setFormData] = useState({
+    fullName: "",
+    email: "",
+    phone: "",
+    role: "DOCTOR",
+    departmentName: "Cardiology",
+    licenseNumber: "",
+  });
 
-  const fetchStaff = async () => {
+  const fetchUsers = async () => {
     try {
       setLoading(true);
       const res = await fetch("/api/v1/admin/users");
       const json = await res.json();
       if (json.success && Array.isArray(json.data)) {
-        setStaffList(json.data);
+        setUsers(json.data);
       }
     } catch (e) {
-      console.error("Failed to load staff list from API", e);
+      console.error("Failed to load staff list", e);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchStaff();
+    fetchUsers();
   }, []);
 
-  const handleAddStaff = async (e: React.FormEvent) => {
+  const handleCreateStaff = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       setSubmitting(true);
@@ -134,69 +174,98 @@ export default function StaffUsersManagementPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: newName,
-          email: newEmail,
-          phone: newPhone || "+1 (555) 100-9999",
-          role: newRole,
-          department: newDept,
+          fullName: formData.fullName,
+          name: formData.fullName,
+          email: formData.email,
+          phone: formData.phone || "+1 (555) 100-9999",
+          role: formData.role,
+          department: formData.departmentName,
+          departmentName: formData.departmentName,
+          licenseNumber: formData.licenseNumber || undefined,
         }),
       });
       const json = await res.json();
       if (json.success && json.data) {
         const createdUser: StaffUser = json.data.user || json.data;
-        const tempPassword = json.data.tempPassword || "Temp#SecurePass99";
+        const tempPassword = json.data.tempPassword || "Temp#Pass2026!";
 
-        setStaffList((prev) => [createdUser, ...prev]);
-        setShowAddModal(false);
-        setCreatedPasswordInfo({
-          name: newName,
-          email: newEmail,
+        setUsers((prev) => [createdUser, ...prev]);
+        setShowModal(false);
+        setTempPasswordModal({
+          name: formData.fullName,
+          email: formData.email,
           pass: tempPassword,
         });
-        setNewName("");
-        setNewEmail("");
-        setNewPhone("");
+        setFormData({
+          fullName: "",
+          email: "",
+          phone: "",
+          role: "DOCTOR",
+          departmentName: "Cardiology",
+          licenseNumber: "",
+        });
       }
     } catch (err) {
-      console.error("Failed to onboard staff", err);
+      console.error("Error creating staff account", err);
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleToggleLock = async (userId: string, currentStatus: string) => {
-    const targetStatus = currentStatus === "ACTIVE" ? "LOCKED" : "ACTIVE";
+  const toggleUserStatus = async (userId: string, currentStatus: string) => {
+    const nextStatus = currentStatus === "ACTIVE" ? "SUSPENDED" : "ACTIVE";
 
-    // Optimistic update
-    setStaffList((prev) =>
-      prev.map((u) => (u.id === userId ? { ...u, status: targetStatus as StaffUser["status"] } : u))
+    // Optimistic UI update
+    setUsers((prev) =>
+      prev.map((u) => (u.id === userId ? { ...u, status: nextStatus as UserLifecycleStatus } : u))
     );
 
     try {
-      const res = await fetch(`/api/v1/admin/users/${userId}/status`, {
+      await fetch("/api/v1/admin/users", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          status: targetStatus,
-          reason: targetStatus === "LOCKED" ? "Administrative lock via Staff Dashboard" : "Administrative unlock",
+          userId,
+          status: nextStatus,
+          reason: nextStatus === "SUSPENDED" ? "Administrative suspension" : "Administrative re-activation",
         }),
       });
-      if (!res.ok) {
-        // Revert on failure
-        fetchStaff();
-      }
     } catch (err) {
       console.error("Failed to update status", err);
-      fetchStaff();
+      fetchUsers();
     }
   };
 
-  const filtered = staffList.filter((user) => {
+  const approveElevatedUser = async (userId: string) => {
+    setUsers((prev) =>
+      prev.map((u) =>
+        u.id === userId ? { ...u, status: "ACTIVE", requiresElevatedApproval: false } : u
+      )
+    );
+
+    try {
+      await fetch("/api/v1/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          approveElevated: true,
+          reason: "Administrative elevated authorization approved",
+        }),
+      });
+    } catch (err) {
+      console.error("Failed to approve elevated user", err);
+      fetchUsers();
+    }
+  };
+
+  const filteredUsers = users.filter((u) => {
+    const name = u.fullName || u.name || "";
     const matchesSearch =
-      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.department.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesRole = roleFilter === "ALL" || user.role === roleFilter;
+      name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (u.department && u.department.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesRole = roleFilter === "ALL" || u.role === roleFilter;
     return matchesSearch && matchesRole;
   });
 
@@ -216,11 +285,10 @@ export default function StaffUsersManagementPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-space-4 border-b border-outline-variant/30 pb-space-4">
           <div>
             <h1 className="font-headline-lg text-headline-lg font-bold text-on-surface">
-              Staff User Lifecycle & RBAC Provisioning (ADM-02, IAM-04)
+              Staff User Lifecycle & Administrative Approvals (ADM-02, IAM-04)
             </h1>
             <p className="font-body-md text-body-md text-outline mt-space-1">
-              Onboard clinical and administrative personnel, enforce canonical RBAC roles, and
-              manage session status locks.
+              Admin-initiated onboarding, clinical licensing verification, status transitions, and role approvals.
             </p>
           </div>
 
@@ -231,7 +299,7 @@ export default function StaffUsersManagementPage() {
                 Departments & Facilities (ADM-01)
               </Button>
             </Link>
-            <Button variant="primary" onClick={() => setShowAddModal(true)} className="gap-space-2">
+            <Button variant="primary" onClick={() => setShowModal(true)} className="gap-space-2">
               <span className="material-symbols-outlined text-[18px]">person_add</span>
               Provision Staff Account
             </Button>
@@ -247,8 +315,8 @@ export default function StaffUsersManagementPage() {
             <input
               type="text"
               placeholder="Search staff by name, email, or department..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-space-10 pr-space-4 py-space-2 bg-surface-container-lowest border border-outline-variant/40 rounded-lg text-body-md focus:outline-none focus:border-primary"
             />
           </div>
@@ -277,9 +345,9 @@ export default function StaffUsersManagementPage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Staff User Directory ({filtered.length})</CardTitle>
+                <CardTitle>Staff Directory & Approvals ({filteredUsers.length})</CardTitle>
                 <CardDescription>
-                  All accounts are bound to least-privilege RBAC scopes (SEC-01).
+                  Managed RBAC personnel, licensing validation, and elevated role approvals (SEC-01).
                 </CardDescription>
               </div>
               {loading && (
@@ -294,73 +362,86 @@ export default function StaffUsersManagementPage() {
             <table className="w-full text-body-sm text-left border-collapse">
               <thead className="bg-surface-container text-label-sm font-semibold text-outline uppercase border-y border-outline-variant/30">
                 <tr>
-                  <th className="py-space-3 px-space-4">Staff Name</th>
-                  <th className="py-space-3 px-space-4">Email & Phone</th>
+                  <th className="py-space-3 px-space-4">Staff Member</th>
                   <th className="py-space-3 px-space-4">Canonical Role</th>
-                  <th className="py-space-3 px-space-4">Assigned Department</th>
-                  <th className="py-space-3 px-space-4">Last Activity</th>
+                  <th className="py-space-3 px-space-4">Department</th>
+                  <th className="py-space-3 px-space-4">License No</th>
                   <th className="py-space-3 px-space-4">Status</th>
-                  <th className="py-space-3 px-space-4 text-right">Access Controls</th>
+                  <th className="py-space-3 px-space-4 text-right">Administrative Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-outline-variant/20">
-                {filtered.map((user) => (
-                  <tr key={user.id} className="hover:bg-surface-container-high/40">
-                    <td className="py-space-3 px-space-4 font-bold text-on-surface">{user.name}</td>
-                    <td className="py-space-3 px-space-4">
-                      <span className="text-on-surface block font-mono text-label-sm">
-                        {user.email}
-                      </span>
-                      <span className="text-outline text-label-xs font-mono">{user.phone}</span>
-                    </td>
-                    <td className="py-space-3 px-space-4">
-                      <Badge variant="secondary" className="font-mono text-label-xs">
-                        {user.role}
-                      </Badge>
-                    </td>
-                    <td className="py-space-3 px-space-4 text-on-surface font-medium">
-                      {user.department}
-                    </td>
-                    <td className="py-space-3 px-space-4 text-outline font-mono text-label-xs">
-                      {user.lastLoginAt}
-                    </td>
-                    <td className="py-space-3 px-space-4">
-                      <Badge
-                        variant="outline"
-                        className={
-                          user.status === "ACTIVE"
-                            ? "bg-success/15 text-success border-success/30 font-semibold"
-                            : user.status === "PENDING_VERIFICATION"
-                            ? "bg-amber-500/15 text-amber-600 border-amber-500/30 font-semibold"
-                            : "bg-error/15 text-error border-error/30 font-semibold"
-                        }
-                      >
-                        {user.status}
-                      </Badge>
-                    </td>
-                    <td className="py-space-3 px-space-4 text-right">
-                      <Button
-                        variant={user.status === "ACTIVE" ? "outline" : "primary"}
-                        size="sm"
-                        onClick={() => handleToggleLock(user.id, user.status)}
-                        className={
-                          user.status === "ACTIVE"
-                            ? "border-error/40 text-error hover:bg-error/10 text-xs"
-                            : "text-xs"
-                        }
-                      >
-                        {user.status === "ACTIVE" ? "Lock Account" : "Unlock"}
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
+                {filteredUsers.map((user) => {
+                  const name = user.fullName || user.name || "Staff Member";
+                  const dept = user.departmentName || user.department || "General";
+                  const isPendingApproval =
+                    user.status === "PENDING_VERIFICATION" || user.requiresElevatedApproval;
+
+                  return (
+                    <tr key={user.id} className="hover:bg-surface-container-high/40">
+                      <td className="py-space-3 px-space-4">
+                        <span className="font-bold text-on-surface block">{name}</span>
+                        <span className="text-outline text-label-xs font-mono">{user.email}</span>
+                      </td>
+                      <td className="py-space-3 px-space-4">
+                        <Badge variant="secondary" className="font-mono text-label-xs">
+                          {user.role}
+                        </Badge>
+                      </td>
+                      <td className="py-space-3 px-space-4 text-on-surface font-medium">{dept}</td>
+                      <td className="py-space-3 px-space-4 font-mono text-label-xs text-outline">
+                        {user.licenseNumber || "N/A"}
+                      </td>
+                      <td className="py-space-3 px-space-4">
+                        <Badge
+                          variant="outline"
+                          className={
+                            user.status === "ACTIVE"
+                              ? "bg-success/15 text-success border-success/30 font-semibold"
+                              : isPendingApproval
+                              ? "bg-amber-500/15 text-amber-600 border-amber-500/30 font-semibold"
+                              : "bg-error/15 text-error border-error/30 font-semibold"
+                          }
+                        >
+                          {isPendingApproval ? "PENDING_APPROVAL" : user.status}
+                        </Badge>
+                      </td>
+                      <td className="py-space-3 px-space-4 text-right space-x-2">
+                        {isPendingApproval ? (
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={() => approveElevatedUser(user.id)}
+                            className="bg-success text-white hover:bg-success/90 text-xs gap-1"
+                          >
+                            <span className="material-symbols-outlined text-[14px]">verified</span>
+                            Authorize Account
+                          </Button>
+                        ) : (
+                          <Button
+                            variant={user.status === "ACTIVE" ? "outline" : "primary"}
+                            size="sm"
+                            onClick={() => toggleUserStatus(user.id, user.status)}
+                            className={
+                              user.status === "ACTIVE"
+                                ? "border-error/40 text-error hover:bg-error/10 text-xs"
+                                : "text-xs"
+                            }
+                          >
+                            {user.status === "ACTIVE" ? "Suspend" : "Re-activate"}
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </CardContent>
         </Card>
 
-        {/* Modal: Temporary Password Display (After Onboarding) */}
-        {createdPasswordInfo && (
+        {/* Modal: Temporary Password Confirmation */}
+        {tempPasswordModal && (
           <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-space-4">
             <div className="bg-surface-container-lowest border border-success/30 rounded-2xl p-space-6 max-w-md w-full shadow-2xl space-y-space-4">
               <div className="flex items-center gap-2 text-success font-bold text-headline-sm">
@@ -368,19 +449,21 @@ export default function StaffUsersManagementPage() {
                 Staff Account Created
               </div>
               <p className="text-body-sm text-on-surface">
-                Account for <strong>{createdPasswordInfo.name}</strong> ({createdPasswordInfo.email}) is provisioned with status <code>PENDING_VERIFICATION</code>.
+                Account for <strong>{tempPasswordModal.name}</strong> ({tempPasswordModal.email}) is provisioned.
               </p>
               <div className="p-space-3 bg-surface-container rounded-lg border border-outline-variant/30 space-y-1">
-                <span className="text-label-xs text-outline uppercase font-semibold block">Temporary Single-Use Password</span>
+                <span className="text-label-xs text-outline uppercase font-semibold block">
+                  Temporary Single-Use Password
+                </span>
                 <span className="font-mono text-title-md font-bold text-primary select-all">
-                  {createdPasswordInfo.pass}
+                  {tempPasswordModal.pass}
                 </span>
               </div>
               <p className="text-label-xs text-outline">
-                The staff member must change this password upon their first login.
+                The staff member must change this temporary password upon first login.
               </p>
               <div className="flex justify-end pt-2">
-                <Button variant="primary" onClick={() => setCreatedPasswordInfo(null)}>
+                <Button variant="primary" onClick={() => setTempPasswordModal(null)}>
                   Done
                 </Button>
               </div>
@@ -389,13 +472,13 @@ export default function StaffUsersManagementPage() {
         )}
 
         {/* Modal: Provision Staff (ADM-02) */}
-        {showAddModal && (
+        {showModal && (
           <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-space-4">
             <div className="bg-surface-container-lowest border border-outline-variant/40 rounded-2xl p-space-6 max-w-lg w-full shadow-2xl space-y-space-4">
               <h3 className="font-headline-sm text-headline-sm font-bold text-on-surface">
                 Provision New Staff User (ADM-02)
               </h3>
-              <form onSubmit={handleAddStaff} className="space-y-space-4">
+              <form onSubmit={handleCreateStaff} className="space-y-space-4">
                 <div>
                   <label className="block text-label-md font-semibold text-on-surface mb-space-1">
                     Staff Full Name
@@ -404,8 +487,8 @@ export default function StaffUsersManagementPage() {
                     type="text"
                     required
                     placeholder="e.g. Dr. Jennifer Adams"
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
+                    value={formData.fullName}
+                    onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
                     className="w-full px-space-3 py-space-2 bg-surface-container-lowest border border-outline-variant/40 rounded-lg text-body-md focus:outline-none focus:border-primary"
                   />
                 </div>
@@ -418,21 +501,8 @@ export default function StaffUsersManagementPage() {
                     type="email"
                     required
                     placeholder="jennifer.adams@goingmerry.org"
-                    value={newEmail}
-                    onChange={(e) => setNewEmail(e.target.value)}
-                    className="w-full px-space-3 py-space-2 bg-surface-container-lowest border border-outline-variant/40 rounded-lg text-body-md focus:outline-none focus:border-primary"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-label-md font-semibold text-on-surface mb-space-1">
-                    Contact Phone Number (Optional)
-                  </label>
-                  <input
-                    type="tel"
-                    placeholder="+1 (555) 100-2003"
-                    value={newPhone}
-                    onChange={(e) => setNewPhone(e.target.value)}
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     className="w-full px-space-3 py-space-2 bg-surface-container-lowest border border-outline-variant/40 rounded-lg text-body-md focus:outline-none focus:border-primary"
                   />
                 </div>
@@ -440,23 +510,22 @@ export default function StaffUsersManagementPage() {
                 <div className="grid grid-cols-2 gap-space-4">
                   <div>
                     <label className="block text-label-md font-semibold text-on-surface mb-space-1">
-                      Canonical RBAC Role
+                      Assigned Role
                     </label>
                     <select
-                      value={newRole}
-                      onChange={(e) => setNewRole(e.target.value)}
+                      value={formData.role}
+                      onChange={(e) => setFormData({ ...formData, role: e.target.value })}
                       className="w-full px-space-3 py-space-2 bg-surface-container-lowest border border-outline-variant/40 rounded-lg text-body-md focus:outline-none focus:border-primary"
                     >
-                      <option value="DOCTOR">Doctor</option>
-                      <option value="NURSE">Nurse</option>
-                      <option value="PHARMACIST">Pharmacist</option>
-                      <option value="LAB_TECH">Lab Technician</option>
-                      <option value="RADIOLOGIST">Radiologist</option>
-                      <option value="INVENTORY_MANAGER">Inventory Manager</option>
-                      <option value="BILLING_STAFF">Billing Staff</option>
-                      <option value="RECEPTIONIST">Receptionist</option>
-                      <option value="ADMIN">Administrator</option>
-                      <option value="MANAGEMENT">Hospital Management</option>
+                      <option value="DOCTOR">DOCTOR</option>
+                      <option value="NURSE">NURSE</option>
+                      <option value="PHARMACIST">PHARMACIST</option>
+                      <option value="LAB_TECH">LAB_TECH</option>
+                      <option value="RADIOLOGIST">RADIOLOGIST</option>
+                      <option value="INVENTORY_MANAGER">INVENTORY_MANAGER</option>
+                      <option value="BILLING_STAFF">BILLING_STAFF</option>
+                      <option value="RECEPTIONIST">RECEPTIONIST</option>
+                      <option value="ADMIN">ADMIN (Requires Approval)</option>
                     </select>
                   </div>
                   <div>
@@ -464,8 +533,8 @@ export default function StaffUsersManagementPage() {
                       Department
                     </label>
                     <select
-                      value={newDept}
-                      onChange={(e) => setNewDept(e.target.value)}
+                      value={formData.departmentName}
+                      onChange={(e) => setFormData({ ...formData, departmentName: e.target.value })}
                       className="w-full px-space-3 py-space-2 bg-surface-container-lowest border border-outline-variant/40 rounded-lg text-body-md focus:outline-none focus:border-primary"
                     >
                       <option value="Cardiology">Cardiology</option>
@@ -475,9 +544,22 @@ export default function StaffUsersManagementPage() {
                       <option value="Diagnostics Lab">Diagnostics Lab</option>
                       <option value="Emergency Triage">Emergency Triage</option>
                       <option value="Cashier & Billing">Cashier & Billing</option>
-                      <option value="Administration">Administration</option>
+                      <option value="Hospital Administration">Hospital Administration</option>
                     </select>
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-label-md font-semibold text-on-surface mb-space-1">
+                    Clinical License Number (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. MED-LIC-88401"
+                    value={formData.licenseNumber}
+                    onChange={(e) => setFormData({ ...formData, licenseNumber: e.target.value })}
+                    className="w-full px-space-3 py-space-2 bg-surface-container-lowest border border-outline-variant/40 rounded-lg text-body-md focus:outline-none focus:border-primary"
+                  />
                 </div>
 
                 <div className="p-space-3 bg-surface-container rounded-lg border border-outline-variant/30 text-label-sm text-outline">
@@ -485,11 +567,11 @@ export default function StaffUsersManagementPage() {
                 </div>
 
                 <div className="flex items-center justify-end gap-space-2 pt-space-2">
-                  <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>
+                  <Button type="button" variant="outline" onClick={() => setShowModal(false)}>
                     Cancel
                   </Button>
                   <Button type="submit" variant="primary" disabled={submitting}>
-                    {submitting ? "Provisioning..." : "Create Account"}
+                    {submitting ? "Provisioning..." : "Confirm Provisioning"}
                   </Button>
                 </div>
               </form>
