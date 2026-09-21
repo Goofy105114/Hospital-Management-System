@@ -226,5 +226,78 @@ export const openApiSpec = {
         },
       },
     },
+    "/schedules": {
+      get: {
+        summary: "List Doctor Schedules and Clinic Sessions (SCH-01)",
+        tags: ["Schedules"],
+        parameters: [
+          { name: "doctorId", in: "query", schema: { type: "string" } },
+          { name: "dayOfWeek", in: "query", schema: { type: "integer" } },
+        ],
+        responses: {
+          "200": { description: "Doctor schedules list" },
+        },
+      },
+      post: {
+        summary: "Create Clinic Session Block (SCH-01)",
+        tags: ["Schedules"],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  doctorId: { type: "string" },
+                  dayOfWeek: { type: "integer", example: 1 },
+                  startTime: { type: "string", example: "09:00" },
+                  endTime: { type: "string", example: "13:00" },
+                  roomNumber: { type: "string", example: "Room 101" },
+                  slotDurationMinutes: { type: "integer", example: 15 },
+                  maxCapacity: { type: "integer", example: 30 },
+                },
+                required: ["doctorId", "dayOfWeek", "startTime", "endTime"],
+              },
+            },
+          },
+        },
+        responses: {
+          "201": { description: "Clinic session created successfully" },
+          "400": { description: "Invalid session payload" },
+          "401": { description: "Unauthorized" },
+          "403": { description: "Forbidden" },
+          "409": { description: "Session time overlap detected (SCH_SESSION_OVERLAP)" },
+        },
+      },
+    },
+    "/schedules/{id}": {
+      get: {
+        summary: "Get Clinic Session by ID (SCH-01)",
+        tags: ["Schedules"],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+        responses: {
+          "200": { description: "Clinic session details" },
+          "404": { description: "Session not found" },
+        },
+      },
+      put: {
+        summary: "Update Clinic Session Block (SCH-01)",
+        tags: ["Schedules"],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+        responses: {
+          "200": { description: "Clinic session updated" },
+          "400": { description: "Invalid payload" },
+          "409": { description: "Session time overlap detected" },
+        },
+      },
+      delete: {
+        summary: "Deactivate Clinic Session Block (SCH-01)",
+        tags: ["Schedules"],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+        responses: {
+          "200": { description: "Session deactivated" },
+        },
+      },
+    },
   },
 };
