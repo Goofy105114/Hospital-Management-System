@@ -41,6 +41,37 @@ export function sessionContainsSlot(
 }
 
 // ---------------------------------------------------------------------------
+// SCH-03 — Slot duration and capacity validation
+// ---------------------------------------------------------------------------
+
+/**
+ * Validates the slot-config update payload for a clinic session (SCH-03).
+ *
+ * slotDurationMinutes: must be a positive integer between 5 and 120 (minutes).
+ * maxCapacity:         must be a positive integer between 1 and 500.
+ *
+ * Returns a module-namespaced error code string on failure, null on success.
+ */
+export function validateSlotConfig(input: {
+  slotDurationMinutes?: unknown;
+  maxCapacity?: unknown;
+}): string | null {
+  if (input.slotDurationMinutes !== undefined) {
+    const d = Number(input.slotDurationMinutes);
+    if (!Number.isInteger(d) || d < 5 || d > 120) {
+      return "SCH_INVALID_SLOT_DURATION";
+    }
+  }
+  if (input.maxCapacity !== undefined) {
+    const c = Number(input.maxCapacity);
+    if (!Number.isInteger(c) || c < 1 || c > 500) {
+      return "SCH_INVALID_MAX_CAPACITY";
+    }
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
 // APT-06 — Appointment lifecycle state machine
 // ---------------------------------------------------------------------------
 
