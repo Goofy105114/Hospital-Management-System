@@ -1,0 +1,96 @@
+name: Promote to Production
+
+on:
+  push:
+    branches:
+      - staging
+
+concurrency:
+  group: promote-to-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  create-production-pr:
+    name: Create Promotion PR (staging → main)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for changes and create promotion PR
+        env:
+          GH_TOKEN: ${{ secrets.PROMOTION_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          # 1. Verify remote main branch exists
+          if ! git rev-parse --verify origin/main >/dev/null 2>&1; then
+            echo "⚠️ Remote branch 'origin/main' not found."
+            exit 1
+          fi
+
+          git fetch origin main:main
+
+          # 2. Check if staging has commits not in main
+          COMMITS_AHEAD=$(git rev-list --count main..origin/staging)
+          if [ "$COMMITS_AHEAD" -eq 0 ]; then
+            echo "✅ 'staging' has no new commits compared to 'main'. Nothing to promote."
+            exit 0
+          fi
+
+          echo "Found $COMMITS_AHEAD commit(s) on 'staging' not yet in 'main'."
+
+          # 3. Check if an open promotion PR already exists
+          EXISTING_PR=$(gh pr list --base main --head staging --state open --json number --jq '.[0].number')
+          if [ -n "$EXISTING_PR" ]; then
+            echo "ℹ️ Promotion PR #$EXISTING_PR already exists from staging -> main. Skipping duplicate creation."
+            exit 0
+          fi
+
+          # 4. Generate PR description
+          COMMIT_LOG=$(git log main..origin/staging --pretty=format:"- %h %s (%an)")
+          DIFF_STAT=$(git diff --stat main...origin/staging)
+          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
+
+          cat <<EOF > pr_body.md
+          ## 🚀 Promote staging → production
+
+          Production release candidate promoted from Pre-Production / QA (\`staging\`) into Production (\`main\`).
+
+          ### 📦 Release Overview
+          - **Source Branch:** \`staging\`
+          - **Target Branch:** \`main\`
+          - **Triggered At:** ${TIMESTAMP}
+          - **Commits Included:** ${COMMITS_AHEAD}
+
+          ### 📝 Included Commits
+          ${COMMIT_LOG}
+
+          ### 📊 Diff Statistics
+          \`\`\`text
+          ${DIFF_STAT}
+          \`\`\`
+
+          ### 🛡️ Production Verification & Sign-Off Checklist
+          - [ ] QA verification passed on staging environment.
+          - [ ] All CI status checks (lint, format, typecheck, tests, build) pass on this PR.
+          - [ ] Database migration compatibility confirmed for production DB.
+          - [ ] Backup / rollback strategy in place if necessary.
+          - [ ] Release Manager / Engineering Lead approval obtained.
+
+          > *Notice: This pull request was automatically generated. Merge only after all QA gates pass.*
+          EOF
+
+          # 5. Create the promotion PR
+          PR_URL=$(gh pr create \
+            --base main \
+            --head staging \
+            --title "🚀 Promote staging → production" \
+            --body-file pr_body.md)
+
+          echo "✅ Created promotion Pull Request: $PR_URL"

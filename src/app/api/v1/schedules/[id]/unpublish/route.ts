@@ -13,10 +13,7 @@ import { AuditAction, UserRole } from "@prisma/client";
  *
  * Roles allowed: ADMIN, SUPER_ADMIN.
  */
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   const user = getAuthUser(request);
   if (!user) return apiError("UNAUTHENTICATED", "Authentication required", 401);
   if (!requireRole(user, [UserRole.ADMIN])) {
@@ -54,7 +51,7 @@ export async function POST(
       entityId: id,
       changes: {
         before: { isActive: session?.isActive ?? true },
-        after:  { isActive: false, published: false },
+        after: { isActive: false, published: false },
       },
     });
 

@@ -32,7 +32,12 @@ export function validateClinicSession(input: Partial<ClinicSessionInput>): {
     };
   }
 
-  if (input.dayOfWeek === undefined || !Number.isInteger(input.dayOfWeek) || input.dayOfWeek < 0 || input.dayOfWeek > 6) {
+  if (
+    input.dayOfWeek === undefined ||
+    !Number.isInteger(input.dayOfWeek) ||
+    input.dayOfWeek < 0 ||
+    input.dayOfWeek > 6
+  ) {
     return {
       isValid: false,
       errorCode: "SCH_INVALID_DAY_OF_WEEK",
@@ -96,7 +101,13 @@ export function validateClinicSession(input: Partial<ClinicSessionInput>): {
 
 export function detectSessionOverlap(
   candidate: { id?: string; dayOfWeek: number; startTime: string; endTime: string },
-  existingSessions: Array<{ id: string; dayOfWeek: number; startTime: string; endTime: string; isActive?: boolean }>
+  existingSessions: Array<{
+    id: string;
+    dayOfWeek: number;
+    startTime: string;
+    endTime: string;
+    isActive?: boolean;
+  }>
 ): boolean {
   const candidateStart = parseTimeToMinutes(candidate.startTime);
   const candidateEnd = parseTimeToMinutes(candidate.endTime);
@@ -133,7 +144,12 @@ export function canManageDoctorSchedule(
 ): boolean {
   if (!actorRole) return false;
   if (actorRole === "SUPER_ADMIN" || actorRole === "ADMIN") return true;
-  if (actorRole === "DOCTOR" && actorUserId && targetDoctorUserId && actorUserId === targetDoctorUserId) {
+  if (
+    actorRole === "DOCTOR" &&
+    actorUserId &&
+    targetDoctorUserId &&
+    actorUserId === targetDoctorUserId
+  ) {
     return true;
   }
   return false;
