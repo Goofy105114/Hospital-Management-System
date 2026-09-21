@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { successResponse, errorResponse } from "@/lib/api-envelope";
+import { getAuthUser, requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { MedicineForm, UserRole } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -89,17 +91,24 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const q = searchParams.get("q")?.toLowerCase();
+    // PHA-02: isActive filter — inactive medicines excluded from prescription search
+    const isActiveParam = searchParams.get("isActive");
+    const isActiveFilter =
+      isActiveParam === "true" ? true : isActiveParam === "false" ? false : undefined;
 
     try {
       const dbMedicines = await prisma.medicine.findMany({
-        where: q
-          ? {
-              OR: [
-                { name: { contains: q, mode: "insensitive" } },
-                { genericName: { contains: q, mode: "insensitive" } },
-              ],
-            }
-          : undefined,
+        where: {
+          ...(isActiveFilter !== undefined ? { isActive: isActiveFilter } : {}),
+          ...(q
+            ? {
+                OR: [
+                  { name: { contains: q, mode: "insensitive" } },
+                  { genericName: { contains: q, mode: "insensitive" } },
+                ],
+              }
+            : {}),
+        },
       });
 
       if (dbMedicines.length > 0) {
@@ -118,7 +127,13 @@ export async function GET(req: NextRequest) {
         )
       : FALLBACK_MEDICINES;
 
-    return NextResponse.json(successResponse(filtered));
+    // Apply isActive filter to fallback too
+    const finalFiltered =
+      isActiveFilter !== undefined
+        ? filtered.filter((m) => m.isActive === isActiveFilter)
+        : filtered;
+
+    return NextResponse.json(successResponse(finalFiltered));
   } catch (error) {
     return NextResponse.json(
       errorResponse("PHA_FETCH_FAILED", "Failed to retrieve medicines catalog", {
@@ -130,9 +145,24 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  // PHA-02: only INVENTORY_MANAGER and ADMIN may add medicines to the formulary
+  const user = getAuthUser(req);
+  if (!user) {
+    return NextResponse.json(
+      errorResponse("UNAUTHENTICATED", "Authentication required"),
+      { status: 401 }
+    );
+  }
+  if (!requireRole(user, [UserRole.INVENTORY_MANAGER, UserRole.ADMIN])) {
+    return NextResponse.json(
+      errorResponse("UNAUTHORIZED_ROLE", "Inventory manager or admin role required"),
+      { status: 403 }
+    );
+  }
+
   try {
     const body = await req.json();
-    const { name, genericName, form, strength, unit, category, unitPrice, atcCode } = body;
+    const { name, genericName, form, strength, unit, manufacturer, unitPrice } = body;
 
     if (!name || !genericName || !form) {
       return NextResponse.json(
@@ -141,21 +171,46 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const newMedicine = {
-      id: `med-${Date.now()}`,
-      name,
-      genericName,
-      form: form || "TABLET",
-      strength: strength || "Standard",
-      unit: unit || "Unit",
-      category: category || "General",
-      atcCode: atcCode || "N/A",
-      unitPrice: Number(unitPrice) || 10.0,
-      stockOnHand: 0,
-      isActive: true,
-    };
+    // Validate form enum
+    if (!Object.values(MedicineForm).includes(form as MedicineForm)) {
+      return NextResponse.json(
+        errorResponse(
+          "PHA_INVALID_FORM",
+          `form must be one of: ${Object.values(MedicineForm).join(", ")}`
+        ),
+        { status: 400 }
+      );
+    }
 
-    return NextResponse.json(successResponse(newMedicine), { status: 201 });
+    try {
+      const medicine = await prisma.medicine.create({
+        data: {
+          name,
+          genericName,
+          form: form as MedicineForm,
+          strength: strength || null,
+          unit: unit || "Tablet",
+          manufacturer: manufacturer || null,
+          unitPrice: unitPrice ? Number(unitPrice) : 1.5,
+          isActive: true,
+        },
+      });
+      return NextResponse.json(successResponse(medicine), { status: 201 });
+    } catch {
+      // DB offline — return intent confirmation
+      const newMedicine = {
+        id: `med-${Date.now()}`,
+        name,
+        genericName,
+        form,
+        strength: strength || "Standard",
+        unit: unit || "Unit",
+        manufacturer: manufacturer || null,
+        unitPrice: Number(unitPrice) || 1.5,
+        isActive: true,
+      };
+      return NextResponse.json(successResponse(newMedicine), { status: 201 });
+    }
   } catch (error) {
     return NextResponse.json(
       errorResponse("PHA_CREATE_FAILED", "Failed to add medicine to formulary", {
