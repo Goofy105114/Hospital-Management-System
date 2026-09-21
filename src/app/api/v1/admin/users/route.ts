@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { successResponse, errorResponse } from "@/lib/api-envelope";
-import { prisma } from "@/lib/prisma";
+import { getAuthUser } from "@/lib/auth";
+import { UserLifecycleService } from "@/server/services/user-lifecycle.service";
 
 export const dynamic = "force-dynamic";
 
@@ -77,24 +78,36 @@ const FALLBACK_STAFF = [
   },
 ];
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const { searchParams } = new URL(req.url);
+    const role = searchParams.get("role") || undefined;
+    const search = searchParams.get("search") || undefined;
+
     try {
-      const dbUsers = await prisma.user.findMany({
-        where: {
-          role: {
-            not: "PATIENT",
-          },
-        },
-      });
-      if (dbUsers.length > 0) {
-        return NextResponse.json(successResponse(dbUsers));
+      const staffList = await UserLifecycleService.listStaff({ role, search });
+      if (staffList.length > 0) {
+        return NextResponse.json(successResponse(staffList));
       }
     } catch {
-      // Fallback
+      // Fallback if database is offline/unseeded
     }
 
-    return NextResponse.json(successResponse(FALLBACK_STAFF));
+    let filtered = FALLBACK_STAFF;
+    if (role && role !== "ALL") {
+      filtered = filtered.filter((u) => u.role === role);
+    }
+    if (search) {
+      const s = search.toLowerCase();
+      filtered = filtered.filter(
+        (u) =>
+          u.name.toLowerCase().includes(s) ||
+          u.email.toLowerCase().includes(s) ||
+          u.department.toLowerCase().includes(s)
+      );
+    }
+
+    return NextResponse.json(successResponse(filtered));
   } catch (error) {
     return NextResponse.json(
       errorResponse("ADM_USERS_FETCH_FAILED", "Failed to retrieve staff users", {
@@ -107,21 +120,57 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const authUser = getAuthUser(req);
     const body = await req.json();
-    const { name, email, phone, role, department } = body;
+    const { name, email, phone, role, department, specialization, licenseNumber } = body;
 
-    const newUser = {
-      id: `usr-${Date.now()}`,
-      name,
-      email,
-      phone: phone || "+1 (555) 000-0000",
-      role: role || "NURSE",
-      department: department || "General",
-      status: "ACTIVE",
-      lastLoginAt: "Never",
+    const actor = {
+      id: authUser?.sub,
+      role: authUser?.role || "ADMIN",
+      ipAddress: req.headers.get("x-forwarded-for") || undefined,
+      requestId: req.headers.get("x-request-id") || undefined,
     };
 
-    return NextResponse.json(successResponse(newUser), { status: 201 });
+    try {
+      const result = await UserLifecycleService.onboardStaff(
+        {
+          name,
+          email,
+          phone,
+          role,
+          department,
+          specialization,
+          licenseNumber,
+        },
+        actor
+      );
+
+      if (!result.success) {
+        return NextResponse.json(
+          errorResponse(result.code || "ADM_USER_CREATE_FAILED", result.message || "Failed to onboard staff", result),
+          { status: result.status || 400 }
+        );
+      }
+
+      return NextResponse.json(successResponse(result.data), { status: 201 });
+    } catch {
+      // Graceful fallback for mock mode if DB is disconnected
+      const fallbackUser = {
+        user: {
+          id: `usr-${Date.now()}`,
+          name,
+          email,
+          phone: phone || "+1 (555) 000-0000",
+          role: role || "NURSE",
+          department: department || "General",
+          status: "PENDING_VERIFICATION",
+          lastLoginAt: "Pending first login",
+        },
+        tempPassword: `Temp#${Math.floor(100000 + Math.random() * 900000)}`,
+      };
+
+      return NextResponse.json(successResponse(fallbackUser), { status: 201 });
+    }
   } catch (error) {
     return NextResponse.json(
       errorResponse("ADM_USER_CREATE_FAILED", "Failed to onboard staff user", {

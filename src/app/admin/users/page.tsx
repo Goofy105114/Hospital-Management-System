@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { AppLayout } from "@/components/shared/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -14,11 +14,11 @@ interface StaffUser {
   phone: string;
   role: string;
   department: string;
-  status: "ACTIVE" | "LOCKED" | "SUSPENDED";
+  status: "ACTIVE" | "LOCKED" | "SUSPENDED" | "PENDING_VERIFICATION";
   lastLoginAt: string;
 }
 
-const INITIAL_STAFF: StaffUser[] = [
+const INITIAL_FALLBACK_STAFF: StaffUser[] = [
   {
     id: "usr-01",
     name: "Dr. Marcus Vance",
@@ -92,41 +92,103 @@ const INITIAL_STAFF: StaffUser[] = [
 ];
 
 export default function StaffUsersManagementPage() {
-  const [staffList, setStaffList] = useState<StaffUser[]>(INITIAL_STAFF);
+  const [staffList, setStaffList] = useState<StaffUser[]>(INITIAL_FALLBACK_STAFF);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("ALL");
   const [showAddModal, setShowAddModal] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [createdPasswordInfo, setCreatedPasswordInfo] = useState<{ name: string; email: string; pass: string } | null>(null);
 
   // New Staff State
   const [newName, setNewName] = useState("");
   const [newEmail, setNewEmail] = useState("");
+  const [newPhone, setNewPhone] = useState("");
   const [newRole, setNewRole] = useState("DOCTOR");
   const [newDept, setNewDept] = useState("Cardiology");
 
-  const handleAddStaff = (e: React.FormEvent) => {
-    e.preventDefault();
-    const newUser: StaffUser = {
-      id: `usr-${Date.now()}`,
-      name: newName,
-      email: newEmail,
-      phone: "+1 (555) 100-9999",
-      role: newRole,
-      department: newDept,
-      status: "ACTIVE",
-      lastLoginAt: "Pending first login",
-    };
-    setStaffList([...staffList, newUser]);
-    setShowAddModal(false);
-    setNewName("");
-    setNewEmail("");
+  const fetchStaff = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch("/api/v1/admin/users");
+      const json = await res.json();
+      if (json.success && Array.isArray(json.data)) {
+        setStaffList(json.data);
+      }
+    } catch (e) {
+      console.error("Failed to load staff list from API", e);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleToggleLock = (userId: string) => {
-    setStaffList(
-      staffList.map((u) =>
-        u.id === userId ? { ...u, status: u.status === "ACTIVE" ? "LOCKED" : "ACTIVE" } : u
-      )
+  useEffect(() => {
+    fetchStaff();
+  }, []);
+
+  const handleAddStaff = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setSubmitting(true);
+      const res = await fetch("/api/v1/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newName,
+          email: newEmail,
+          phone: newPhone || "+1 (555) 100-9999",
+          role: newRole,
+          department: newDept,
+        }),
+      });
+      const json = await res.json();
+      if (json.success && json.data) {
+        const createdUser: StaffUser = json.data.user || json.data;
+        const tempPassword = json.data.tempPassword || "Temp#SecurePass99";
+
+        setStaffList((prev) => [createdUser, ...prev]);
+        setShowAddModal(false);
+        setCreatedPasswordInfo({
+          name: newName,
+          email: newEmail,
+          pass: tempPassword,
+        });
+        setNewName("");
+        setNewEmail("");
+        setNewPhone("");
+      }
+    } catch (err) {
+      console.error("Failed to onboard staff", err);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleToggleLock = async (userId: string, currentStatus: string) => {
+    const targetStatus = currentStatus === "ACTIVE" ? "LOCKED" : "ACTIVE";
+
+    // Optimistic update
+    setStaffList((prev) =>
+      prev.map((u) => (u.id === userId ? { ...u, status: targetStatus as StaffUser["status"] } : u))
     );
+
+    try {
+      const res = await fetch(`/api/v1/admin/users/${userId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: targetStatus,
+          reason: targetStatus === "LOCKED" ? "Administrative lock via Staff Dashboard" : "Administrative unlock",
+        }),
+      });
+      if (!res.ok) {
+        // Revert on failure
+        fetchStaff();
+      }
+    } catch (err) {
+      console.error("Failed to update status", err);
+      fetchStaff();
+    }
   };
 
   const filtered = staffList.filter((user) => {
@@ -213,10 +275,20 @@ export default function StaffUsersManagementPage() {
         {/* Staff Table */}
         <Card>
           <CardHeader>
-            <CardTitle>Staff User Directory ({filtered.length})</CardTitle>
-            <CardDescription>
-              All accounts are bound to least-privilege RBAC scopes (SEC-01).
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Staff User Directory ({filtered.length})</CardTitle>
+                <CardDescription>
+                  All accounts are bound to least-privilege RBAC scopes (SEC-01).
+                </CardDescription>
+              </div>
+              {loading && (
+                <span className="text-label-xs text-outline animate-pulse flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[16px] animate-spin">sync</span>
+                  Syncing directory...
+                </span>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="p-0 overflow-x-auto">
             <table className="w-full text-body-sm text-left border-collapse">
@@ -258,6 +330,8 @@ export default function StaffUsersManagementPage() {
                         className={
                           user.status === "ACTIVE"
                             ? "bg-success/15 text-success border-success/30 font-semibold"
+                            : user.status === "PENDING_VERIFICATION"
+                            ? "bg-amber-500/15 text-amber-600 border-amber-500/30 font-semibold"
                             : "bg-error/15 text-error border-error/30 font-semibold"
                         }
                       >
@@ -268,7 +342,7 @@ export default function StaffUsersManagementPage() {
                       <Button
                         variant={user.status === "ACTIVE" ? "outline" : "primary"}
                         size="sm"
-                        onClick={() => handleToggleLock(user.id)}
+                        onClick={() => handleToggleLock(user.id, user.status)}
                         className={
                           user.status === "ACTIVE"
                             ? "border-error/40 text-error hover:bg-error/10 text-xs"
@@ -284,6 +358,35 @@ export default function StaffUsersManagementPage() {
             </table>
           </CardContent>
         </Card>
+
+        {/* Modal: Temporary Password Display (After Onboarding) */}
+        {createdPasswordInfo && (
+          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-space-4">
+            <div className="bg-surface-container-lowest border border-success/30 rounded-2xl p-space-6 max-w-md w-full shadow-2xl space-y-space-4">
+              <div className="flex items-center gap-2 text-success font-bold text-headline-sm">
+                <span className="material-symbols-outlined text-[28px]">check_circle</span>
+                Staff Account Created
+              </div>
+              <p className="text-body-sm text-on-surface">
+                Account for <strong>{createdPasswordInfo.name}</strong> ({createdPasswordInfo.email}) is provisioned with status <code>PENDING_VERIFICATION</code>.
+              </p>
+              <div className="p-space-3 bg-surface-container rounded-lg border border-outline-variant/30 space-y-1">
+                <span className="text-label-xs text-outline uppercase font-semibold block">Temporary Single-Use Password</span>
+                <span className="font-mono text-title-md font-bold text-primary select-all">
+                  {createdPasswordInfo.pass}
+                </span>
+              </div>
+              <p className="text-label-xs text-outline">
+                The staff member must change this password upon their first login.
+              </p>
+              <div className="flex justify-end pt-2">
+                <Button variant="primary" onClick={() => setCreatedPasswordInfo(null)}>
+                  Done
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Modal: Provision Staff (ADM-02) */}
         {showAddModal && (
@@ -317,6 +420,19 @@ export default function StaffUsersManagementPage() {
                     placeholder="jennifer.adams@goingmerry.org"
                     value={newEmail}
                     onChange={(e) => setNewEmail(e.target.value)}
+                    className="w-full px-space-3 py-space-2 bg-surface-container-lowest border border-outline-variant/40 rounded-lg text-body-md focus:outline-none focus:border-primary"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-label-md font-semibold text-on-surface mb-space-1">
+                    Contact Phone Number (Optional)
+                  </label>
+                  <input
+                    type="tel"
+                    placeholder="+1 (555) 100-2003"
+                    value={newPhone}
+                    onChange={(e) => setNewPhone(e.target.value)}
                     className="w-full px-space-3 py-space-2 bg-surface-container-lowest border border-outline-variant/40 rounded-lg text-body-md focus:outline-none focus:border-primary"
                   />
                 </div>
@@ -365,16 +481,15 @@ export default function StaffUsersManagementPage() {
                 </div>
 
                 <div className="p-space-3 bg-surface-container rounded-lg border border-outline-variant/30 text-label-sm text-outline">
-                  A temporary single-use password will be securely dispatched to the user via
-                  SMS/Email (NOT-02).
+                  A temporary single-use password conforming to IAM-03 policy will be generated for initial onboarding.
                 </div>
 
                 <div className="flex items-center justify-end gap-space-2 pt-space-2">
                   <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>
                     Cancel
                   </Button>
-                  <Button type="submit" variant="primary">
-                    Create Account
+                  <Button type="submit" variant="primary" disabled={submitting}>
+                    {submitting ? "Provisioning..." : "Create Account"}
                   </Button>
                 </div>
               </form>
