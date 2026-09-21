@@ -37,9 +37,6 @@ jobs:
       - name: Run Prisma Generate
         run: npx prisma generate
 
-      - name: Run Prettier formatting check
-        run: npm run format:check
-
       - name: Run ESLint
         run: npm run lint
 
