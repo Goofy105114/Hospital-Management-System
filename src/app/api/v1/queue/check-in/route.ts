@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
   try {
     const auth = getAuthUser(req);
     const body = await req.json();
-    const { appointmentId, patientId, doctorId, isWalkIn, priorityTier } = body;
+    const { appointmentId, patientId, doctorId, isWalkIn, priorityTier, allowOverride } = body;
 
     const result = await QueueService.checkIn({
       appointmentId,
@@ -16,6 +16,7 @@ export async function POST(req: NextRequest) {
       isWalkIn,
       priorityTier,
       actorId: auth?.sub,
+      allowOverride: Boolean(allowOverride),
     });
 
     if (!result.success) {
