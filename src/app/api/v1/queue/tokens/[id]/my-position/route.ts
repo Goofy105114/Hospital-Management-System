@@ -45,12 +45,14 @@ export async function GET(
     // If token is no longer active, return final status
     if (
       token &&
-      [
-        QueueTokenStatus.COMPLETED,
-        QueueTokenStatus.CANCELLED,
-        QueueTokenStatus.NO_RESPONSE,
-        QueueTokenStatus.TRANSFERRED,
-      ].includes(token.status)
+      (
+        [
+          QueueTokenStatus.COMPLETED,
+          QueueTokenStatus.CANCELLED,
+          QueueTokenStatus.NO_RESPONSE,
+          QueueTokenStatus.TRANSFERRED,
+        ] as QueueTokenStatus[]
+      ).includes(token.status)
     ) {
       return apiSuccess({
         tokenId: token.id,
