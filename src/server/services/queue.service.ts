@@ -8,7 +8,7 @@ import {
   AuditAction,
 } from "@prisma/client";
 import { Prisma } from "@prisma/client";
-import { assertQueueTransition, QueueStateError } from "@/server/domain/queue-state";
+import { assertQueueTransition, QueueStateError, generateTokenNumber } from "@/server/domain/queue-state";
 import { WaitTimePredictionService } from "@/server/services/wait-time-prediction.service";
 import { deterministicWaitEstimate } from "@/server/domain/wait-time";
 import {
@@ -171,6 +171,18 @@ export class QueueService {
               where: { doctorId: toDoctorId, status: QueueTokenStatus.WAITING },
             }),
           ]);
+
+          // Resolve target doctor's department code for token format
+          const targetDeptCode = targetDoctor
+            ? await tx.department
+                .findUnique({
+                  where: { id: targetDoctor.departmentId },
+                  select: { code: true },
+                })
+                .then((d) => d?.code ?? "GN")
+                .catch(() => "GN")
+            : "GN";
+
           const appointmentId = current.appointmentId;
           await tx.queueToken.update({
             where: { id: tokenId },
@@ -183,7 +195,7 @@ export class QueueService {
           });
           const created = await tx.queueToken.create({
             data: {
-              tokenNumber: `#A-${String(count + 1).padStart(2, "0")}`,
+              tokenNumber: generateTokenNumber(targetDeptCode, count + 1),
               doctorId: toDoctorId,
               patientId: current.patientId,
               appointmentId,
@@ -485,7 +497,20 @@ export class QueueService {
     }
 
     const seq = tokensTodayCount + 1;
-    const tokenNumber = formatQueueTokenNumber(seq);
+
+    // Resolve department code for token prefix (QUE-02: {deptCode}-{3-digit seq})
+    let deptCode = "GN"; // fallback: General
+    try {
+      const doctor = await prisma.doctor.findUnique({
+        where: { id: doctorId },
+        include: { department: { select: { code: true } } },
+      });
+      if (doctor?.department?.code) deptCode = doctor.department.code;
+    } catch {
+      // DB error — use fallback prefix
+    }
+
+    const tokenNumber = generateTokenNumber(deptCode, seq);
 
     // Current active waiting tokens count ahead
     let waitingAhead = 0;
