@@ -33,6 +33,31 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === "SAVE_DRAFT") {
+      if (encounterId) {
+        try {
+          const existing = await prisma.encounter.findUnique({
+            where: { id: encounterId },
+          });
+          if (existing && existing.status === "FINALIZED") {
+            return apiError(
+              "EMR_NOTE_ALREADY_SIGNED",
+              "Encounter notes have already been signed and cannot be modified directly",
+              422
+            );
+          }
+          if (notes) {
+            await EmrService.updateNotes(encounterId, notes);
+          }
+        } catch (e: any) {
+          if (e?.message === "EMR_NOTE_ALREADY_SIGNED") {
+            return apiError(
+              "EMR_NOTE_ALREADY_SIGNED",
+              "Encounter notes have already been signed and cannot be modified directly",
+              422
+            );
+          }
+        }
+      }
       return apiSuccess({
         encounterId: encounterId || "ENC-2026-0091",
         status: "IN_PROGRESS",
