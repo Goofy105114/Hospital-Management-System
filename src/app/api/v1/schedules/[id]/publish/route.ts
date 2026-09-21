@@ -21,10 +21,7 @@ import { AuditAction, AppointmentStatus, UserRole } from "@prisma/client";
  *
  * Roles allowed: ADMIN, SUPER_ADMIN.
  */
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   const user = getAuthUser(request);
   if (!user) return apiError("UNAUTHENTICATED", "Authentication required", 401);
   if (!requireRole(user, [UserRole.ADMIN])) {
@@ -58,7 +55,7 @@ export async function POST(
               dayOfWeek: session.dayOfWeek,
               isActive: true,
               startTime: { lte: session.endTime },
-              endTime:   { gte: session.startTime },
+              endTime: { gte: session.startTime },
             },
           });
           if (roomConflict) {
@@ -76,18 +73,15 @@ export async function POST(
       // startTime or end after the session endTime on the matching dayOfWeek.
       try {
         const [startH, startM] = session.startTime.split(":").map(Number);
-        const [endH,   endM]   = session.endTime.split(":").map(Number);
+        const [endH, endM] = session.endTime.split(":").map(Number);
         const sessionStartMinutes = startH * 60 + startM;
-        const sessionEndMinutes   = endH   * 60 + endM;
+        const sessionEndMinutes = endH * 60 + endM;
 
         const futureAppts = await prisma.appointment.findMany({
           where: {
             doctorId: session.doctorId,
             status: {
-              in: [
-                AppointmentStatus.CONFIRMED,
-                AppointmentStatus.CHECKED_IN,
-              ],
+              in: [AppointmentStatus.CONFIRMED, AppointmentStatus.CHECKED_IN],
             },
             slotStart: { gte: new Date() },
           },
@@ -98,16 +92,11 @@ export async function POST(
           // Only check appointments on the same day-of-week as this session
           if (appt.slotStart.getDay() !== session!.dayOfWeek) return false;
 
-          const apptStartMinutes =
-            appt.slotStart.getHours() * 60 + appt.slotStart.getMinutes();
-          const apptEndMinutes =
-            appt.slotEnd.getHours() * 60 + appt.slotEnd.getMinutes();
+          const apptStartMinutes = appt.slotStart.getHours() * 60 + appt.slotStart.getMinutes();
+          const apptEndMinutes = appt.slotEnd.getHours() * 60 + appt.slotEnd.getMinutes();
 
           // Outside the session window
-          return (
-            apptStartMinutes < sessionStartMinutes ||
-            apptEndMinutes   > sessionEndMinutes
-          );
+          return apptStartMinutes < sessionStartMinutes || apptEndMinutes > sessionEndMinutes;
         });
 
         if (orphaned.length > 0) {
@@ -151,7 +140,7 @@ export async function POST(
       entityId: id,
       changes: {
         before: { isActive: session?.isActive ?? false },
-        after:  { isActive: true, published: true },
+        after: { isActive: true, published: true },
       },
     });
 

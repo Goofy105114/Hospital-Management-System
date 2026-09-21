@@ -101,6 +101,16 @@ export class EmrService {
       plan?: string;
     }
   ) {
+    const existing = await prisma.encounter.findUnique({
+      where: { id: encounterId },
+    });
+
+    if (existing && existing.status === EncounterStatus.FINALIZED) {
+      const error = new Error("EMR_NOTE_ALREADY_SIGNED");
+      (error as any).status = 422;
+      throw error;
+    }
+
     return prisma.encounter.update({
       where: { id: encounterId },
       data: {
@@ -131,5 +141,32 @@ export class EmrService {
     });
 
     return encounter;
+  }
+
+  static async getPatientContext(patientId: string) {
+    try {
+      const patient = await prisma.patient.findUnique({
+        where: { id: patientId },
+        include: {
+          user: { select: { name: true, email: true, phone: true } },
+          allergies: true,
+          vitalSigns: { take: 5, orderBy: { recordedAt: "desc" } },
+          encounters: {
+            take: 5,
+            orderBy: { createdAt: "desc" },
+            select: {
+              id: true,
+              encounterNumber: true,
+              status: true,
+              chiefComplaint: true,
+              createdAt: true,
+            },
+          },
+        },
+      });
+      return patient;
+    } catch {
+      return null;
+    }
   }
 }

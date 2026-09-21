@@ -145,14 +145,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   // APT-06: auth guard — only authorised clinical/admin roles may mutate appointment lifecycle
   const user = getAuthUser(request);
   if (!user) return apiError("UNAUTHENTICATED", "Authentication required", 401);
-  if (
-    !requireRole(user, [
-      "RECEPTIONIST",
-      "DOCTOR",
-      "NURSE",
-      "ADMIN",
-    ])
-  ) {
+  if (!requireRole(user, ["RECEPTIONIST", "DOCTOR", "NURSE", "ADMIN"])) {
     return apiError("UNAUTHORIZED_ROLE", "Insufficient role to update appointment lifecycle", 403);
   }
 
@@ -303,11 +296,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       });
     }
 
-    return apiError(
-      "APT_INVALID_ACTION",
-      "Supported actions: CANCEL, NO_SHOW, RESCHEDULE",
-      400
-    );
+    return apiError("APT_INVALID_ACTION", "Supported actions: CANCEL, NO_SHOW, RESCHEDULE", 400);
   } catch (err: any) {
     return apiError("INTERNAL_ERROR", err.message || "Failed to update appointment", 500);
   }

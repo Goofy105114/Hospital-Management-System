@@ -16,10 +16,7 @@ import { AuditAction, UserRole } from "@prisma/client";
  *
  * Roles allowed: ADMIN, SUPER_ADMIN.
  */
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   const user = getAuthUser(request);
   if (!user) return apiError("UNAUTHENTICATED", "Authentication required", 401);
   if (!requireRole(user, [UserRole.ADMIN])) {
@@ -37,7 +34,11 @@ export async function POST(
 
     const exceptionDate = new Date(date);
     if (isNaN(exceptionDate.getTime())) {
-      return apiError("SCH_EXCEPTION_INVALID_DATE", "date must be a valid ISO date (YYYY-MM-DD)", 400);
+      return apiError(
+        "SCH_EXCEPTION_INVALID_DATE",
+        "date must be a valid ISO date (YYYY-MM-DD)",
+        400
+      );
     }
 
     // Fetch session to get the doctorId
