@@ -85,6 +85,10 @@ export function validateAppointmentEligibility(
 }
 
 export function formatQueueTokenNumber(sequence: number, doctorCode = "A"): string {
-  const cleanCode = doctorCode.replace(/[^A-Za-z0-9]/g, "").slice(0, 4).toUpperCase() || "A";
+  const cleanCode =
+    doctorCode
+      .replace(/[^A-Za-z0-9]/g, "")
+      .slice(0, 4)
+      .toUpperCase() || "A";
   return `#${cleanCode}-${String(sequence).padStart(2, "0")}`;
 }

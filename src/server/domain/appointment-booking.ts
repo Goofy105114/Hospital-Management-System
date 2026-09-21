@@ -102,10 +102,7 @@ const APPOINTMENT_TRANSITIONS: Record<AppointmentStatus, AppointmentStatus[]> = 
   RESCHEDULED: [],
 };
 
-export function canTransitionAppointment(
-  from: AppointmentStatus,
-  to: AppointmentStatus
-): boolean {
+export function canTransitionAppointment(from: AppointmentStatus, to: AppointmentStatus): boolean {
   return APPOINTMENT_TRANSITIONS[from]?.includes(to) ?? false;
 }
 

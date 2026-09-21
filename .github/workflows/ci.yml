@@ -2,12 +2,23 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - staging
+      - dev
   pull_request:
-    branches: [main]
+    branches:
+      - main
+      - staging
+      - dev
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-and-test:
+    name: Lint, Typecheck, Test & Build
     runs-on: ubuntu-latest
 
     steps:
@@ -26,11 +37,26 @@ jobs:
       - name: Run Prisma Generate
         run: npx prisma generate
 
+      - name: Run Prettier formatting check
+        run: npm run format:check
+
       - name: Run ESLint
         run: npm run lint
 
-      - name: Run Typecheck
+      - name: Run TypeScript typecheck
         run: npx tsc --noEmit
 
-      - name: Run Vitest unit tests
+      - name: Run Vitest unit & integration tests
         run: npm run test
+
+      - name: Run Production Build
+        run: npm run build
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/going_merry_hms?schema=public"
+          DIRECT_URL: "postgresql://postgres:postgres@localhost:5432/going_merry_hms?schema=public"
+          NEXT_PUBLIC_SUPABASE_URL: "https://mock-ci-project.supabase.co"
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: "ci-mock-anon-key"
+          SUPABASE_SERVICE_ROLE_KEY: "ci-mock-service-role-key"
+          JWT_SECRET: "ci-super-secret-jwt-key-minimum-32-chars-long"
+          NEXT_PUBLIC_APP_URL: "http://localhost:3000"
+          NODE_ENV: "production"

@@ -1,0 +1,95 @@
+name: Promote to Staging
+
+on:
+  push:
+    branches:
+      - dev
+
+concurrency:
+  group: promote-to-staging
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  create-staging-pr:
+    name: Create Promotion PR (dev → staging)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for changes and create promotion PR
+        env:
+          GH_TOKEN: ${{ secrets.PROMOTION_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          # 1. Verify remote staging branch exists
+          if ! git rev-parse --verify origin/staging >/dev/null 2>&1; then
+            echo "⚠️ Remote branch 'origin/staging' not found. Please create 'staging' on remote first."
+            exit 0
+          fi
+
+          git fetch origin staging:staging
+
+          # 2. Check if dev has commits not in staging
+          COMMITS_AHEAD=$(git rev-list --count staging..origin/dev)
+          if [ "$COMMITS_AHEAD" -eq 0 ]; then
+            echo "✅ 'dev' has no new commits compared to 'staging'. Nothing to promote."
+            exit 0
+          fi
+
+          echo "Found $COMMITS_AHEAD commit(s) on 'dev' not yet in 'staging'."
+
+          # 3. Check if an open promotion PR already exists
+          EXISTING_PR=$(gh pr list --base staging --head dev --state open --json number --jq '.[0].number')
+          if [ -n "$EXISTING_PR" ]; then
+            echo "ℹ️ Promotion PR #$EXISTING_PR already exists from dev -> staging. Skipping duplicate creation."
+            exit 0
+          fi
+
+          # 4. Generate PR description
+          COMMIT_LOG=$(git log staging..origin/dev --pretty=format:"- %h %s (%an)")
+          DIFF_STAT=$(git diff --stat staging...origin/dev)
+          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
+
+          cat <<EOF > pr_body.md
+          ## 🚀 Promote dev → staging
+
+          Automated promotion Pull Request integrating tested developer features from \`dev\` into Pre-Production / QA (\`staging\`).
+
+          ### 📦 Promotion Details
+          - **Source Branch:** \`dev\`
+          - **Target Branch:** \`staging\`
+          - **Triggered At:** ${TIMESTAMP}
+          - **Commits Included:** ${COMMITS_AHEAD}
+
+          ### 📝 Included Commits
+          ${COMMIT_LOG}
+
+          ### 📊 Diff Statistics
+          \`\`\`text
+          ${DIFF_STAT}
+          \`\`\`
+
+          ### 🚦 Release Checklist for QA
+          - [ ] All CI status checks (lint, format, typecheck, tests, build) pass.
+          - [ ] Verify database migrations (if any) are compatible with staging DB.
+          - [ ] Smoke test patient, clinician, receptionist, and pharmacy flows on staging preview.
+          - [ ] Once approved by QA / Tech Lead, merge this PR to trigger staging deployment.
+
+          > *Notice: This pull request was automatically generated. Do not auto-merge without review.*
+          EOF
+
+          # 5. Create the promotion PR
+          PR_URL=$(gh pr create \
+            --base staging \
+            --head dev \
+            --title "🚀 Promote dev → staging" \
+            --body-file pr_body.md)
+
+          echo "✅ Created promotion Pull Request: $PR_URL"

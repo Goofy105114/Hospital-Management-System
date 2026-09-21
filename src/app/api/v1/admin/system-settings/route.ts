@@ -21,7 +21,11 @@ export async function GET(req: NextRequest) {
       return apiError("UNAUTHORIZED", "Authentication required", 401);
     }
     if (!requireRole(auth, ["ADMIN", "SUPER_ADMIN"])) {
-      return apiError("ADM_FORBIDDEN", "Insufficient privileges for operational administration", 403);
+      return apiError(
+        "ADM_FORBIDDEN",
+        "Insufficient privileges for operational administration",
+        403
+      );
     }
 
     try {

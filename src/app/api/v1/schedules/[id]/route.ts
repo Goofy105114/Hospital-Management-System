@@ -4,17 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { getAuthUser, requireRole } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit";
 import { AuditAction } from "@prisma/client";
-import {
-  validateClinicSession,
-  detectSessionOverlap,
-} from "@/server/domain/doctor-schedule";
+import { validateClinicSession, detectSessionOverlap } from "@/server/domain/doctor-schedule";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const { id } = params;
     const session = await prisma.clinicSession.findUnique({
@@ -27,10 +21,9 @@ export async function GET(
     });
 
     if (!session) {
-      return NextResponse.json(
-        errorResponse("SCH_NOT_FOUND", "Clinic session not found"),
-        { status: 404 }
-      );
+      return NextResponse.json(errorResponse("SCH_NOT_FOUND", "Clinic session not found"), {
+        status: 404,
+      });
     }
 
     return NextResponse.json(successResponse(session));
@@ -44,10 +37,7 @@ export async function GET(
   }
 }
 
-export async function PUT(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const { id } = params;
     const auth = getAuthUser(req);
@@ -71,18 +61,20 @@ export async function PUT(
     });
 
     if (!session) {
-      return NextResponse.json(
-        errorResponse("SCH_NOT_FOUND", "Clinic session not found"),
-        { status: 404 }
-      );
+      return NextResponse.json(errorResponse("SCH_NOT_FOUND", "Clinic session not found"), {
+        status: 404,
+      });
     }
 
     const body = await req.json();
-    const updatedDayOfWeek = body.dayOfWeek !== undefined ? Number(body.dayOfWeek) : session.dayOfWeek;
+    const updatedDayOfWeek =
+      body.dayOfWeek !== undefined ? Number(body.dayOfWeek) : session.dayOfWeek;
     const updatedStartTime = body.startTime || session.startTime;
     const updatedEndTime = body.endTime || session.endTime;
     const updatedSlotDuration =
-      body.slotDurationMinutes !== undefined ? Number(body.slotDurationMinutes) : session.slotDurationMinutes;
+      body.slotDurationMinutes !== undefined
+        ? Number(body.slotDurationMinutes)
+        : session.slotDurationMinutes;
     const updatedMaxCapacity =
       body.maxCapacity !== undefined ? Number(body.maxCapacity) : session.maxCapacity;
 
@@ -179,10 +171,7 @@ export async function PUT(
   }
 }
 
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const { id } = params;
     const auth = getAuthUser(req);
@@ -206,10 +195,9 @@ export async function DELETE(
     });
 
     if (!session) {
-      return NextResponse.json(
-        errorResponse("SCH_NOT_FOUND", "Clinic session not found"),
-        { status: 404 }
-      );
+      return NextResponse.json(errorResponse("SCH_NOT_FOUND", "Clinic session not found"), {
+        status: 404,
+      });
     }
 
     await prisma.clinicSession.update({

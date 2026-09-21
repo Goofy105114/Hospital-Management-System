@@ -18,10 +18,7 @@ import { validateSlotConfig } from "@/server/domain/appointment-booking";
  * Roles allowed: ADMIN, SUPER_ADMIN (requireRole also passes ADMIN/SUPER_ADMIN
  * automatically via the existing requireRole helper).
  */
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   // Auth guard — ADMIN only per SCH-03 PRD business rules
   const user = getAuthUser(request);
   if (!user) return apiError("UNAUTHENTICATED", "Authentication required", 401);
@@ -77,13 +74,13 @@ export async function PUT(
       try {
         const conflict = await prisma.clinicSession.findFirst({
           where: {
-            id: { not: id },                       // exclude this session
-            roomNumber,                             // same room
-            dayOfWeek: session.dayOfWeek,           // same day of week
+            id: { not: id }, // exclude this session
+            roomNumber, // same room
+            dayOfWeek: session.dayOfWeek, // same day of week
             isActive: true,
             // Overlapping time window
             startTime: { lte: session.endTime },
-            endTime:   { gte: session.startTime },
+            endTime: { gte: session.startTime },
           },
         });
 
@@ -106,9 +103,10 @@ export async function PUT(
       roomNumber?: string;
     } = {};
 
-    if (slotDurationMinutes !== undefined) updateData.slotDurationMinutes = Number(slotDurationMinutes);
-    if (maxCapacity !== undefined)         updateData.maxCapacity         = Number(maxCapacity);
-    if (roomNumber !== undefined)          updateData.roomNumber          = String(roomNumber);
+    if (slotDurationMinutes !== undefined)
+      updateData.slotDurationMinutes = Number(slotDurationMinutes);
+    if (maxCapacity !== undefined) updateData.maxCapacity = Number(maxCapacity);
+    if (roomNumber !== undefined) updateData.roomNumber = String(roomNumber);
 
     let updated = null;
     try {
@@ -132,8 +130,8 @@ export async function PUT(
         before: session
           ? {
               slotDurationMinutes: session.slotDurationMinutes,
-              maxCapacity:         session.maxCapacity,
-              roomNumber:          session.roomNumber,
+              maxCapacity: session.maxCapacity,
+              roomNumber: session.roomNumber,
             }
           : null,
         after: updateData,
