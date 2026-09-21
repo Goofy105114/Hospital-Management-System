@@ -75,12 +75,16 @@ export async function GET() {
   }
 }
 
+import { computePOReceiptStatus } from "@/server/domain/purchase-order";
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { supplier, expectedDelivery, items, totalAmount } = body;
+    const { supplier, expectedDelivery, items, totalAmount, action } = body;
 
     const seq = Math.floor(1000 + Math.random() * 9000);
+    const poStatus = action === "RECEIVE" ? computePOReceiptStatus(items || []) : "DRAFT";
+
     const newPO = {
       id: `po-${Date.now()}`,
       poNumber: `PO-2026-${seq}`,
@@ -90,7 +94,7 @@ export async function POST(req: NextRequest) {
         expectedDelivery || new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0],
       totalAmount: Number(totalAmount) || 2500.0,
       itemCount: items?.length || 2,
-      status: "DRAFT",
+      status: poStatus,
       items: items || [],
     };
 
