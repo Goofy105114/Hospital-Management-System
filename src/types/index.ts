@@ -568,5 +568,38 @@ export interface AdministrativeApprovalDTO {
   approvedAt?: string | null;
 }
 
+export interface LiveQueueBoardDTO {
+  asOfDate: string;
+  departmentId?: string | null;
+  departmentName?: string | null;
+  currentlyServing: Array<{
+    tokenNumber: string;
+    roomNumber?: string | null;
+    doctorName?: string | null;
+    status: "CALLED" | "IN_CONSULTATION";
+  }>;
+  nextWaiting: Array<{
+    tokenNumber: string;
+    priority: PriorityTier;
+    estimatedWaitMinutes: number;
+  }>;
+  totalWaitingCount: number;
+}
 
-
+export interface PatientQueueStatusDTO {
+  tokenId: string;
+  tokenNumber: string;
+  patientId: string;
+  patientName: string;
+  patientMrn: string;
+  doctorName: string;
+  roomNumber?: string | null;
+  departmentName: string;
+  priority: PriorityTier;
+  status: QueueTokenStatus;
+  positionInQueue: number;
+  patientsAhead: number;
+  estimatedWaitMinutes: number;
+  issuedAt: string;
+  calledAt?: string | null;
+}
