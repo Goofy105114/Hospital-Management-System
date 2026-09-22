@@ -303,3 +303,67 @@ export interface AdmissionDetailDTO {
   status: AdmissionStatus;
   createdAt: string;
 }
+
+export interface PaymentReceiptDTO {
+  receiptNumber: string;
+  paymentId: string;
+  invoiceId: string;
+  invoiceNumber: string;
+  patientId: string;
+  patientName: string;
+  patientMrn: string;
+  amount: number;
+  paymentMethod: string;
+  transactionReference?: string | null;
+  collectedBy?: string | null;
+  invoiceTotal: number;
+  remainingBalance: number;
+  paymentDate: string;
+}
+
+export interface PatientStatementDTO {
+  patientId: string;
+  patientName: string;
+  patientMrn: string;
+  generatedAt: string;
+  totalInvoiced: number;
+  totalPaid: number;
+  totalAdjustments: number;
+  outstandingBalance: number;
+  aging: {
+    current: number;
+    days30: number;
+    days60: number;
+    days90Plus: number;
+    totalOutstanding: number;
+  };
+  invoices: Array<{
+    id: string;
+    invoiceNumber: string;
+    invoiceDate: string;
+    totalAmount: number;
+    paidAmount: number;
+    balanceAmount: number;
+    status: string;
+  }>;
+  payments: Array<{
+    id: string;
+    receiptNumber: string;
+    invoiceNumber: string;
+    amount: number;
+    paymentMethod: string;
+    paymentDate: string;
+    collectedBy?: string | null;
+  }>;
+}
+
+export interface FinancialReconciliationDTO {
+  asOfDate: string;
+  totalBilled: number;
+  totalCollected: number;
+  totalOutstanding: number;
+  transactionCount: number;
+  collectionsByMethod: Record<string, number>;
+  generatedBy?: string | null;
+}
+
