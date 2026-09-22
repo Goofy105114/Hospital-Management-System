@@ -1,12 +1,34 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import React, { useState } from "react";
 import { AppLayout } from "@/components/shared/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import api from "@/lib/axios";
+import {
+  Save,
+  FileSignature,
+  ShieldCheck,
+  Users,
+  AlertTriangle,
+  AlertOctagon,
+  FileText,
+  Stethoscope,
+  Pill,
+  FlaskConical,
+  Sparkles,
+  Loader2,
+  Plus,
+  Trash2,
+  Check,
+  Clock,
+  Heart,
+  Activity,
+  Thermometer,
+  Scale,
+  ChevronRight,
+} from "lucide-react";
 
 interface QueuePatient {
   id: string;
@@ -83,15 +105,6 @@ const AVAILABLE_MEDS = [
 ];
 
 export default function DoctorWorkspacePage() {
-  const router = useRouter();
-  const pathname = usePathname();
-
-  useEffect(() => {
-    if (pathname === "/doctor") {
-      router.replace("/doctor/dashboard");
-    }
-  }, [pathname, router]);
-
   const [selectedPatient, setSelectedPatient] = useState<QueuePatient>(PATIENTS_QUEUE[0]);
   const [activeTab, setActiveTab] = useState<"SOAP" | "DIAGNOSIS" | "RX" | "LABS">("SOAP");
 
@@ -230,7 +243,6 @@ export default function DoctorWorkspacePage() {
         setAssessment((prev) => `${prev}\n\n[AI Clinical Insight]: ${res.data.data.summary}`);
       }
     } catch {
-      // Deterministic local clinical assistant fallback
       setAssessment(
         (prev) =>
           `${prev}\n\n[AI Clinical Insight]: Symptoms correlate with benign sinus arrhythmia post-exertion. Serum electrolytes and resting ECG recommended prior to pharmacotherapy escalation.`
@@ -259,69 +271,71 @@ export default function DoctorWorkspacePage() {
 
   return (
     <AppLayout>
-      <div className="max-w-7xl mx-auto space-y-space-6 pb-space-12">
+      <div className="max-w-7xl mx-auto space-y-5 pb-12">
         {/* Top Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-space-4 border-b border-outline-variant/30 pb-space-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/80 pb-4">
           <div>
-            <div className="flex items-center gap-space-3">
-              <h1 className="font-headline-md text-headline-md text-on-surface font-bold tracking-tight">
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-xl font-bold text-slate-800 tracking-tight">
                 Clinician Consultation Desk
               </h1>
-              <Badge variant="success" className="text-xs">
+              <Badge variant="success" className="text-[11px] font-semibold px-2 py-0.5">
                 Room 402B • Active Session
               </Badge>
             </div>
-            <p className="font-body-md text-on-surface-variant mt-1">
+            <p className="text-xs text-slate-500 mt-0.5">
               Dr. Marcus Vance, MD, FACC • Chief of Cardiology
             </p>
           </div>
 
-          <div className="flex items-center gap-space-3">
+          <div className="flex items-center gap-2.5">
             <Button
               variant="outline"
               size="sm"
               onClick={() => alert("Draft saved to EMR local cache.")}
               disabled={isSigned}
-              className="gap-1 border-outline-variant/40"
+              className="gap-1.5 text-xs font-semibold h-9 rounded-xl border-slate-200 shadow-2xs hover:bg-slate-50"
             >
-              <span className="material-symbols-outlined text-base">save</span>
+              <Save className="w-3.5 h-3.5 text-slate-500" />
               Save Draft
             </Button>
             <Button
               size="sm"
               onClick={handleSignEncounter}
               disabled={isSigned}
-              className={`gap-1 font-semibold ${
+              className={`gap-1.5 text-xs font-semibold h-9 rounded-xl shadow-2xs transition-all ${
                 isSigned
-                  ? "bg-emerald-600 text-white cursor-default"
-                  : "bg-primary text-white hover:bg-primary/90"
+                  ? "bg-emerald-600 text-white cursor-default hover:bg-emerald-600"
+                  : "bg-teal-700 hover:bg-teal-800 text-white"
               }`}
             >
-              <span className="material-symbols-outlined text-base">
-                {isSigned ? "verified" : "draw"}
-              </span>
+              {isSigned ? (
+                <ShieldCheck className="w-4 h-4 text-white" />
+              ) : (
+                <FileSignature className="w-4 h-4 text-white" />
+              )}
               {isSigned ? "Digitally Signed & Locked" : "Sign & Lock Encounter"}
             </Button>
           </div>
         </div>
 
         {/* Workspace Layout: Left (Patient Queue) | Right (Active Encounter) */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-space-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-5">
           {/* Left Column: Today's Queue List (1 Col) */}
-          <div className="lg:col-span-1 space-y-space-4">
-            <Card className="border border-outline-variant/30 shadow-xs">
-              <CardHeader className="pb-space-2 border-b border-outline-variant/20">
+          <div className="lg:col-span-1 space-y-3">
+            <Card className="border border-slate-200/80 shadow-2xs rounded-2xl overflow-hidden bg-white">
+              <CardHeader className="py-3 px-4 border-b border-slate-100 bg-slate-50/50">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="font-title-sm text-title-sm text-on-surface flex items-center gap-space-2">
-                    <span className="material-symbols-outlined text-primary text-lg">groups</span>
+                  <CardTitle className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                    <Users className="w-4 h-4 text-teal-700" />
                     Today&apos;s Queue
                   </CardTitle>
-                  <span className="font-mono text-xs text-outline font-semibold">
+                  <span className="font-mono text-[11px] text-slate-500 font-semibold bg-white px-2 py-0.5 rounded-full border border-slate-200">
                     {PATIENTS_QUEUE.length} Patients
                   </span>
                 </div>
               </CardHeader>
-              <CardContent className="p-space-2 space-y-space-2">
+              <CardContent className="p-2 space-y-1.5">
                 {PATIENTS_QUEUE.map((patient) => {
                   const isSelected = selectedPatient.id === patient.id;
                   return (
@@ -331,28 +345,31 @@ export default function DoctorWorkspacePage() {
                         setSelectedPatient(patient);
                         setIsSigned(false);
                       }}
-                      className={`w-full text-left p-space-3 rounded-xl transition-all border ${
+                      className={`w-full text-left p-3 rounded-xl transition-all border ${
                         isSelected
-                          ? "bg-primary/10 border-primary/40 shadow-xs"
-                          : "bg-surface-container-lowest border-outline-variant/20 hover:bg-surface-container"
+                          ? "bg-teal-50/80 border-teal-600/40 shadow-2xs"
+                          : "bg-white border-slate-100 hover:border-slate-200 hover:bg-slate-50/60"
                       }`}
                     >
                       <div className="flex items-center justify-between">
-                        <span className="font-mono font-bold text-sm text-primary">
+                        <span className="font-mono font-bold text-xs text-teal-800 bg-teal-100/70 px-1.5 py-0.5 rounded">
                           {patient.tokenNumber}
                         </span>
-                        <span className="text-[10px] font-mono text-outline">{patient.time}</span>
+                        <span className="text-[10px] font-mono text-slate-400 flex items-center gap-1">
+                          <Clock className="w-2.5 h-2.5" />
+                          {patient.time}
+                        </span>
                       </div>
-                      <h4 className="font-title-sm font-bold text-on-surface truncate mt-1">
+                      <h4 className="text-xs font-bold text-slate-800 truncate mt-1.5">
                         {patient.name}
                       </h4>
-                      <p className="font-mono text-xs text-outline">{patient.mrn}</p>
-                      <p className="font-body-sm text-xs text-on-surface-variant line-clamp-1 mt-1">
+                      <p className="font-mono text-[11px] text-slate-400">{patient.mrn}</p>
+                      <p className="text-[11px] text-slate-500 line-clamp-1 mt-1">
                         {patient.reason}
                       </p>
                       {patient.allergies.length > 0 && (
-                        <div className="mt-1.5 flex items-center gap-1 text-[10px] text-error font-semibold">
-                          <span className="material-symbols-outlined text-xs">warning</span>
+                        <div className="mt-1.5 inline-flex items-center gap-1 text-[10px] text-rose-700 font-semibold bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200/60">
+                          <AlertTriangle className="w-2.5 h-2.5" />
                           Allergies Flagged
                         </div>
                       )}
@@ -364,39 +381,42 @@ export default function DoctorWorkspacePage() {
           </div>
 
           {/* Right Column: Active Patient Consultation Console (3 Cols) */}
-          <div className="lg:col-span-3 space-y-space-6">
+          <div className="lg:col-span-3 space-y-4">
             {/* Active Patient Clinical Banner */}
-            <div className="p-space-4 rounded-2xl bg-surface-container-lowest border border-outline-variant/30 shadow-xs space-y-space-4">
-              <div className="flex flex-wrap items-start justify-between gap-space-4">
-                <div className="flex items-center gap-space-4">
-                  <div className="w-14 h-14 rounded-2xl bg-primary text-white flex items-center justify-center font-mono font-bold text-xl shrink-0">
+            <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-4">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="flex items-center gap-3.5">
+                  {/* Fixed Token Badge: No awkward wrapping */}
+                  <div className="h-12 min-w-[76px] px-3 rounded-xl bg-teal-800 text-white flex items-center justify-center font-mono font-bold text-sm tracking-wide shrink-0 shadow-xs whitespace-nowrap">
                     {selectedPatient.tokenNumber}
                   </div>
                   <div>
-                    <div className="flex items-center gap-space-2">
-                      <h2 className="font-headline-sm text-headline-sm font-bold text-on-surface">
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-base font-bold text-slate-800">
                         {selectedPatient.name}
                       </h2>
-                      <Badge variant="outline" className="text-xs font-mono">
+                      <Badge variant="outline" className="text-[11px] font-mono border-slate-200 bg-slate-50 text-slate-600">
                         {selectedPatient.mrn}
                       </Badge>
                     </div>
-                    <p className="font-body-sm text-on-surface-variant mt-0.5">
+                    <p className="text-xs text-slate-500 mt-0.5">
                       {selectedPatient.age} yrs • {selectedPatient.gender} • Blood Group:{" "}
-                      <strong>{selectedPatient.bloodGroup}</strong>
+                      <strong className="text-slate-700">{selectedPatient.bloodGroup}</strong>
                     </p>
                   </div>
                 </div>
 
                 {/* Patient Allergies Banner */}
                 {selectedPatient.allergies.length > 0 ? (
-                  <div className="p-space-2.5 rounded-xl bg-red-50 border border-red-200 text-red-900 flex items-start gap-space-2 max-w-sm">
-                    <span className="material-symbols-outlined text-red-600 text-lg shrink-0 mt-0.5">
-                      allergies
-                    </span>
-                    <div className="text-xs">
-                      <span className="font-bold block">DOCUMENTED ALLERGIES:</span>
-                      <span>{selectedPatient.allergies.join(", ")}</span>
+                  <div className="px-3 py-2 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 flex items-start gap-2 max-w-md shadow-2xs">
+                    <AlertOctagon className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                    <div className="text-xs leading-tight">
+                      <span className="font-bold text-[10px] tracking-wide uppercase block text-rose-700 mb-0.5">
+                        DOCUMENTED ALLERGIES:
+                      </span>
+                      <span className="font-medium text-rose-800">
+                        {selectedPatient.allergies.join(", ")}
+                      </span>
                     </div>
                   </div>
                 ) : (
@@ -407,49 +427,49 @@ export default function DoctorWorkspacePage() {
               </div>
 
               {/* Vitals Strip */}
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-space-2 pt-space-2 border-t border-outline-variant/20">
-                <div className="p-space-2 rounded-lg bg-surface-container-low text-center">
-                  <span className="text-[10px] uppercase text-outline font-semibold block">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-3 border-t border-slate-100">
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-center">
+                  <span className="text-[10px] uppercase text-slate-400 font-semibold tracking-wider block">
                     BP (mmHg)
                   </span>
-                  <span className="font-mono font-bold text-sm text-on-surface">128/82</span>
+                  <span className="font-mono font-bold text-sm text-slate-800 mt-0.5 block">128/82</span>
                 </div>
-                <div className="p-space-2 rounded-lg bg-surface-container-low text-center">
-                  <span className="text-[10px] uppercase text-outline font-semibold block">
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-center">
+                  <span className="text-[10px] uppercase text-slate-400 font-semibold tracking-wider block">
                     Pulse (bpm)
                   </span>
-                  <span className="font-mono font-bold text-sm text-on-surface">72</span>
+                  <span className="font-mono font-bold text-sm text-slate-800 mt-0.5 block">72</span>
                 </div>
-                <div className="p-space-2 rounded-lg bg-surface-container-low text-center">
-                  <span className="text-[10px] uppercase text-outline font-semibold block">
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-center">
+                  <span className="text-[10px] uppercase text-slate-400 font-semibold tracking-wider block">
                     SpO2 (%)
                   </span>
-                  <span className="font-mono font-bold text-sm text-on-surface">98%</span>
+                  <span className="font-mono font-bold text-sm text-slate-800 mt-0.5 block">98%</span>
                 </div>
-                <div className="p-space-2 rounded-lg bg-surface-container-low text-center">
-                  <span className="text-[10px] uppercase text-outline font-semibold block">
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-center">
+                  <span className="text-[10px] uppercase text-slate-400 font-semibold tracking-wider block">
                     Temp (°F)
                   </span>
-                  <span className="font-mono font-bold text-sm text-on-surface">98.4°</span>
+                  <span className="font-mono font-bold text-sm text-slate-800 mt-0.5 block">98.4°</span>
                 </div>
-                <div className="p-space-2 rounded-lg bg-surface-container-low text-center">
-                  <span className="text-[10px] uppercase text-outline font-semibold block">
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-center">
+                  <span className="text-[10px] uppercase text-slate-400 font-semibold tracking-wider block">
                     BMI (kg/m²)
                   </span>
-                  <span className="font-mono font-bold text-sm text-on-surface">23.8</span>
+                  <span className="font-mono font-bold text-sm text-slate-800 mt-0.5 block">23.8</span>
                 </div>
               </div>
             </div>
 
             {/* Real-time Drug Safety Warnings Banner */}
             {safetyAlerts.length > 0 && (
-              <div className="p-space-4 rounded-2xl bg-red-50 border-2 border-red-400 text-red-950 space-y-space-2 animate-in fade-in">
-                <div className="flex items-center gap-space-2 font-bold text-red-900">
-                  <span className="material-symbols-outlined text-red-600">emergency</span>
-                  CLINICAL SAFETY ALERT (SAFETY-CHECK SERVICE)
+              <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-300 text-rose-950 space-y-1.5 animate-in fade-in">
+                <div className="flex items-center gap-2 font-bold text-xs text-rose-800 uppercase tracking-wide">
+                  <AlertOctagon className="w-4 h-4 text-rose-600" />
+                  Clinical Safety Alert (Safety-Check Service)
                 </div>
                 {safetyAlerts.map((alert, idx) => (
-                  <p key={idx} className="text-xs font-semibold text-red-800 leading-relaxed">
+                  <p key={idx} className="text-xs font-semibold text-rose-800 leading-relaxed pl-6">
                     • {alert}
                   </p>
                 ))}
@@ -457,61 +477,61 @@ export default function DoctorWorkspacePage() {
             )}
 
             {/* Tabbed Clinical Workflow Navigation */}
-            <div className="flex items-center gap-space-2 border-b border-outline-variant/20 pb-space-2">
+            <div className="flex items-center gap-1.5 bg-slate-100/80 p-1 rounded-xl border border-slate-200/60 overflow-x-auto">
               <button
                 onClick={() => setActiveTab("SOAP")}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-label-md transition-colors ${
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
                   activeTab === "SOAP"
-                    ? "bg-primary text-white font-bold"
-                    : "text-on-surface-variant hover:bg-surface-container"
+                    ? "bg-white text-teal-800 shadow-2xs font-bold"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
                 }`}
               >
-                <span className="material-symbols-outlined text-base">clinical_notes</span>
+                <FileText className="w-3.5 h-3.5 text-teal-700" />
                 SOAP Notes
               </button>
 
               <button
                 onClick={() => setActiveTab("DIAGNOSIS")}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-label-md transition-colors ${
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
                   activeTab === "DIAGNOSIS"
-                    ? "bg-primary text-white font-bold"
-                    : "text-on-surface-variant hover:bg-surface-container"
+                    ? "bg-white text-teal-800 shadow-2xs font-bold"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
                 }`}
               >
-                <span className="material-symbols-outlined text-base">diagnosis</span>
+                <Stethoscope className="w-3.5 h-3.5 text-teal-700" />
                 ICD-10 Diagnoses ({diagnoses.length})
               </button>
 
               <button
                 onClick={() => setActiveTab("RX")}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-label-md transition-colors ${
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
                   activeTab === "RX"
-                    ? "bg-primary text-white font-bold"
-                    : "text-on-surface-variant hover:bg-surface-container"
+                    ? "bg-white text-teal-800 shadow-2xs font-bold"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
                 }`}
               >
-                <span className="material-symbols-outlined text-base">medication</span>
+                <Pill className="w-3.5 h-3.5 text-teal-700" />
                 E-Prescriptions ({prescriptions.length})
               </button>
 
               <button
                 onClick={() => setActiveTab("LABS")}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-label-md transition-colors ${
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
                   activeTab === "LABS"
-                    ? "bg-primary text-white font-bold"
-                    : "text-on-surface-variant hover:bg-surface-container"
+                    ? "bg-white text-teal-800 shadow-2xs font-bold"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
                 }`}
               >
-                <span className="material-symbols-outlined text-base">science</span>
+                <FlaskConical className="w-3.5 h-3.5 text-teal-700" />
                 Diagnostic Orders ({orderedLabs.length})
               </button>
             </div>
 
             {/* TAB 1: SOAP Clinical Notes */}
             {activeTab === "SOAP" && (
-              <div className="space-y-space-4">
+              <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-2xs space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-title-md font-bold text-on-surface">
+                  <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
                     Clinical Encounter Documentation (SOAP)
                   </h3>
                   <Button
@@ -519,65 +539,91 @@ export default function DoctorWorkspacePage() {
                     variant="outline"
                     onClick={handleAiAssistant}
                     disabled={aiGenerating}
-                    className="gap-1 text-primary border-primary/30 hover:bg-primary/10"
+                    className="gap-1.5 text-xs font-semibold h-8 rounded-lg text-teal-700 border-teal-200/80 bg-teal-50/50 hover:bg-teal-100/60 transition-colors"
                   >
-                    <span className="material-symbols-outlined text-base">
-                      {aiGenerating ? "progress_activity" : "auto_awesome"}
-                    </span>
+                    {aiGenerating ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Sparkles className="w-3.5 h-3.5 text-teal-600" />
+                    )}
                     {aiGenerating ? "AI Processing..." : "AI Clinical Assistant"}
                   </Button>
                 </div>
 
-                <div className="space-y-space-3">
+                <div className="space-y-4">
+                  {/* Subjective */}
                   <div>
-                    <label className="font-label-md font-bold text-primary block mb-1">
-                      Subjective (S) - Chief Complaint & History of Present Illness
-                    </label>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="px-1.5 py-0.5 rounded bg-teal-50 text-teal-800 border border-teal-200/70 text-[10px] font-mono font-bold">
+                        S
+                      </span>
+                      <label className="text-xs font-semibold text-slate-700">
+                        Subjective — Chief Complaint & History of Present Illness
+                      </label>
+                    </div>
                     <textarea
                       rows={3}
                       value={subjective}
                       onChange={(e) => setSubjective(e.target.value)}
                       disabled={isSigned}
-                      className="w-full p-3 rounded-lg border border-outline-variant/40 bg-surface-container-lowest text-sm focus:outline-none focus:border-primary"
+                      className="w-full p-3 rounded-xl border border-slate-200 bg-white text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-600/20 focus:border-teal-600 transition-all font-normal leading-relaxed shadow-2xs resize-y"
                     />
                   </div>
 
+                  {/* Objective */}
                   <div>
-                    <label className="font-label-md font-bold text-primary block mb-1">
-                      Objective (O) - Physical Exam, Review of Systems & Observations
-                    </label>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="px-1.5 py-0.5 rounded bg-sky-50 text-sky-800 border border-sky-200/70 text-[10px] font-mono font-bold">
+                        O
+                      </span>
+                      <label className="text-xs font-semibold text-slate-700">
+                        Objective — Physical Exam, Review of Systems & Observations
+                      </label>
+                    </div>
                     <textarea
                       rows={3}
                       value={objective}
                       onChange={(e) => setObjective(e.target.value)}
                       disabled={isSigned}
-                      className="w-full p-3 rounded-lg border border-outline-variant/40 bg-surface-container-lowest text-sm focus:outline-none focus:border-primary"
+                      className="w-full p-3 rounded-xl border border-slate-200 bg-white text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-600/20 focus:border-teal-600 transition-all font-normal leading-relaxed shadow-2xs resize-y"
                     />
                   </div>
 
+                  {/* Assessment */}
                   <div>
-                    <label className="font-label-md font-bold text-primary block mb-1">
-                      Assessment (A) - Clinical Impression & Differential Diagnosis
-                    </label>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-800 border border-indigo-200/70 text-[10px] font-mono font-bold">
+                        A
+                      </span>
+                      <label className="text-xs font-semibold text-slate-700">
+                        Assessment — Clinical Impression & Differential Diagnosis
+                      </label>
+                    </div>
                     <textarea
                       rows={3}
                       value={assessment}
                       onChange={(e) => setAssessment(e.target.value)}
                       disabled={isSigned}
-                      className="w-full p-3 rounded-lg border border-outline-variant/40 bg-surface-container-lowest text-sm focus:outline-none focus:border-primary"
+                      className="w-full p-3 rounded-xl border border-slate-200 bg-white text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-600/20 focus:border-teal-600 transition-all font-normal leading-relaxed shadow-2xs resize-y"
                     />
                   </div>
 
+                  {/* Plan */}
                   <div>
-                    <label className="font-label-md font-bold text-primary block mb-1">
-                      Plan (P) - Treatment, Diagnostics, Medications & Patient Counseling
-                    </label>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200/70 text-[10px] font-mono font-bold">
+                        P
+                      </span>
+                      <label className="text-xs font-semibold text-slate-700">
+                        Plan — Treatment, Diagnostics, Medications & Patient Counseling
+                      </label>
+                    </div>
                     <textarea
                       rows={3}
                       value={plan}
                       onChange={(e) => setPlan(e.target.value)}
                       disabled={isSigned}
-                      className="w-full p-3 rounded-lg border border-outline-variant/40 bg-surface-container-lowest text-sm focus:outline-none focus:border-primary"
+                      className="w-full p-3 rounded-xl border border-slate-200 bg-white text-xs sm:text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-600/20 focus:border-teal-600 transition-all font-normal leading-relaxed shadow-2xs resize-y"
                     />
                   </div>
                 </div>
@@ -586,16 +632,16 @@ export default function DoctorWorkspacePage() {
 
             {/* TAB 2: ICD-10 Diagnoses */}
             {activeTab === "DIAGNOSIS" && (
-              <div className="space-y-space-4">
-                <h3 className="font-title-md font-bold text-on-surface">
+              <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-2xs space-y-4">
+                <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
                   Problem List & ICD-10 Diagnosis Coding
                 </h3>
 
-                <div className="flex flex-col sm:flex-row gap-space-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <select
                     value={selectedIcd}
                     onChange={(e) => setSelectedIcd(e.target.value)}
-                    className="flex-1 p-2.5 rounded-lg border border-outline-variant/40 bg-surface-container-lowest text-sm"
+                    className="flex-1 p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-800 focus:outline-none focus:border-teal-600 focus:ring-1 focus:ring-teal-600"
                   >
                     {ICD10_CATALOG.map((c) => (
                       <option key={c.code} value={c.code}>
@@ -606,25 +652,27 @@ export default function DoctorWorkspacePage() {
                   <Button
                     onClick={handleAddDiagnosis}
                     disabled={isSigned}
-                    className="bg-primary text-white"
+                    size="sm"
+                    className="bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-semibold h-10 px-4 gap-1.5 shadow-2xs shrink-0"
                   >
+                    <Plus className="w-3.5 h-3.5" />
                     Add Diagnosis
                   </Button>
                 </div>
 
-                <div className="space-y-space-2">
+                <div className="space-y-2">
                   {diagnoses.map((diag, i) => (
                     <div
                       key={i}
-                      className="flex items-center justify-between p-space-3 rounded-xl bg-surface-container-lowest border border-outline-variant/30"
+                      className="flex items-center justify-between p-3 rounded-xl bg-slate-50/70 border border-slate-200/80"
                     >
-                      <div className="flex items-center gap-space-3">
-                        <span className="px-2 py-1 rounded bg-teal-100 text-teal-900 font-mono font-bold text-xs">
+                      <div className="flex items-center gap-3">
+                        <span className="px-2 py-1 rounded bg-teal-100/80 text-teal-800 font-mono font-bold text-xs border border-teal-200/60">
                           {diag.code}
                         </span>
                         <div>
-                          <p className="font-body-md font-semibold text-on-surface">{diag.label}</p>
-                          <span className="text-[10px] text-outline uppercase font-semibold">
+                          <p className="text-xs font-semibold text-slate-800">{diag.label}</p>
+                          <span className="text-[10px] text-slate-400 uppercase font-semibold">
                             {diag.type} DIAGNOSIS
                           </span>
                         </div>
@@ -632,9 +680,10 @@ export default function DoctorWorkspacePage() {
                       {!isSigned && (
                         <button
                           onClick={() => setDiagnoses(diagnoses.filter((_, idx) => idx !== i))}
-                          className="text-error hover:text-error/80"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                          title="Remove Diagnosis"
                         >
-                          <span className="material-symbols-outlined text-sm">delete</span>
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       )}
                     </div>
@@ -645,18 +694,20 @@ export default function DoctorWorkspacePage() {
 
             {/* TAB 3: E-Prescriptions */}
             {activeTab === "RX" && (
-              <div className="space-y-space-4">
-                <h3 className="font-title-md font-bold text-on-surface">
+              <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-2xs space-y-4">
+                <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
                   E-Prescribing & Medication Order Entry
                 </h3>
 
-                <div className="p-space-4 rounded-xl bg-surface-container-low border border-outline-variant/30 space-y-space-3">
-                  <h4 className="font-title-sm font-bold text-on-surface">
+                <div className="p-4 rounded-xl bg-slate-50/70 border border-slate-200/80 space-y-3">
+                  <h4 className="text-xs font-bold text-slate-800">
                     Add New Medication Order
                   </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-space-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
                     <div>
-                      <label className="text-xs font-semibold text-outline block mb-1">Drug</label>
+                      <label className="text-[11px] font-semibold text-slate-500 block mb-1">
+                        Drug Formulary
+                      </label>
                       <select
                         value={rxMedId}
                         onChange={(e) => {
@@ -664,7 +715,7 @@ export default function DoctorWorkspacePage() {
                           const m = AVAILABLE_MEDS.find((med) => med.id === e.target.value);
                           if (m) setRxDose(m.defaultDose);
                         }}
-                        className="w-full p-2 rounded-lg border border-outline-variant/40 bg-surface-container-lowest text-xs"
+                        className="w-full p-2 rounded-lg border border-slate-200 bg-white text-xs text-slate-800 focus:outline-none focus:border-teal-600"
                       >
                         {AVAILABLE_MEDS.map((m) => (
                           <option key={m.id} value={m.id}>
@@ -675,18 +726,20 @@ export default function DoctorWorkspacePage() {
                     </div>
 
                     <div>
-                      <label className="text-xs font-semibold text-outline block mb-1">Dose</label>
+                      <label className="text-[11px] font-semibold text-slate-500 block mb-1">
+                        Dose
+                      </label>
                       <input
                         type="text"
                         value={rxDose}
                         onChange={(e) => setRxDose(e.target.value)}
                         placeholder="e.g. 25mg"
-                        className="w-full p-2 rounded-lg border border-outline-variant/40 bg-surface-container-lowest text-xs"
+                        className="w-full p-2 rounded-lg border border-slate-200 bg-white text-xs text-slate-800 focus:outline-none focus:border-teal-600"
                       />
                     </div>
 
                     <div>
-                      <label className="text-xs font-semibold text-outline block mb-1">
+                      <label className="text-[11px] font-semibold text-slate-500 block mb-1">
                         Frequency
                       </label>
                       <input
@@ -694,12 +747,12 @@ export default function DoctorWorkspacePage() {
                         value={rxFreq}
                         onChange={(e) => setRxFreq(e.target.value)}
                         placeholder="e.g. Once daily"
-                        className="w-full p-2 rounded-lg border border-outline-variant/40 bg-surface-container-lowest text-xs"
+                        className="w-full p-2 rounded-lg border border-slate-200 bg-white text-xs text-slate-800 focus:outline-none focus:border-teal-600"
                       />
                     </div>
 
                     <div>
-                      <label className="text-xs font-semibold text-outline block mb-1">
+                      <label className="text-[11px] font-semibold text-slate-500 block mb-1">
                         Duration
                       </label>
                       <input
@@ -707,39 +760,39 @@ export default function DoctorWorkspacePage() {
                         value={rxDuration}
                         onChange={(e) => setRxDuration(e.target.value)}
                         placeholder="e.g. 30 Days"
-                        className="w-full p-2 rounded-lg border border-outline-variant/40 bg-surface-container-lowest text-xs"
+                        className="w-full p-2 rounded-lg border border-slate-200 bg-white text-xs text-slate-800 focus:outline-none focus:border-teal-600"
                       />
                     </div>
                   </div>
 
-                  <div className="flex justify-end">
+                  <div className="flex justify-end pt-1">
                     <Button
                       size="sm"
                       onClick={handleAddMedication}
                       disabled={isSigned}
-                      className="bg-primary text-white gap-1"
+                      className="bg-teal-700 hover:bg-teal-800 text-white gap-1.5 text-xs font-semibold rounded-lg h-8 px-3 shadow-2xs"
                     >
-                      <span className="material-symbols-outlined text-sm">add</span>
+                      <Plus className="w-3.5 h-3.5" />
                       Queue Medication
                     </Button>
                   </div>
                 </div>
 
-                <div className="space-y-space-2">
+                <div className="space-y-2">
                   {prescriptions.map((rx, idx) => (
                     <div
                       key={rx.id || idx}
-                      className="flex items-center justify-between p-space-3 rounded-xl bg-surface-container-lowest border border-outline-variant/30"
+                      className="flex items-center justify-between p-3 rounded-xl bg-slate-50/70 border border-slate-200/80"
                     >
-                      <div className="flex items-center gap-space-3">
-                        <div className="w-10 h-10 rounded-lg bg-teal-100 text-teal-800 flex items-center justify-center font-bold">
-                          <span className="material-symbols-outlined text-xl">medication</span>
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-lg bg-teal-100 text-teal-800 flex items-center justify-center font-bold shrink-0">
+                          <Pill className="w-4 h-4" />
                         </div>
                         <div>
-                          <h4 className="font-title-sm font-bold text-on-surface">
+                          <h4 className="text-xs font-bold text-slate-800">
                             {rx.name} • {rx.dose}
                           </h4>
-                          <p className="text-xs text-outline">
+                          <p className="text-[11px] text-slate-500">
                             {rx.freq} • Duration: {rx.duration}
                           </p>
                         </div>
@@ -750,9 +803,10 @@ export default function DoctorWorkspacePage() {
                           onClick={() =>
                             setPrescriptions(prescriptions.filter((_, i) => i !== idx))
                           }
-                          className="text-error hover:text-error/80"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                          title="Remove Medication"
                         >
-                          <span className="material-symbols-outlined text-sm">delete</span>
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       )}
                     </div>
@@ -763,61 +817,55 @@ export default function DoctorWorkspacePage() {
 
             {/* TAB 4: Lab & Diagnostic Orders */}
             {activeTab === "LABS" && (
-              <div className="space-y-space-4">
-                <h3 className="font-title-md font-bold text-on-surface">
+              <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-2xs space-y-4">
+                <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
                   Diagnostic Testing & Laboratory Order Sheet
                 </h3>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {[
                     {
                       name: "12-Lead Resting Electrocardiogram (ECG)",
                       cat: "Cardiology Lab",
-                      stat: false,
                     },
                     {
                       name: "Comprehensive Metabolic Panel (CMP)",
                       cat: "Biochemistry",
-                      stat: false,
                     },
-                    { name: "Lipid Panel (Fasting)", cat: "Biochemistry", stat: false },
+                    { name: "Lipid Panel (Fasting)", cat: "Biochemistry" },
                     {
                       name: "Transthoracic Echocardiogram (TTE)",
                       cat: "Radiology / Ultrasound",
-                      stat: false,
                     },
                     {
                       name: "Cardiac Troponin I (High Sensitivity)",
                       cat: "Emergency Stat",
-                      stat: true,
                     },
-                    { name: "Chest X-Ray (PA & Lateral)", cat: "Radiology", stat: false },
+                    { name: "Chest X-Ray (PA & Lateral)", cat: "Radiology" },
                   ].map((test, idx) => {
                     const isOrdered = orderedLabs.includes(test.name);
                     return (
                       <div
                         key={idx}
                         onClick={() => !isSigned && handleToggleLab(test.name)}
-                        className={`p-space-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
+                        className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
                           isOrdered
-                            ? "bg-primary/10 border-primary/50 shadow-xs"
-                            : "bg-surface-container-lowest border-outline-variant/30 hover:bg-surface-container"
+                            ? "bg-teal-50/80 border-teal-600/50 shadow-2xs"
+                            : "bg-slate-50/60 border-slate-200/80 hover:bg-slate-100/60"
                         }`}
                       >
                         <div className="space-y-0.5">
-                          <p className="font-title-sm font-bold text-on-surface">{test.name}</p>
-                          <span className="text-[10px] uppercase font-semibold text-outline">
+                          <p className="text-xs font-bold text-slate-800">{test.name}</p>
+                          <span className="text-[10px] uppercase font-semibold text-slate-400">
                             {test.cat}
                           </span>
                         </div>
                         <div
-                          className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                            isOrdered ? "bg-primary text-white" : "border border-outline-variant"
+                          className={`w-5 h-5 rounded-md flex items-center justify-center transition-colors ${
+                            isOrdered ? "bg-teal-700 text-white" : "border border-slate-300 bg-white"
                           }`}
                         >
-                          {isOrdered && (
-                            <span className="material-symbols-outlined text-sm">check</span>
-                          )}
+                          {isOrdered && <Check className="w-3 h-3 text-white stroke-[3]" />}
                         </div>
                       </div>
                     );
