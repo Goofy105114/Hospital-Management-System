@@ -27,6 +27,15 @@ export async function GET(
         emergencyContacts: true,
         alerts: { where: { isActive: true } },
         documents: { where: { deletedAt: null } },
+        allergies: true,
+        encounters: {
+          orderBy: { createdAt: "desc" },
+          include: {
+            doctor: { include: { user: true, department: true } },
+            diagnoses: true,
+            vitalSigns: { orderBy: { recordedAt: "desc" }, take: 1 },
+          },
+        },
         appointments: {
           take: 5,
           orderBy: { slotStart: "desc" },
@@ -44,6 +53,15 @@ export async function GET(
           emergencyContacts: true,
           alerts: { where: { isActive: true } },
           documents: { where: { deletedAt: null } },
+          allergies: true,
+          encounters: {
+            orderBy: { createdAt: "desc" },
+            include: {
+              doctor: { include: { user: true, department: true } },
+              diagnoses: true,
+              vitalSigns: { orderBy: { recordedAt: "desc" }, take: 1 },
+            },
+          },
           appointments: {
             take: 5,
             orderBy: { slotStart: "desc" },
@@ -132,6 +150,42 @@ export async function GET(
         departmentName: a.department?.name || "General Medicine",
         slotStart: a.slotStart.toISOString(),
         status: a.status,
+      })),
+      allergies: patient.allergies.map((alg) => ({
+        id: alg.id,
+        allergen: alg.allergen,
+        reaction: alg.reaction,
+        severity: alg.severity,
+        recordedAt: alg.recordedAt.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        }),
+      })),
+      encounters: patient.encounters.map((e) => ({
+        id: e.id,
+        encounterNumber: e.encounterNumber,
+        status: e.status,
+        chiefComplaint: e.chiefComplaint,
+        createdAt: e.createdAt.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        }),
+        doctorName: e.doctor?.user?.name || "Attending Physician",
+        departmentName: e.doctor?.department?.name || "Outpatient Clinic",
+        diagnoses: e.diagnoses.map((d) => ({
+          id: d.id,
+          code: d.icdCode,
+          description: d.description,
+        })),
+        vitals: e.vitalSigns[0]
+          ? {
+              bp: `${e.vitalSigns[0].systolicBp || "—"}/${e.vitalSigns[0].diastolicBp || "—"} mmHg`,
+              hr: e.vitalSigns[0].heartRate ? `${e.vitalSigns[0].heartRate} bpm` : "—",
+              spo2: e.vitalSigns[0].oxygenSaturation ? `${e.vitalSigns[0].oxygenSaturation}%` : "—",
+            }
+          : null,
       })),
     });
   } catch (error: any) {

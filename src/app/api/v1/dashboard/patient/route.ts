@@ -102,9 +102,10 @@ export async function GET(req: NextRequest) {
       where: { patientId: patient.id },
       include: {
         items: { include: { medicine: true } },
+        doctor: { include: { user: true } },
       },
       orderBy: { createdAt: "desc" },
-      take: 5,
+      take: 20,
     });
 
     const formattedPrescriptions = dbPrescriptions.flatMap((rx: any) =>
@@ -112,10 +113,17 @@ export async function GET(req: NextRequest) {
         id: item.id,
         name: item.medicine?.name || "Prescribed Medicine",
         dosage: item.dosage,
-        sig: `${item.frequency} for ${item.durationDays} days`,
+        sig: item.instructions || `${item.frequency || "Daily"} for ${item.durationDays || 7} days`,
         status: rx.status,
+        prescribedBy: rx.doctor?.user?.name ? `Dr. ${rx.doctor.user.name}` : "Attending Physician",
+        startDate: new Date(rx.createdAt).toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        }),
         takenToday: false,
-        refillsRemaining: 1,
+        refillsRemaining: 0,
+        indication: item.medicine?.genericName || item.instructions || "Therapeutic Care",
       }))
     );
 

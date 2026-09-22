@@ -94,8 +94,7 @@ export async function POST(request: NextRequest) {
       if (dbErr?.code === "P2002") {
         return apiError("IPD_WARD_NAME_TAKEN", "A ward with this name already exists", 409);
       }
-      // DB offline
-      ward = { id: `ward-${Date.now()}`, name: name.trim(), type: type ?? "MALE_GENERAL", totalBeds: Number(totalBeds) || 20 };
+      throw dbErr;
     }
 
     return apiSuccess(ward, undefined, 201);

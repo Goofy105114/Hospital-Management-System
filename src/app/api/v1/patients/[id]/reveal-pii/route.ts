@@ -58,29 +58,24 @@ export async function POST(
     const { id } = params;
 
     // Fetch full demographics
-    let patient = null;
-    try {
-      patient = await prisma.patient.findUnique({
-        where: { id },
-        include: {
-          user: {
-            select: {
-              name: true,
-              email: true,
-              phone: true,
-              role: true,
-              status: true,
-            },
+    const patient = await prisma.patient.findUnique({
+      where: { id },
+      include: {
+        user: {
+          select: {
+            name: true,
+            email: true,
+            phone: true,
+            role: true,
+            status: true,
           },
-          emergencyContacts: true,
-          alerts: { where: { isActive: true } },
         },
-      });
-    } catch {
-      // DB offline
-    }
+        emergencyContacts: true,
+        alerts: { where: { isActive: true } },
+      },
+    });
 
-    if (patient === null) {
+    if (!patient) {
       return apiError("PATIENT_NOT_FOUND", "Patient not found", 404);
     }
 
@@ -100,33 +95,31 @@ export async function POST(
     });
 
     // Build full demographics response
-    const fullDemographics = patient
-      ? {
-          id: patient.id,
-          mrn: patient.mrn,
-          name: patient.user.name,
-          email: patient.user.email,
-          phone: patient.user.phone,
-          dob: patient.dob.toISOString().split("T")[0],
-          gender: patient.gender,
-          bloodGroup: patient.bloodGroup,
-          address: patient.address,
-          secondaryPhone: patient.secondaryPhone,
-          secondaryEmail: patient.secondaryEmail,
-          preferredLanguage: patient.preferredLanguage,
-          emergencyContacts: patient.emergencyContacts.map((ec) => ({
-            id: ec.id,
-            name: ec.name,
-            relationship: ec.relationship,
-            phone: ec.phone,
-          })),
-          alerts: patient.alerts.map((a) => ({
-            id: a.id,
-            type: a.type,
-            note: a.note,
-          })),
-        }
-      : { id, _fallback: true };
+    const fullDemographics = {
+      id: patient.id,
+      mrn: patient.mrn,
+      name: patient.user.name,
+      email: patient.user.email,
+      phone: patient.user.phone,
+      dob: patient.dob.toISOString().split("T")[0],
+      gender: patient.gender,
+      bloodGroup: patient.bloodGroup,
+      address: patient.address,
+      secondaryPhone: patient.secondaryPhone,
+      secondaryEmail: patient.secondaryEmail,
+      preferredLanguage: patient.preferredLanguage,
+      emergencyContacts: patient.emergencyContacts.map((ec) => ({
+        id: ec.id,
+        name: ec.name,
+        relationship: ec.relationship,
+        phone: ec.phone,
+      })),
+      alerts: patient.alerts.map((a) => ({
+        id: a.id,
+        type: a.type,
+        note: a.note,
+      })),
+    };
 
     return apiSuccess({ fullDemographics });
   } catch (err: any) {

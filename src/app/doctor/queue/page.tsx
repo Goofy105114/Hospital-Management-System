@@ -42,12 +42,17 @@ interface DoctorQueueItem {
 }
 
 import api from "@/lib/axios";
+import { useAuthStore } from "@/stores/authStore";
 
 export default function DoctorQueuePage() {
+  const { user } = useAuthStore();
   const [queue, setQueue] = useState<DoctorQueueItem[]>([]);
   const [currentConsultation, setCurrentConsultation] = useState<DoctorQueueItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
+
+  const doctorName = user?.name ? (user.name.startsWith("Dr.") ? user.name : `Dr. ${user.name}`) : "Doctor on Duty";
+  const roomName = user?.roomNumber ? `Clinic Room ${user.roomNumber}` : "Consultation Room";
 
   const fetchQueue = async () => {
     try {
@@ -61,6 +66,14 @@ export default function DoctorQueuePage() {
           else if (tok.status === "CALLED") status = "CALLED";
           else if (tok.status === "COMPLETED") status = "COMPLETED";
 
+          const vs = tok.patient?.vitalSigns?.[0] || tok.vitalSigns?.[0];
+          const vitals = {
+            bp: vs?.systolicBp && vs?.diastolicBp ? `${vs.systolicBp}/${vs.diastolicBp} mmHg` : "Pending",
+            hr: vs?.heartRate ? `${vs.heartRate} bpm` : "Pending",
+            spo2: vs?.oxygenSaturation ? `${vs.oxygenSaturation}%` : "Pending",
+            temp: vs?.temperatureCelsius ? `${Number(vs.temperatureCelsius).toFixed(1)}°C` : "Pending",
+          };
+
           return {
             id: tok.id,
             tokenNumber: tok.tokenNumber,
@@ -68,7 +81,7 @@ export default function DoctorQueuePage() {
             mrn: tok.patientMrn || "MRN-000",
             ageGender: "Adult / Patient",
             chiefComplaint: tok.reason || "Consultation & clinical evaluation",
-            vitals: { bp: "120/80 mmHg", hr: "72 bpm", spo2: "98%", temp: "98.4°F" },
+            vitals,
             priorityTier: tok.priorityTier === "EMERGENCY" ? "EMERGENCY" : tok.priorityTier === "PRIORITY" ? "PRIORITY" : "NORMAL",
             status,
             waitTimeMin: tok.estimatedWaitMinutes || 10,
@@ -100,7 +113,7 @@ export default function DoctorQueuePage() {
       // Local optimistic update
     }
     setQueue((prev) => prev.map((q) => (q.id === item.id ? { ...q, status: "CALLED" } : q)));
-    setActionNotice(`Called token ${item.tokenNumber} (${item.patientName}) to Room 304`);
+    setActionNotice(`Called token ${item.tokenNumber} (${item.patientName}) to ${roomName}`);
     setTimeout(() => setActionNotice(null), 4000);
   };
 
@@ -145,9 +158,11 @@ export default function DoctorQueuePage() {
           <div>
             <div className="flex items-center gap-2">
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-sky-50 text-sky-700 border border-sky-200/70">
-                Dr. Marcus Vance, MD • Clinic Room 304
+                {doctorName} • {roomName}
               </span>
-              <span className="text-xs text-slate-400">• Cardiology OPD</span>
+              {user?.department && (
+                <span className="text-xs text-slate-400">• {user.department}</span>
+              )}
             </div>
             <h1 className="text-xl font-bold text-slate-800 tracking-tight mt-1">
               Doctor Consultation Queue

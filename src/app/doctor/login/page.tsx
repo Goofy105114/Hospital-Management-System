@@ -145,26 +145,6 @@ export default function DoctorLoginPage() {
               )}
             </div>
 
-            {/* Demo Quickfill */}
-            <div className="p-3 bg-surface-container-low rounded-xl border border-outline-variant/20 flex items-center justify-between">
-              <div>
-                <p className="text-[11px] font-bold text-on-surface">Cardiology Lead Demo</p>
-                <p className="text-[10px] text-outline font-mono">dr.vance@goingmerry.hms</p>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="text-xs h-7 px-2.5 border-sky-300 text-sky-700 hover:bg-sky-50"
-                onClick={() => {
-                  setValue("identifier", "dr.vance@goingmerry.hms");
-                  setValue("password", "Password123!");
-                }}
-              >
-                Autofill
-              </Button>
-            </div>
-
             <Button
               type="submit"
               variant="primary"

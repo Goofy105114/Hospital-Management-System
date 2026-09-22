@@ -79,14 +79,15 @@ export default function DoctorSchedulingPage() {
       .then((res) => {
         if (!isMounted) return;
         const docList = res.data?.data;
-        if (Array.isArray(docList)) {
-          setAvailableDoctors(
-            docList.map((d: any) => ({
-              id: d.id,
-              name: d.name,
-              department: d.department || "Clinical Care",
-            }))
-          );
+        if (Array.isArray(docList) && docList.length > 0) {
+          const docs = docList.map((d: any) => ({
+            id: d.id,
+            name: d.name,
+            department: d.department || "Clinical Care",
+          }));
+          setAvailableDoctors(docs);
+          setNewDoctor(docs[0].name);
+          setLeaveDoctor(docs[0].name);
         }
       })
       .catch(() => {});
@@ -96,19 +97,29 @@ export default function DoctorSchedulingPage() {
     };
   }, []);
 
+  const roomsMap = React.useMemo(() => {
+    const map: Record<string, ClinicSession[]> = {};
+    sessions.forEach((s) => {
+      const room = s.roomNumber || "Consultation Room";
+      if (!map[room]) map[room] = [];
+      map[room].push(s);
+    });
+    return map;
+  }, [sessions]);
+
   // Session Modal State (SCH-01, SCH-03)
   const [showSessionModal, setShowSessionModal] = useState(false);
-  const [newDoctor, setNewDoctor] = useState("Dr. Marcus Vance (Cardiology)");
+  const [newDoctor, setNewDoctor] = useState("");
   const [newDay, setNewDay] = useState(1);
   const [newStartTime, setNewStartTime] = useState("09:00");
   const [newEndTime, setNewEndTime] = useState("13:00");
-  const [newRoom, setNewRoom] = useState("Room 104 (Echo Suite)");
+  const [newRoom, setNewRoom] = useState("Room 101");
   const [newDuration, setNewDuration] = useState(15);
   const [newCapacity, setNewCapacity] = useState(16);
 
   // Leave Modal State (SCH-02)
   const [showLeaveModal, setShowLeaveModal] = useState(false);
-  const [leaveDoctor, setLeaveDoctor] = useState("Dr. Marcus Vance");
+  const [leaveDoctor, setLeaveDoctor] = useState("");
   const [leaveStart, setLeaveStart] = useState("");
   const [leaveEnd, setLeaveEnd] = useState("");
   const [leaveReason, setLeaveReason] = useState("");
@@ -116,12 +127,15 @@ export default function DoctorSchedulingPage() {
   // Create Session Handler (SCH-01)
   const handleCreateSession = (e: React.FormEvent) => {
     e.preventDefault();
+    const doc = availableDoctors.find((d) => d.name === newDoctor) || availableDoctors[0];
+    const docName = doc?.name || newDoctor || "Doctor";
+    const docDept = doc?.department || "Clinical Care";
     const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
     const newSession: ClinicSession = {
       id: `sch-${Date.now()}`,
-      doctorId: "doc-01",
-      doctorName: newDoctor.split(" (")[0],
-      department: newDoctor.includes("Cardiology") ? "Cardiology" : "General",
+      doctorId: doc?.id || `doc-${Date.now()}`,
+      doctorName: docName,
+      department: docDept,
       dayOfWeek: Number(newDay),
       dayName: dayNames[Number(newDay)],
       startTime: newStartTime,
@@ -138,11 +152,14 @@ export default function DoctorSchedulingPage() {
   // Submit Leave Handler (SCH-02)
   const handleCreateLeave = (e: React.FormEvent) => {
     e.preventDefault();
+    const doc = availableDoctors.find((d) => d.name === leaveDoctor) || availableDoctors[0];
+    const docName = doc?.name || leaveDoctor || "Doctor";
+    const docDept = doc?.department || "Clinical Care";
     const newLeave: DoctorLeave = {
       id: `lve-${Date.now()}`,
-      doctorId: "doc-01",
-      doctorName: leaveDoctor,
-      department: "Cardiology",
+      doctorId: doc?.id || `doc-${Date.now()}`,
+      doctorName: docName,
+      department: docDept,
       startDate: leaveStart,
       endDate: leaveEnd,
       reason: leaveReason,
@@ -503,50 +520,43 @@ export default function DoctorSchedulingPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-space-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-space-4">
-                  <div className="p-space-4 bg-surface-container rounded-xl border border-outline-variant/30 space-y-space-2">
-                    <span className="font-title-md font-bold text-on-surface block">
-                      Room 104 (Echo Suite)
-                    </span>
-                    <span className="text-label-sm text-outline block">Department: Cardiology</span>
-                    <div className="pt-space-2 border-t border-outline-variant/20 text-body-sm space-y-space-1">
-                      <div className="text-success font-semibold flex items-center gap-space-1">
-                        <span className="material-symbols-outlined text-[16px]">check_circle</span>
-                        Mon 09:00 - 13:00: Dr. Marcus Vance
-                      </div>
-                      <div className="text-success font-semibold flex items-center gap-space-1">
-                        <span className="material-symbols-outlined text-[16px]">check_circle</span>
-                        Wed 14:00 - 18:00: Dr. Marcus Vance
-                      </div>
-                    </div>
+                {Object.keys(roomsMap).length === 0 ? (
+                  <div className="text-center py-8 text-outline text-sm">
+                    No consultation room allocations scheduled.
                   </div>
-
-                  <div className="p-space-4 bg-surface-container rounded-xl border border-outline-variant/30 space-y-space-2">
-                    <span className="font-title-md font-bold text-on-surface block">
-                      Room 202 (Pediatric Suite)
-                    </span>
-                    <span className="text-label-sm text-outline block">Department: Pediatrics</span>
-                    <div className="pt-space-2 border-t border-outline-variant/20 text-body-sm space-y-space-1">
-                      <div className="text-success font-semibold flex items-center gap-space-1">
-                        <span className="material-symbols-outlined text-[16px]">check_circle</span>
-                        Tue 09:00 - 14:00: Dr. Sarah Jenkins
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-space-4">
+                    {Object.entries(roomsMap).map(([room, roomSessions]) => (
+                      <div
+                        key={room}
+                        className="p-space-4 bg-surface-container rounded-xl border border-outline-variant/30 space-y-space-2"
+                      >
+                        <span className="font-title-md font-bold text-on-surface block">
+                          {room}
+                        </span>
+                        <span className="text-label-sm text-outline block">
+                          Department: {roomSessions[0]?.department || "Clinical Care"}
+                        </span>
+                        <div className="pt-space-2 border-t border-outline-variant/20 text-body-sm space-y-space-1">
+                          {roomSessions.map((s) => (
+                            <div
+                              key={s.id}
+                              className={`font-semibold flex items-center gap-space-1 ${
+                                s.isPublished ? "text-success" : "text-outline"
+                              }`}
+                            >
+                              <span className="material-symbols-outlined text-[16px]">
+                                {s.isPublished ? "check_circle" : "schedule"}
+                              </span>
+                              {s.dayName.slice(0, 3)} {s.startTime} - {s.endTime}: {s.doctorName}
+                              {!s.isPublished && " (Draft)"}
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                    ))}
                   </div>
-
-                  <div className="p-space-4 bg-surface-container rounded-xl border border-outline-variant/30 space-y-space-2">
-                    <span className="font-title-md font-bold text-on-surface block">
-                      Room 305 (Neuro Lab)
-                    </span>
-                    <span className="text-label-sm text-outline block">Department: Neurology</span>
-                    <div className="pt-space-2 border-t border-outline-variant/20 text-body-sm space-y-space-1">
-                      <div className="text-outline font-semibold flex items-center gap-space-1">
-                        <span className="material-symbols-outlined text-[16px]">schedule</span>
-                        Thu 10:00 - 16:00: Dr. Emily Chen (Draft)
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -626,9 +636,7 @@ export default function DoctorSchedulingPage() {
                         </option>
                       ))
                     ) : (
-                      <option value="Dr. Marcus Vance (Cardiology)">
-                        Dr. Marcus Vance (Cardiology)
-                      </option>
+                      <option value="">No clinicians available</option>
                     )}
                   </select>
                 </div>
@@ -766,7 +774,7 @@ export default function DoctorSchedulingPage() {
                         </option>
                       ))
                     ) : (
-                      <option value="Dr. Marcus Vance">Dr. Marcus Vance (Cardiology)</option>
+                      <option value="">No clinicians available</option>
                     )}
                   </select>
                 </div>

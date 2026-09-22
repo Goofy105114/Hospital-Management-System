@@ -25,6 +25,7 @@ export default function DiagnosticsPage() {
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<string>("ALL");
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const fetchOrders = async () => {
     try {
@@ -54,7 +55,8 @@ export default function DiagnosticsPage() {
       } else {
         setOrders([]);
       }
-    } catch {
+    } catch (err) {
+      console.error("Diagnostics fetch error:", err);
       setOrders([]);
     } finally {
       setLoading(false);
@@ -67,15 +69,15 @@ export default function DiagnosticsPage() {
 
   const handleUpdateStatus = async (id: string, newStatus: DiagnosticOrder["status"]) => {
     try {
+      setErrorMsg(null);
       await api.patch(`/diagnostics/orders/${id}/status`, { status: newStatus });
       await fetchOrders();
       setSuccessMsg(`Order updated to status: ${newStatus}. Synced to patient medical record.`);
-    } catch {
-      // Optimistic fallback
-      setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status: newStatus } : o)));
-      setSuccessMsg(`Order status updated to: ${newStatus}.`);
+      setTimeout(() => setSuccessMsg(null), 4000);
+    } catch (err: any) {
+      setErrorMsg(err?.response?.data?.message || err?.message || "Failed to update diagnostic order status.");
+      setTimeout(() => setErrorMsg(null), 4000);
     }
-    setTimeout(() => setSuccessMsg(null), 4000);
   };
 
   const filteredOrders = orders.filter((o) => {
@@ -122,6 +124,22 @@ export default function DiagnosticsPage() {
             <button
               onClick={() => setSuccessMsg(null)}
               className="text-emerald-700 hover:text-emerald-900"
+            >
+              <span className="material-symbols-outlined text-sm">close</span>
+            </button>
+          </div>
+        )}
+
+        {/* Error Alert Banner */}
+        {errorMsg && (
+          <div className="bg-red-50 border border-red-200 text-red-800 p-space-4 rounded-xl flex items-center justify-between">
+            <div className="flex items-center gap-space-2">
+              <span className="material-symbols-outlined text-red-600">error</span>
+              <span className="font-body-md font-medium">{errorMsg}</span>
+            </div>
+            <button
+              onClick={() => setErrorMsg(null)}
+              className="text-red-700 hover:text-red-900"
             >
               <span className="material-symbols-outlined text-sm">close</span>
             </button>

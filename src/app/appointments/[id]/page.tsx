@@ -321,22 +321,24 @@ export default function AppointmentDetailPage() {
                     <span className="material-symbols-outlined text-lg text-emerald-300">
                       meeting_room
                     </span>
-                    {appt?.doctor.roomNumber || "Room 402B"}
+                    {appt?.doctor.roomNumber || "Consultation Room"}
                   </div>
                 </div>
               </div>
 
               {/* Sub-status: Now Serving */}
-              <div className="pt-space-2 flex items-center gap-space-3 text-sm text-teal-100/90">
-                <span className="material-symbols-outlined text-base text-amber-300">sensors</span>
-                <span>
-                  Currently in Consultation:{" "}
-                  <strong className="text-amber-200 font-mono font-bold">
-                    {appt?.queueToken?.currentServing || "#A-21"}
-                  </strong>{" "}
-                  with Dr. Marcus Vance
-                </span>
-              </div>
+              {appt?.queueToken && (
+                <div className="pt-space-2 flex items-center gap-space-3 text-sm text-teal-100/90">
+                  <span className="material-symbols-outlined text-base text-amber-300">sensors</span>
+                  <span>
+                    Queue Token:{" "}
+                    <strong className="text-amber-200 font-mono font-bold">
+                      {appt.queueToken.tokenNumber}
+                    </strong>{" "}
+                    with {appt.doctor.name || "Attending Physician"}
+                  </span>
+                </div>
+              )}
             </div>
 
             <div className="flex flex-col sm:flex-row lg:flex-col gap-space-3 shrink-0">
@@ -388,10 +390,10 @@ export default function AppointmentDetailPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-title-md font-bold text-on-surface">
-                      {appt?.doctor.name || "Dr. Marcus Vance"}
+                      {appt?.doctor.name || "Attending Physician"}
                     </h3>
                     <p className="font-label-md text-primary font-semibold">
-                      {appt?.doctor.qualification || "MD, FACC - Chief of Cardiology"}
+                      {appt?.doctor.qualification || appt?.doctor.specialty || "Clinical Specialist"}
                     </p>
                     <p className="font-body-sm text-outline mt-0.5">
                       {appt?.doctor.department.name} • {appt?.doctor.department.floor}
@@ -412,7 +414,7 @@ export default function AppointmentDetailPage() {
                       Primary Service
                     </span>
                     <p className="font-body-md font-medium text-on-surface mt-1">
-                      {appt?.reason || "Comprehensive Cardiovascular Review"}
+                      {appt?.reason || "Clinical Consultation"}
                     </p>
                   </div>
                   <div className="p-space-3 rounded-lg bg-surface-container-lowest border border-outline-variant/20">
@@ -433,8 +435,7 @@ export default function AppointmentDetailPage() {
                     Clinical Intake Notes & Symptoms
                   </span>
                   <p className="font-body-md text-on-surface-variant mt-1 leading-relaxed">
-                    {appt?.notes ||
-                      "Patient reports mild palpitations post-exertion over the last 14 days. Current medications: Lisinopril 10mg, Metoprolol 25mg."}
+                    {appt?.notes || "No clinical intake notes recorded."}
                   </p>
                 </div>
               </CardContent>
@@ -447,58 +448,60 @@ export default function AppointmentDetailPage() {
                   <span className="material-symbols-outlined text-primary">monitor_heart</span>
                   Intake Baseline Vitals
                 </CardTitle>
-                <Badge variant="outline" className="text-xs text-outline font-mono">
-                  Recorded at Triage • 10:18 AM
-                </Badge>
+                {appt?.vitals && (
+                  <Badge variant="outline" className="text-xs text-outline font-mono">
+                    Recorded at Triage
+                  </Badge>
+                )}
               </CardHeader>
               <CardContent className="pt-space-4">
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-space-3">
-                  <div className="p-space-3 rounded-xl bg-surface-container-low border border-outline-variant/20 text-center">
-                    <span className="font-label-sm text-outline block">Blood Pressure</span>
-                    <span className="font-mono font-bold text-on-surface text-lg block mt-1">
-                      {appt?.vitals?.bloodPressure || "128/82"}
-                    </span>
-                    <span className="text-[10px] text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded font-semibold">
-                      Normal
-                    </span>
-                  </div>
+                {appt?.vitals ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-space-3">
+                    <div className="p-space-3 rounded-xl bg-surface-container-low border border-outline-variant/20 text-center">
+                      <span className="font-label-sm text-outline block">Blood Pressure</span>
+                      <span className="font-mono font-bold text-on-surface text-lg block mt-1">
+                        {appt.vitals.bloodPressure || "—"}
+                      </span>
+                    </div>
 
-                  <div className="p-space-3 rounded-xl bg-surface-container-low border border-outline-variant/20 text-center">
-                    <span className="font-label-sm text-outline block">Heart Rate</span>
-                    <span className="font-mono font-bold text-on-surface text-lg block mt-1">
-                      {appt?.vitals?.heartRate || "72 bpm"}
-                    </span>
-                    <span className="text-[10px] text-outline font-medium">Resting</span>
-                  </div>
+                    <div className="p-space-3 rounded-xl bg-surface-container-low border border-outline-variant/20 text-center">
+                      <span className="font-label-sm text-outline block">Heart Rate</span>
+                      <span className="font-mono font-bold text-on-surface text-lg block mt-1">
+                        {appt.vitals.heartRate || "—"}
+                      </span>
+                    </div>
 
-                  <div className="p-space-3 rounded-xl bg-surface-container-low border border-outline-variant/20 text-center">
-                    <span className="font-label-sm text-outline block">SpO2 Oxygen</span>
-                    <span className="font-mono font-bold text-on-surface text-lg block mt-1">
-                      {appt?.vitals?.oxygenSaturation || "98%"}
-                    </span>
-                    <span className="text-[10px] text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded font-semibold">
-                      Room Air
-                    </span>
-                  </div>
+                    <div className="p-space-3 rounded-xl bg-surface-container-low border border-outline-variant/20 text-center">
+                      <span className="font-label-sm text-outline block">SpO2 Oxygen</span>
+                      <span className="font-mono font-bold text-on-surface text-lg block mt-1">
+                        {appt.vitals.oxygenSaturation || "—"}
+                      </span>
+                    </div>
 
-                  <div className="p-space-3 rounded-xl bg-surface-container-low border border-outline-variant/20 text-center">
-                    <span className="font-label-sm text-outline block">Body Temp</span>
-                    <span className="font-mono font-bold text-on-surface text-lg block mt-1">
-                      {appt?.vitals?.temperature || "98.4 °F"}
-                    </span>
-                    <span className="text-[10px] text-outline font-medium">Oral</span>
-                  </div>
+                    <div className="p-space-3 rounded-xl bg-surface-container-low border border-outline-variant/20 text-center">
+                      <span className="font-label-sm text-outline block">Body Temp</span>
+                      <span className="font-mono font-bold text-on-surface text-lg block mt-1">
+                        {appt.vitals.temperature || "—"}
+                      </span>
+                    </div>
 
-                  <div className="p-space-3 rounded-xl bg-surface-container-low border border-outline-variant/20 text-center col-span-2 sm:col-span-1">
-                    <span className="font-label-sm text-outline block">Weight / BMI</span>
-                    <span className="font-mono font-bold text-on-surface text-lg block mt-1">
-                      {appt?.vitals?.weightKg || "74.2 kg"}
-                    </span>
-                    <span className="text-[10px] text-emerald-600 font-semibold">
-                      BMI {appt?.vitals?.bmi || "23.8"}
-                    </span>
+                    <div className="p-space-3 rounded-xl bg-surface-container-low border border-outline-variant/20 text-center col-span-2 sm:col-span-1">
+                      <span className="font-label-sm text-outline block">Weight / BMI</span>
+                      <span className="font-mono font-bold text-on-surface text-lg block mt-1">
+                        {appt.vitals.weightKg || "—"}
+                      </span>
+                      {appt.vitals.bmi && (
+                        <span className="text-[10px] text-primary font-semibold">
+                          BMI {appt.vitals.bmi}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <p className="text-xs text-outline text-center py-2">
+                    No baseline vitals recorded for this visit yet.
+                  </p>
+                )}
               </CardContent>
             </Card>
 
@@ -718,10 +721,10 @@ export default function AppointmentDetailPage() {
               <h3 className="font-title-lg font-bold text-on-surface">Cancel Appointment</h3>
             </div>
             <p className="font-body-md text-on-surface-variant">
-              Are you sure you wish to cancel this appointment with Dr. Marcus Vance on{" "}
-              {appt?.scheduledDate}? This will release token{" "}
-              <strong className="font-mono">{appt?.queueToken?.tokenNumber || "#A-24"}</strong> back
-              to the clinic queue.
+              Are you sure you wish to cancel this appointment with {appt?.doctor.name || "the attending physician"} on{" "}
+              {appt?.scheduledDate}?{appt?.queueToken?.tokenNumber ? (
+                <> This will release token <strong className="font-mono">{appt.queueToken.tokenNumber}</strong> back to the clinic queue.</>
+              ) : ""}
             </p>
             <div className="flex items-center justify-end gap-space-3 pt-space-2">
               <Button

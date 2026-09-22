@@ -42,22 +42,22 @@ export default function PrescriptionsPage() {
     let isMounted = true;
     setIsLoading(true);
     api
-      .get("/medicines")
+      .get("/dashboard/patient")
       .then((res) => {
         if (!isMounted) return;
-        const list = res.data?.data;
+        const list = res.data?.data?.recentPrescriptions;
         if (Array.isArray(list) && list.length > 0) {
-          const mapped: MedicationItem[] = list.slice(0, 6).map((m: any, idx: number) => ({
+          const mapped: MedicationItem[] = list.map((m: any) => ({
             id: m.id,
-            name: m.name,
-            dosage: `${m.strength || "Standard Dose"} ${m.form || "Tablet"}`,
-            sig: idx % 2 === 0 ? "Take 1 tablet daily with morning meal" : "Take 1 tablet daily at bedtime",
-            prescribedBy: "Dr. Marcus Vance, MD (Cardiology)",
-            startDate: "Active Regimen",
-            refillsRemaining: 2 + (idx % 3),
-            status: "ACTIVE",
-            indication: m.category || m.genericName || "Therapeutic Care",
-            takenToday: idx === 0,
+            name: m.name || "Prescribed Medicine",
+            dosage: m.dosage || "Standard Dose",
+            sig: m.sig || "As directed by physician",
+            prescribedBy: m.prescribedBy || "Attending Physician",
+            startDate: m.startDate || "Active Regimen",
+            refillsRemaining: m.refillsRemaining ?? 0,
+            status: m.status || "ACTIVE",
+            indication: m.indication || "Therapeutic Care",
+            takenToday: m.takenToday ?? false,
           }));
           setMeds(mapped);
         } else {
@@ -66,6 +66,7 @@ export default function PrescriptionsPage() {
       })
       .catch((err) => {
         console.error("Prescriptions fetch error:", err);
+        if (isMounted) setMeds([]);
       })
       .finally(() => {
         if (isMounted) setIsLoading(false);
@@ -274,7 +275,7 @@ export default function PrescriptionsPage() {
             <div className="p-6 bg-slate-50 rounded-2xl inline-block border-2 border-dashed border-teal-600/40">
               <QrCode className="w-24 h-24 text-teal-800 mx-auto" />
               <div className="font-mono text-xs font-bold text-slate-700 mt-2">
-                RX-PASS-2026-001842
+                {user?.mrn ? `RX-PASS-${user.mrn}` : meds[0]?.id ? `RX-PASS-${meds[0].id.slice(0, 8).toUpperCase()}` : "RX-PASS"}
               </div>
             </div>
 

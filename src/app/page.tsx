@@ -16,9 +16,7 @@ export default function DashboardPage() {
   const { activeRole, user, isAuthenticated } = useAuthStore();
   const [mounted, setMounted] = useState(false);
   const [copayPaid, setCopayPaid] = useState(false);
-  const [takenDoses, setTakenDoses] = useState<Record<string, boolean>>({
-    "med-01": true,
-  });
+  const [takenDoses, setTakenDoses] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     setMounted(true);

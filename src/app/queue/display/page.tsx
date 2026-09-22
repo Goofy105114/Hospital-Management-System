@@ -140,21 +140,6 @@ export default function WaitingRoomDisplayPage() {
     }
   };
 
-  // Simulate Turn Announcement
-  const triggerDemoCall = () => {
-    if (isAudioEnabled) playTurnChime();
-    const randomSeq = Math.floor(10 + Math.random() * 89);
-    const newCall: LiveCallToken = {
-      tokenNumber: `DR01-0${randomSeq}`,
-      doctorName: "Dr. Marcus Vance",
-      roomNumber: "Room 104",
-      department: "Cardiology Suite",
-      calledAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      priorityTier: "NORMAL",
-    };
-    setActiveCalls([newCall, ...activeCalls.slice(0, 2)]);
-  };
-
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-between p-space-6 sm:p-space-8 overflow-hidden select-none">
       {/* Top Banner & TV Header */}
@@ -189,7 +174,7 @@ export default function WaitingRoomDisplayPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={triggerDemoCall}
+              onClick={() => playTurnChime()}
               className="bg-slate-900 border-slate-700 text-slate-200 hover:bg-slate-800 gap-1 text-xs"
             >
               <span className="material-symbols-outlined text-[16px]">volume_up</span>

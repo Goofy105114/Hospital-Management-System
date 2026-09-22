@@ -332,9 +332,7 @@ export default function PatientRegistrationPage() {
                     Verify Your Contact
                   </h2>
                   <p className="text-body-sm text-outline">
-                    A verification code has been sent for {registeredData?.name}. Use default demo
-                    code <span className="font-mono font-bold text-primary">123456</span> to
-                    complete onboarding.
+                    A 6-digit verification code has been sent to your registered contact for {registeredData?.name || "your account"}.
                   </p>
                 </div>
 
@@ -344,7 +342,7 @@ export default function PatientRegistrationPage() {
                       type="text"
                       maxLength={6}
                       required
-                      placeholder="123456"
+                      placeholder="••••••"
                       value={otp}
                       onChange={(e) => setOtp(e.target.value)}
                       className="w-full text-center text-headline-sm font-mono tracking-widest px-space-3 py-space-3 bg-surface-container rounded-xl border border-outline-variant/40 focus:border-primary focus:outline-none"

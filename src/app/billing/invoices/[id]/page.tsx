@@ -19,6 +19,7 @@ export default function DetailedInvoicePage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentMode, setPaymentMode] = useState<"CASH" | "CARD" | "UPI">("CARD");
   const [paymentAmount, setPaymentAmount] = useState("0");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const fetchInvoice = () => {
     if (!invoiceId) return;
@@ -47,6 +48,7 @@ export default function DetailedInvoicePage() {
   const handleRecordPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     const amt = Number(paymentAmount);
+    setErrorMsg(null);
     try {
       await api.post(`/billing/invoices/${invoiceId}/payments`, {
         amount: amt,
@@ -54,26 +56,10 @@ export default function DetailedInvoicePage() {
         externalRef: `POS-${Math.floor(10000 + Math.random() * 90000)}`,
       });
       fetchInvoice();
-    } catch {
-      // Optimistic local fallback if offline
-      if (invoice) {
-        const newPayment = {
-          id: `pmt-${Date.now()}`,
-          date: new Date().toLocaleString(),
-          mode: paymentMode,
-          ref: `POS-${Math.floor(10000 + Math.random() * 90000)}`,
-          amount: amt,
-          status: "SETTLED",
-        };
-        setInvoice({
-          ...invoice,
-          status: "PAID",
-          patientOwing: Math.max(0, invoice.patientOwing - amt),
-          payments: [...(invoice.payments || []), newPayment],
-        });
-      }
+      setShowPaymentModal(false);
+    } catch (err: any) {
+      setErrorMsg(err?.response?.data?.message || err?.message || "Payment processing failed. Please verify payment details.");
     }
-    setShowPaymentModal(false);
   };
 
   if (loading) {
@@ -321,6 +307,11 @@ export default function DetailedInvoicePage() {
               <h3 className="font-headline-sm text-headline-sm font-bold text-on-surface">
                 Collect Payment for {invoice.invoiceNumber}
               </h3>
+              {errorMsg && (
+                <div className="p-3 rounded-xl bg-error/10 border border-error/30 text-error text-xs font-medium">
+                  {errorMsg}
+                </div>
+              )}
               <form onSubmit={handleRecordPayment} className="space-y-space-4">
                 <div>
                   <label className="block text-label-md font-semibold text-on-surface mb-space-1">

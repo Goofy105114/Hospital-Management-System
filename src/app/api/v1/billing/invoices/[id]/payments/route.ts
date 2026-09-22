@@ -40,50 +40,31 @@ export async function POST(
     }
 
     // Fetch invoice to validate it exists and is payable
-    let invoice = null;
-    try {
-      invoice = await prisma.invoice.findUnique({ where: { id } });
-    } catch {
-      // DB offline
-    }
+    const invoice = await prisma.invoice.findUnique({ where: { id } });
 
-    if (invoice === null) {
+    if (!invoice) {
       return apiError("BIL_INVOICE_NOT_FOUND", "Invoice not found", 404);
     }
 
-    if (invoice && invoice.status === "CANCELLED") {
+    if (invoice.status === "CANCELLED") {
       return apiError("BIL_INVOICE_CANCELLED", "Cannot collect payment on a cancelled invoice", 422);
     }
 
-    if (invoice && invoice.status === "PAID") {
+    if (invoice.status === "PAID") {
       return apiError("BIL_INVOICE_ALREADY_PAID", "Invoice is already fully paid", 422);
     }
 
     // Create the payment record
-    let payment = null;
-    try {
-      payment = await prisma.payment.create({
-        data: {
-          invoiceId: id,
-          patientId: invoice.patientId,
-          amount: Number(amount),
-          paymentMethod: mode as PaymentMethod,
-          transactionReference: externalRef ?? null,
-          collectedBy: auth.user.sub,
-        },
-      });
-    } catch {
-      // DB offline — return intent confirmation
-      payment = {
-        id: `pay-${Date.now()}`,
+    const payment = await prisma.payment.create({
+      data: {
         invoiceId: id,
+        patientId: invoice.patientId,
         amount: Number(amount),
-        paymentMethod: mode,
+        paymentMethod: mode as PaymentMethod,
         transactionReference: externalRef ?? null,
         collectedBy: auth.user.sub,
-        createdAt: new Date().toISOString(),
-      };
-    }
+      },
+    });
 
     // Audit — record as PENDING (payment recorded but not yet confirmed)
     await logAuditEvent({

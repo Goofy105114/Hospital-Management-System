@@ -89,32 +89,20 @@ export async function POST(req: NextRequest) {
     };
 
     // Check for overlapping sessions for this doctor on this day
-    let existingSessions: Array<{
-      id: string;
-      dayOfWeek: number;
-      startTime: string;
-      endTime: string;
-      isActive: boolean;
-    }> = [];
-
-    try {
-      existingSessions = await prisma.clinicSession.findMany({
-        where: {
-          doctorId: sessionInput.doctorId,
-          dayOfWeek: sessionInput.dayOfWeek,
-          isActive: true,
-        },
-        select: {
-          id: true,
-          dayOfWeek: true,
-          startTime: true,
-          endTime: true,
-          isActive: true,
-        },
-      });
-    } catch {
-      existingSessions = [];
-    }
+    const existingSessions = await prisma.clinicSession.findMany({
+      where: {
+        doctorId: sessionInput.doctorId,
+        dayOfWeek: sessionInput.dayOfWeek,
+        isActive: true,
+      },
+      select: {
+        id: true,
+        dayOfWeek: true,
+        startTime: true,
+        endTime: true,
+        isActive: true,
+      },
+    });
 
     const hasOverlap = detectSessionOverlap(
       {
@@ -141,39 +129,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    let createdSession: any = null;
-    try {
-      createdSession = await prisma.clinicSession.create({
-        data: {
-          doctorId: sessionInput.doctorId,
-          dayOfWeek: sessionInput.dayOfWeek,
-          startTime: sessionInput.startTime,
-          endTime: sessionInput.endTime,
-          roomNumber: sessionInput.roomNumber,
-          slotDurationMinutes: sessionInput.slotDurationMinutes,
-          maxCapacity: sessionInput.maxCapacity,
-          isActive: true,
-        },
-        include: {
-          doctor: {
-            include: { user: true, department: true },
-          },
-        },
-      });
-    } catch {
-      createdSession = {
-        id: `sch-${Date.now()}`,
+    const createdSession = await prisma.clinicSession.create({
+      data: {
         doctorId: sessionInput.doctorId,
         dayOfWeek: sessionInput.dayOfWeek,
         startTime: sessionInput.startTime,
         endTime: sessionInput.endTime,
-        roomNumber: sessionInput.roomNumber || "Room 101",
+        roomNumber: sessionInput.roomNumber,
         slotDurationMinutes: sessionInput.slotDurationMinutes,
         maxCapacity: sessionInput.maxCapacity,
         isActive: true,
-        createdAt: new Date().toISOString(),
-      };
-    }
+      },
+      include: {
+        doctor: {
+          include: { user: true, department: true },
+        },
+      },
+    });
 
     await logAuditEvent({
       actorId: auth.sub,

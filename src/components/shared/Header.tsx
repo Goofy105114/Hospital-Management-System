@@ -236,10 +236,10 @@ export function Header() {
                   </button>
                 </div>
 
-                {/* Persona Switcher Section */}
+                {/* Role Switcher Section */}
                 <div className="px-4 py-2 border-b border-slate-100">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    One-Click Persona Switcher
+                    Switch Workspace Role
                   </p>
                 </div>
                 <div className="max-h-56 overflow-y-auto py-1">

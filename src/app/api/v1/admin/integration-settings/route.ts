@@ -24,22 +24,18 @@ export async function GET(req: NextRequest) {
       return apiError("ADM_FORBIDDEN", "Insufficient privileges for integration settings", 403);
     }
 
-    try {
-      const record = await prisma.systemSetting.findUnique({
-        where: { key: SETTINGS_KEY },
-      });
+    const record = await prisma.systemSetting.findUnique({
+      where: { key: SETTINGS_KEY },
+    });
 
-      if (record && record.value) {
-        const parsed = typeof record.value === "string" ? JSON.parse(record.value) : record.value;
-        return apiSuccess({
-          ...DEFAULT_INTEGRATION_SETTINGS,
-          ...parsed,
-          updatedAt: record.updatedAt,
-          updatedBy: record.updatedBy,
-        });
-      }
-    } catch {
-      // Fallback
+    if (record && record.value) {
+      const parsed = typeof record.value === "string" ? JSON.parse(record.value) : record.value;
+      return apiSuccess({
+        ...DEFAULT_INTEGRATION_SETTINGS,
+        ...parsed,
+        updatedAt: record.updatedAt,
+        updatedBy: record.updatedBy,
+      });
     }
 
     return apiSuccess(DEFAULT_INTEGRATION_SETTINGS);
@@ -90,22 +86,18 @@ export async function PUT(req: NextRequest) {
       ...body,
     };
 
-    try {
-      await prisma.systemSetting.upsert({
-        where: { key: SETTINGS_KEY },
-        update: {
-          value: updatedSettings as any,
-          updatedBy: auth.sub,
-        },
-        create: {
-          key: SETTINGS_KEY,
-          value: updatedSettings as any,
-          updatedBy: auth.sub,
-        },
-      });
-    } catch {
-      // Fallback
-    }
+    await prisma.systemSetting.upsert({
+      where: { key: SETTINGS_KEY },
+      update: {
+        value: updatedSettings as any,
+        updatedBy: auth.sub,
+      },
+      create: {
+        key: SETTINGS_KEY,
+        value: updatedSettings as any,
+        updatedBy: auth.sub,
+      },
+    });
 
     await logAuditEvent({
       actorId: auth.sub,

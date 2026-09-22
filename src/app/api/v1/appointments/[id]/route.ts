@@ -18,6 +18,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         patient: {
           include: {
             user: true,
+            vitalSigns: { orderBy: { recordedAt: "desc" }, take: 1 },
           },
         },
         doctor: {
@@ -90,14 +91,30 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
             currentServing: appointment.queueToken.tokenNumber,
           }
         : undefined,
-      vitals: {
-        bloodPressure: "120/80 mmHg",
-        heartRate: "72 bpm",
-        oxygenSaturation: "98%",
-        temperature: "98.6 °F",
-        weightKg: "70.0 kg",
-        bmi: "22.5",
-      },
+      vitals: appointment.patient.vitalSigns?.[0]
+        ? {
+            bloodPressure:
+              appointment.patient.vitalSigns[0].systolicBp &&
+              appointment.patient.vitalSigns[0].diastolicBp
+                ? `${appointment.patient.vitalSigns[0].systolicBp}/${appointment.patient.vitalSigns[0].diastolicBp} mmHg`
+                : null,
+            heartRate: appointment.patient.vitalSigns[0].heartRate
+              ? `${appointment.patient.vitalSigns[0].heartRate} bpm`
+              : null,
+            oxygenSaturation: appointment.patient.vitalSigns[0].oxygenSaturation
+              ? `${appointment.patient.vitalSigns[0].oxygenSaturation}%`
+              : null,
+            temperature: appointment.patient.vitalSigns[0].temperatureCelsius
+              ? `${Number(appointment.patient.vitalSigns[0].temperatureCelsius).toFixed(1)} °C`
+              : null,
+            weightKg: appointment.patient.vitalSigns[0].weightKg
+              ? `${Number(appointment.patient.vitalSigns[0].weightKg)} kg`
+              : null,
+            bmi: appointment.patient.vitalSigns[0].bmi
+              ? String(appointment.patient.vitalSigns[0].bmi)
+              : null,
+          }
+        : null,
       timeline: [
         {
           title: "Appointment Booked",
@@ -160,16 +177,9 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     // Fetch the current appointment to validate the transition.
     // dbAvailable=false means the DB is offline; we skip the state-machine check
     // and fall through to each action's DB block (which also catches and no-ops).
-    let appointment: Awaited<ReturnType<typeof prisma.appointment.findUnique>> | null = null;
-    let dbAvailable = true;
-    try {
-      appointment = await prisma.appointment.findUnique({ where: { id } });
-      if (appointment === null) {
-        return apiError("APT_NOT_FOUND", "Appointment not found", 404);
-      }
-    } catch {
-      // DB offline — allow action handlers to proceed with their own try/catch
-      dbAvailable = false;
+    const appointment = await prisma.appointment.findUnique({ where: { id } });
+    if (!appointment) {
+      return apiError("APT_NOT_FOUND", "Appointment not found", 404);
     }
 
     // -----------------------------------------------------------------------
@@ -180,19 +190,17 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         return apiError("APT_CANCEL_REASON_REQUIRED", "A cancellation reason is required", 400);
       }
 
-      if (appointment && dbAvailable) {
-        if (!canTransitionAppointment(appointment.status, AppointmentStatus.CANCELLED)) {
-          return apiError(
-            "APT_NOT_CANCELLABLE_STATUS",
-            `Cannot cancel an appointment with status ${appointment.status}`,
-            422
-          );
-        }
-        await prisma.appointment.update({
-          where: { id },
-          data: { status: AppointmentStatus.CANCELLED, cancellationReason: reason },
-        });
+      if (!canTransitionAppointment(appointment.status, AppointmentStatus.CANCELLED)) {
+        return apiError(
+          "APT_NOT_CANCELLABLE_STATUS",
+          `Cannot cancel an appointment with status ${appointment.status}`,
+          422
+        );
       }
+      await prisma.appointment.update({
+        where: { id },
+        data: { status: AppointmentStatus.CANCELLED, cancellationReason: reason },
+      });
 
       await logAuditEvent({
         actorId: user.sub,
@@ -201,7 +209,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         entityType: "Appointment",
         entityId: id,
         changes: {
-          before: { status: appointment?.status ?? "UNKNOWN" },
+          before: { status: appointment.status },
           after: { status: "CANCELLED", reason },
         },
       });
@@ -213,19 +221,17 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     // NO_SHOW
     // -----------------------------------------------------------------------
     if (action === "NO_SHOW") {
-      if (appointment && dbAvailable) {
-        if (!canTransitionAppointment(appointment.status, AppointmentStatus.NO_SHOW)) {
-          return apiError(
-            "APT_INVALID_TRANSITION",
-            `Cannot mark NO_SHOW from status ${appointment.status}`,
-            422
-          );
-        }
-        await prisma.appointment.update({
-          where: { id },
-          data: { status: AppointmentStatus.NO_SHOW },
-        });
+      if (!canTransitionAppointment(appointment.status, AppointmentStatus.NO_SHOW)) {
+        return apiError(
+          "APT_INVALID_TRANSITION",
+          `Cannot mark NO_SHOW from status ${appointment.status}`,
+          422
+        );
       }
+      await prisma.appointment.update({
+        where: { id },
+        data: { status: AppointmentStatus.NO_SHOW },
+      });
 
       await logAuditEvent({
         actorId: user.sub,
@@ -234,7 +240,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         entityType: "Appointment",
         entityId: id,
         changes: {
-          before: { status: appointment?.status ?? "UNKNOWN" },
+          before: { status: appointment.status },
           after: { status: "NO_SHOW" },
         },
       });
@@ -261,23 +267,21 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         return apiError("APT_INVALID_SLOT", "Invalid slot dates provided", 400);
       }
 
-      if (appointment && dbAvailable) {
-        if (!canTransitionAppointment(appointment.status, AppointmentStatus.RESCHEDULED)) {
-          return apiError(
-            "APT_INVALID_TRANSITION",
-            `Cannot reschedule an appointment with status ${appointment.status}`,
-            422
-          );
-        }
-        await prisma.appointment.update({
-          where: { id },
-          data: {
-            status: AppointmentStatus.RESCHEDULED,
-            rescheduledToId: null, // new booking ID linked separately when re-booked
-            updatedAt: new Date(),
-          },
-        });
+      if (!canTransitionAppointment(appointment.status, AppointmentStatus.RESCHEDULED)) {
+        return apiError(
+          "APT_INVALID_TRANSITION",
+          `Cannot reschedule an appointment with status ${appointment.status}`,
+          422
+        );
       }
+      await prisma.appointment.update({
+        where: { id },
+        data: {
+          status: AppointmentStatus.RESCHEDULED,
+          rescheduledToId: null, // new booking ID linked separately when re-booked
+          updatedAt: new Date(),
+        },
+      });
 
       await logAuditEvent({
         actorId: user.sub,

@@ -54,19 +54,12 @@ const ICD10_CATALOG = [
   { code: "I48.91", label: "Unspecified atrial fibrillation" },
 ];
 
-const AVAILABLE_MEDS = [
-  { id: "med-01", name: "Lisinopril", defaultDose: "10mg", category: "ACE Inhibitor" },
-  { id: "med-02", name: "Metoprolol Succinate", defaultDose: "25mg", category: "Beta Blocker" },
-  { id: "med-03", name: "Amoxicillin", defaultDose: "500mg", category: "Penicillin Antibiotic" },
-  { id: "med-04", name: "Warfarin Sodium", defaultDose: "5mg", category: "Anticoagulant" },
-  { id: "med-05", name: "Aspirin", defaultDose: "81mg", category: "Antiplatelet / NSAID" },
-  { id: "med-06", name: "Atorvastatin", defaultDose: "20mg", category: "Statin" },
-];
-
 export default function DoctorWorkspacePage() {
   const { user } = useAuthStore();
   const [patientsQueue, setPatientsQueue] = useState<QueuePatient[]>([]);
-  const [availableMeds, setAvailableMeds] = useState(AVAILABLE_MEDS);
+  const [availableMeds, setAvailableMeds] = useState<
+    Array<{ id: string; name: string; defaultDose: string; category: string }>
+  >([]);
   const [selectedPatient, setSelectedPatient] = useState<QueuePatient | null>(null);
   const [activeTab, setActiveTab] = useState<"SOAP" | "DIAGNOSIS" | "RX" | "LABS">("SOAP");
 
@@ -105,14 +98,15 @@ export default function DoctorWorkspacePage() {
         if (!isMounted) return;
         const list = res.data?.data;
         if (Array.isArray(list) && list.length > 0) {
-          setAvailableMeds(
-            list.map((m: any) => ({
-              id: m.id,
-              name: m.name,
-              defaultDose: m.strength || "10mg",
-              category: m.category || "Formulary",
-            }))
-          );
+          const meds = list.map((m: any) => ({
+            id: m.id,
+            name: m.name,
+            defaultDose: m.strength || "10mg",
+            category: m.category || "Formulary",
+          }));
+          setAvailableMeds(meds);
+          setRxMedId(meds[0].id);
+          setRxDose(meds[0].defaultDose);
         }
       })
       .catch(() => {});
@@ -123,48 +117,28 @@ export default function DoctorWorkspacePage() {
   }, []);
 
   // SOAP State
-  const [subjective, setSubjective] = useState(
-    "Patient is a 38-year-old female presenting for follow-up of intermittent palpitations occurring post-moderate exertion for the past 2 weeks. Denies syncope, orthopnea, or resting chest pressure. Compliant with current Lisinopril 10mg."
-  );
-  const [objective, setObjective] = useState(
-    "Vitals: BP 128/82 mmHg, HR 72 bpm regular, SpO2 98% room air, Temp 98.4°F, BMI 23.8.\nCardiovascular: S1/S2 audible, regular rate and rhythm, no murmurs, gallops, or friction rubs.\nLungs: Clear to auscultation bilaterally.\nExtremities: No peripheral edema (0/4)."
-  );
-  const [assessment, setAssessment] = useState(
-    "1. Palpitations, benign post-exertional (R00.2) - suspect transient sinus tachycardia or premature atrial complexes.\n2. Well-controlled primary hypertension (I10) on Lisinopril monotherapy."
-  );
-  const [plan, setPlan] = useState(
-    "1. Order 12-lead resting ECG and Comprehensive Metabolic Panel today.\n2. Continue Lisinopril 10mg daily.\n3. Add Metoprolol Tartrate 25mg BID PRN for symptomatic palpitations.\n4. Patient instructed to return for Holter monitor if symptoms accelerate."
-  );
+  const [subjective, setSubjective] = useState("");
+  const [objective, setObjective] = useState("");
+  const [assessment, setAssessment] = useState("");
+  const [plan, setPlan] = useState("");
 
   // Diagnoses
-  const [diagnoses, setDiagnoses] = useState([
-    { code: "R00.2", label: "Palpitations, unspecified", type: "PRIMARY" },
-    { code: "I10", label: "Essential (primary) hypertension", type: "SECONDARY" },
-  ]);
+  const [diagnoses, setDiagnoses] = useState<
+    Array<{ code: string; label: string; type: string }>
+  >([]);
   const [selectedIcd, setSelectedIcd] = useState(ICD10_CATALOG[0].code);
 
   // Prescriptions
   const [prescriptions, setPrescriptions] = useState<
     Array<{ id: string; name: string; dose: string; freq: string; duration: string }>
-  >([
-    {
-      id: "p1",
-      name: "Metoprolol Succinate",
-      dose: "25mg",
-      freq: "Once daily (Morning)",
-      duration: "30 Days",
-    },
-  ]);
-  const [rxMedId, setRxMedId] = useState(AVAILABLE_MEDS[0].id);
-  const [rxDose, setRxDose] = useState("10mg");
+  >([]);
+  const [rxMedId, setRxMedId] = useState("");
+  const [rxDose, setRxDose] = useState("");
   const [rxFreq, setRxFreq] = useState("Once daily");
   const [rxDuration, setRxDuration] = useState("30 Days");
 
   // Lab orders
-  const [orderedLabs, setOrderedLabs] = useState<string[]>([
-    "12-Lead Resting Electrocardiogram (ECG)",
-    "Comprehensive Metabolic Panel (CMP)",
-  ]);
+  const [orderedLabs, setOrderedLabs] = useState<string[]>([]);
 
   // Safety Warnings State
   const [safetyAlerts, setSafetyAlerts] = useState<string[]>([]);
@@ -259,10 +233,7 @@ export default function DoctorWorkspacePage() {
         setAssessment((prev) => `${prev}\n\n[AI Clinical Insight]: ${res.data.data.summary}`);
       }
     } catch {
-      setAssessment(
-        (prev) =>
-          `${prev}\n\n[AI Clinical Insight]: Symptoms correlate with benign sinus arrhythmia post-exertion. Serum electrolytes and resting ECG recommended prior to pharmacotherapy escalation.`
-      );
+      alert("AI Clinical Assistant service is temporarily unavailable.");
     } finally {
       setAiGenerating(false);
     }
@@ -270,19 +241,23 @@ export default function DoctorWorkspacePage() {
 
   const handleSignEncounter = async () => {
     if (!selectedPatient) return;
+    if (!user?.id) {
+      alert("Clinician account authentication required to sign encounter.");
+      return;
+    }
     try {
       await api.post("/emr/encounters", {
         action: "SIGN",
         patientId: selectedPatient.id,
-        doctorId: user?.id || "doc-001",
+        doctorId: user.id,
         notes: { subjective, objective, assessment, plan },
         diagnosis: diagnoses,
         prescriptions,
         labOrders: orderedLabs,
       });
       setIsSigned(true);
-    } catch {
-      setIsSigned(true);
+    } catch (e: any) {
+      alert(e?.response?.data?.error?.message || "Failed to sign encounter on server.");
     }
   };
 
@@ -297,11 +272,11 @@ export default function DoctorWorkspacePage() {
                 Clinician Consultation Desk
               </h1>
               <Badge variant="success" className="text-[11px] font-semibold px-2 py-0.5">
-                Room 402B • Active Session
+                Room {user?.roomNumber || "101"} • Active Session
               </Badge>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              {user?.name || "Dr. Marcus Vance, MD, FACC"} • Cardiology Consult
+              {user?.name ? (user.name.startsWith("Dr.") ? user.name : `Dr. ${user.name}`) : "Attending Clinician"} • Consultation Session
             </p>
           </div>
 
@@ -693,35 +668,41 @@ export default function DoctorWorkspacePage() {
                   </Button>
                 </div>
 
-                <div className="space-y-2">
-                  {diagnoses.map((diag, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center justify-between p-3 rounded-xl bg-slate-50/70 border border-slate-200/80"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="px-2 py-1 rounded bg-teal-100/80 text-teal-800 font-mono font-bold text-xs border border-teal-200/60">
-                          {diag.code}
-                        </span>
-                        <div>
-                          <p className="text-xs font-semibold text-slate-800">{diag.label}</p>
-                          <span className="text-[10px] text-slate-400 uppercase font-semibold">
-                            {diag.type} DIAGNOSIS
+                {diagnoses.length === 0 ? (
+                  <p className="text-xs text-slate-400 py-4 text-center">
+                    No diagnoses coded for this consultation yet. Select from ICD-10 catalog above.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {diagnoses.map((diag, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center justify-between p-3 rounded-xl bg-slate-50/70 border border-slate-200/80"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="px-2 py-1 rounded bg-teal-100/80 text-teal-800 font-mono font-bold text-xs border border-teal-200/60">
+                            {diag.code}
                           </span>
+                          <div>
+                            <p className="text-xs font-semibold text-slate-800">{diag.label}</p>
+                            <span className="text-[10px] text-slate-400 uppercase font-semibold">
+                              {diag.type} DIAGNOSIS
+                            </span>
+                          </div>
                         </div>
+                        {!isSigned && (
+                          <button
+                            onClick={() => setDiagnoses(diagnoses.filter((_, idx) => idx !== i))}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                            title="Remove Diagnosis"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
-                      {!isSigned && (
-                        <button
-                          onClick={() => setDiagnoses(diagnoses.filter((_, idx) => idx !== i))}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                          title="Remove Diagnosis"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -750,11 +731,15 @@ export default function DoctorWorkspacePage() {
                         }}
                         className="w-full p-2 rounded-lg border border-slate-200 bg-white text-xs text-slate-800 focus:outline-none focus:border-teal-600"
                       >
-                        {availableMeds.map((m) => (
-                          <option key={m.id} value={m.id}>
-                            {m.name} ({m.category})
-                          </option>
-                        ))}
+                        {availableMeds.length > 0 ? (
+                          availableMeds.map((m) => (
+                            <option key={m.id} value={m.id}>
+                              {m.name} ({m.category})
+                            </option>
+                          ))
+                        ) : (
+                          <option value="">No formulary items loaded</option>
+                        )}
                       </select>
                     </div>
 
@@ -811,40 +796,46 @@ export default function DoctorWorkspacePage() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  {prescriptions.map((rx, idx) => (
-                    <div
-                      key={rx.id || idx}
-                      className="flex items-center justify-between p-3 rounded-xl bg-slate-50/70 border border-slate-200/80"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-lg bg-teal-100 text-teal-800 flex items-center justify-center font-bold shrink-0">
-                          <Pill className="w-4 h-4" />
+                {prescriptions.length === 0 ? (
+                  <p className="text-xs text-slate-400 py-4 text-center">
+                    No medication orders queued for this encounter yet. Add medication above.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {prescriptions.map((rx, idx) => (
+                      <div
+                        key={rx.id || idx}
+                        className="flex items-center justify-between p-3 rounded-xl bg-slate-50/70 border border-slate-200/80"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-lg bg-teal-100 text-teal-800 flex items-center justify-center font-bold shrink-0">
+                            <Pill className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-bold text-slate-800">
+                              {rx.name} • {rx.dose}
+                            </h4>
+                            <p className="text-[11px] text-slate-500">
+                              {rx.freq} • Duration: {rx.duration}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <h4 className="text-xs font-bold text-slate-800">
-                            {rx.name} • {rx.dose}
-                          </h4>
-                          <p className="text-[11px] text-slate-500">
-                            {rx.freq} • Duration: {rx.duration}
-                          </p>
-                        </div>
-                      </div>
 
-                      {!isSigned && (
-                        <button
-                          onClick={() =>
-                            setPrescriptions(prescriptions.filter((_, i) => i !== idx))
-                          }
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                          title="Remove Medication"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                        {!isSigned && (
+                          <button
+                            onClick={() =>
+                              setPrescriptions(prescriptions.filter((_, i) => i !== idx))
+                            }
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                            title="Remove Medication"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 

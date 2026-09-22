@@ -30,6 +30,7 @@ export default function BillingPage() {
   const [loading, setLoading] = useState(true);
   const [payModalOpen, setPayModalOpen] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState<string | null>(null);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState("CARD");
 
   const fetchInvoices = async () => {
@@ -91,9 +92,10 @@ export default function BillingPage() {
     fetchInvoices();
   }, []);
 
-  const handleProcessPayment = async (e: React.FormEvent) => {
+  const handleRecordPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedInvoice) return;
+    setPaymentError(null);
 
     try {
       await api.post(`/billing/invoices/${selectedInvoice.id}/payments`, {
@@ -104,21 +106,11 @@ export default function BillingPage() {
       setPaymentSuccess(
         `Payment of ${formatCurrency(selectedInvoice.patientOwing)} settled successfully.`
       );
-    } catch {
-      // Optimistic update
-      setInvoices((prev) =>
-        prev.map((inv) =>
-          inv.id === selectedInvoice.id ? { ...inv, status: "PAID", patientOwing: 0.0 } : inv
-        )
-      );
-      setSelectedInvoice((prev) =>
-        prev ? { ...prev, status: "PAID", patientOwing: 0.0 } : null
-      );
-      setPaymentSuccess(
-        `Payment of ${formatCurrency(selectedInvoice.patientOwing)} settled successfully.`
-      );
-    } finally {
       setPayModalOpen(false);
+    } catch (err: any) {
+      setPaymentError(
+        err?.response?.data?.message || err?.message || "Failed to process invoice payment."
+      );
     }
   };
 
@@ -165,6 +157,21 @@ export default function BillingPage() {
             <button
               onClick={() => setPaymentSuccess(null)}
               className="text-emerald-700 hover:text-emerald-900"
+            >
+              <span className="material-symbols-outlined text-sm">close</span>
+            </button>
+          </div>
+        )}
+
+        {paymentError && (
+          <div className="bg-red-50 border border-red-200 text-red-800 p-space-4 rounded-xl flex items-center justify-between">
+            <div className="flex items-center gap-space-2">
+              <span className="material-symbols-outlined text-red-600">error</span>
+              <span className="font-body-md font-medium">{paymentError}</span>
+            </div>
+            <button
+              onClick={() => setPaymentError(null)}
+              className="text-red-700 hover:text-red-900"
             >
               <span className="material-symbols-outlined text-sm">close</span>
             </button>
@@ -349,7 +356,7 @@ export default function BillingPage() {
       {payModalOpen && selectedInvoice && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <form
-            onSubmit={handleProcessPayment}
+            onSubmit={handleRecordPayment}
             className="bg-surface-container-lowest rounded-2xl max-w-md w-full p-space-6 shadow-xl border border-outline-variant/30 space-y-space-4 animate-in fade-in zoom-in-95"
           >
             <div className="flex items-center justify-between border-b border-outline-variant/20 pb-space-3">

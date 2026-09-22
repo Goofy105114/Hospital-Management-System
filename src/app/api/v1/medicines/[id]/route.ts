@@ -89,8 +89,7 @@ export async function PATCH(
           { status: 404 }
         );
       }
-      // DB offline — return intent confirmation
-      return NextResponse.json(successResponse({ id, ...updateData }));
+      throw dbErr;
     }
   } catch (error) {
     return NextResponse.json(

@@ -145,26 +145,6 @@ export default function AdminLoginPage() {
               )}
             </div>
 
-            {/* Demo Quickfill */}
-            <div className="p-3 bg-surface-container-low rounded-xl border border-outline-variant/20 flex items-center justify-between">
-              <div>
-                <p className="text-[11px] font-bold text-on-surface">Default Admin Account</p>
-                <p className="text-[10px] text-outline font-mono">admin@goingmerry.hms</p>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="text-xs h-7 px-2.5 border-slate-400 text-slate-800 hover:bg-slate-100"
-                onClick={() => {
-                  setValue("identifier", "admin@goingmerry.hms");
-                  setValue("password", "Password123!");
-                }}
-              >
-                Autofill
-              </Button>
-            </div>
-
             <Button
               type="submit"
               variant="primary"

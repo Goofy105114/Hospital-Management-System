@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import { UserRole } from "@prisma/client";
-import api from "@/lib/axios";
 
 export interface AuthUser {
   id: string;
@@ -10,6 +9,8 @@ export interface AuthUser {
   role: UserRole;
   mrn?: string;
   doctorId?: string;
+  roomNumber?: string;
+  department?: string;
 }
 
 interface AuthState {
@@ -23,15 +24,6 @@ interface AuthState {
   hydrate: () => void;
   logout: () => void;
 }
-
-export const ROLE_CREDENTIALS: Partial<Record<UserRole, { identifier: string; password: string }>> = {
-  DOCTOR: { identifier: "dr.vance@goingmerry.hms", password: "Password123!" },
-  PATIENT: { identifier: "eleanor.vance@example.com", password: "Password123!" },
-  RECEPTIONIST: { identifier: "reception@goingmerry.org", password: "Password123!" },
-  ADMIN: { identifier: "admin@goingmerry.hms", password: "Password123!" },
-  SUPER_ADMIN: { identifier: "admin@goingmerry.hms", password: "Password123!" },
-  PHARMACIST: { identifier: "pharmacy@goingmerry.org", password: "Password123!" },
-};
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
@@ -87,23 +79,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   setActiveRole: async (role: UserRole) => {
-    const creds = ROLE_CREDENTIALS[role];
-    if (creds) {
-      try {
-        const res = await api.post("/auth/login", {
-          identifier: creds.identifier,
-          password: creds.password,
-        });
-        if (res.data?.data) {
-          const { user, accessToken } = res.data.data;
-          get().setAuth(user, accessToken);
-          return;
-        }
-      } catch (e) {
-        console.error("Failed to switch role via real auth login:", e);
-      }
-    }
-    // Fallback role switch if credentials not available for role
     set((state) => ({
       activeRole: role,
       user: state.user ? { ...state.user, role } : null,

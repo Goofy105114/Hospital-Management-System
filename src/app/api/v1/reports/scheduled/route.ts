@@ -50,22 +50,15 @@ export async function POST(request: NextRequest) {
       isActive: true,
     };
 
-    let saved = null;
-    try {
-      await prisma.systemSetting.create({
-        data: {
-          key: settingKey,
-          value: settingValue,
-          updatedBy: user.sub,
-        },
-      });
-      saved = settingValue;
-    } catch {
-      // DB offline — return intent confirmation
-      saved = settingValue;
-    }
+    await prisma.systemSetting.create({
+      data: {
+        key: settingKey,
+        value: settingValue,
+        updatedBy: user.sub,
+      },
+    });
 
-    return apiSuccess(saved, undefined, 201);
+    return apiSuccess(settingValue, undefined, 201);
   } catch (err: any) {
     return apiError("INTERNAL_ERROR", err.message || "Failed to create scheduled report", 500);
   }
@@ -85,16 +78,11 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    let schedules: unknown[] = [];
-    try {
-      const settings = await prisma.systemSetting.findMany({
-        where: { key: { startsWith: "report.schedule." } },
-        orderBy: { updatedAt: "desc" },
-      });
-      schedules = settings.map((s) => s.value);
-    } catch {
-      schedules = [];
-    }
+    const settings = await prisma.systemSetting.findMany({
+      where: { key: { startsWith: "report.schedule." } },
+      orderBy: { updatedAt: "desc" },
+    });
+    const schedules = settings.map((s) => s.value);
 
     return apiSuccess(schedules);
   } catch (err: any) {

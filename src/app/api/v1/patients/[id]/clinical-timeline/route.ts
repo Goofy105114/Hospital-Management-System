@@ -37,19 +37,14 @@ export async function GET(
 
     // Patients may only view their own timeline
     if (user.role === UserRole.PATIENT) {
-      let patient = null;
-      try {
-        patient = await prisma.patient.findUnique({
-          where: { id },
-          select: { userId: true },
-        });
-      } catch {
-        // DB offline
-      }
-      if (patient === null) {
+      const patient = await prisma.patient.findUnique({
+        where: { id },
+        select: { userId: true },
+      });
+      if (!patient) {
         return apiError("PATIENT_NOT_FOUND", "Patient not found", 404);
       }
-      if (patient && patient.userId !== user.sub) {
+      if (patient.userId !== user.sub) {
         return apiError(
           "EMR_TIMELINE_SCOPE_DENIED",
           "Patients may only view their own clinical timeline",
@@ -58,50 +53,44 @@ export async function GET(
       }
     }
 
-    let timeline: unknown[] = [];
-    try {
-      const encounters = await prisma.encounter.findMany({
-        where: { patientId: id },
-        include: {
-          doctor: {
-            select: { specialization: true, user: { select: { name: true } } },
-          },
-          diagnoses: { select: { id: true, icdCode: true, description: true, type: true } },
-          prescriptions: { select: { id: true, status: true, prescriptionNumber: true } },
-          vitalSigns: {
-            orderBy: { recordedAt: "desc" },
-            take: 1,
-            select: {
-              systolicBp: true,
-              diastolicBp: true,
-              heartRate: true,
-              oxygenSaturation: true,
-              temperatureCelsius: true,
-            },
+    const encounters = await prisma.encounter.findMany({
+      where: { patientId: id },
+      include: {
+        doctor: {
+          select: { specialization: true, user: { select: { name: true } } },
+        },
+        diagnoses: { select: { id: true, icdCode: true, description: true, type: true } },
+        prescriptions: { select: { id: true, status: true, prescriptionNumber: true } },
+        vitalSigns: {
+          orderBy: { recordedAt: "desc" },
+          take: 1,
+          select: {
+            systolicBp: true,
+            diastolicBp: true,
+            heartRate: true,
+            oxygenSaturation: true,
+            temperatureCelsius: true,
           },
         },
-        orderBy: { createdAt: "desc" },
-      });
+      },
+      orderBy: { createdAt: "desc" },
+    });
 
-      timeline = encounters.map((enc) => ({
-        id: enc.id,
-        encounterNumber: enc.encounterNumber,
-        status: enc.status,
-        date: enc.createdAt.toISOString().slice(0, 10),
-        doctorName: enc.doctor.user.name,
-        doctorSpecialization: enc.doctor.specialization,
-        chiefComplaint: enc.chiefComplaint,
-        signedAt: enc.signedAt?.toISOString() ?? null,
-        signedBy: enc.signedBy ?? null,
-        diagnosesCount: enc.diagnoses.length,
-        primaryDiagnosis: enc.diagnoses.find((d) => d.type === "PRIMARY") ?? null,
-        prescriptionsCount: enc.prescriptions.length,
-        latestVitals: enc.vitalSigns[0] ?? null,
-      }));
-    } catch {
-      // DB offline — return empty timeline
-      timeline = [];
-    }
+    const timeline = encounters.map((enc) => ({
+      id: enc.id,
+      encounterNumber: enc.encounterNumber,
+      status: enc.status,
+      date: enc.createdAt.toISOString().slice(0, 10),
+      doctorName: enc.doctor.user.name,
+      doctorSpecialization: enc.doctor.specialization,
+      chiefComplaint: enc.chiefComplaint,
+      signedAt: enc.signedAt?.toISOString() ?? null,
+      signedBy: enc.signedBy ?? null,
+      diagnosesCount: enc.diagnoses.length,
+      primaryDiagnosis: enc.diagnoses.find((d) => d.type === "PRIMARY") ?? null,
+      prescriptionsCount: enc.prescriptions.length,
+      latestVitals: enc.vitalSigns[0] ?? null,
+    }));
 
     return apiSuccess(timeline);
   } catch (err: any) {

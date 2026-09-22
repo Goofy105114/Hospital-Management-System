@@ -49,9 +49,24 @@ export async function POST(request: NextRequest) {
         if (notes) {
           await EmrService.updateNotes(targetEncounterId, notes);
         }
+        let effectiveDoctorId = doctorId;
+        if (!effectiveDoctorId) {
+          const enc = await prisma.encounter.findUnique({
+            where: { id: targetEncounterId },
+            select: { doctorId: true },
+          });
+          effectiveDoctorId = enc?.doctorId;
+        }
+        if (!effectiveDoctorId) {
+          const doc = await prisma.doctor.findFirst({ where: { isActive: true } });
+          effectiveDoctorId = doc?.id;
+        }
+        if (!effectiveDoctorId) {
+          return apiError("EMR_DOCTOR_REQUIRED", "Doctor ID is required to sign encounter", 400);
+        }
         const res = await EmrService.signEncounter(
           targetEncounterId,
-          doctorId || "doc-001",
+          effectiveDoctorId,
           "Attending Physician"
         );
         return apiSuccess(res);

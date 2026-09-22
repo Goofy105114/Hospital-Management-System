@@ -202,7 +202,7 @@ export default function ProfilePage() {
                   </label>
                   <input
                     type="text"
-                    defaultValue="Primary Next of Kin"
+                    placeholder="e.g. Jane Doe"
                     className="w-full p-2.5 rounded-lg border border-outline-variant/40 bg-surface-container-lowest text-sm"
                   />
                 </div>
@@ -212,7 +212,7 @@ export default function ProfilePage() {
                   </label>
                   <input
                     type="text"
-                    defaultValue="Family Member"
+                    placeholder="e.g. Spouse / Sibling"
                     className="w-full p-2.5 rounded-lg border border-outline-variant/40 bg-surface-container-lowest text-sm"
                   />
                 </div>
@@ -222,7 +222,7 @@ export default function ProfilePage() {
                   </label>
                   <input
                     type="tel"
-                    defaultValue={phone || "+1 (555) 000-0000"}
+                    placeholder="e.g. +1 (555) 012-3456"
                     className="w-full p-2.5 rounded-lg border border-outline-variant/40 bg-surface-container-lowest text-sm font-mono"
                   />
                 </div>
@@ -245,7 +245,7 @@ export default function ProfilePage() {
                   </label>
                   <input
                     type="text"
-                    defaultValue="Going Merry Health Coverage"
+                    placeholder="e.g. Blue Cross Blue Shield"
                     className="w-full p-2.5 rounded-lg border border-outline-variant/40 bg-surface-container-lowest text-sm"
                   />
                 </div>
@@ -255,7 +255,7 @@ export default function ProfilePage() {
                   </label>
                   <input
                     type="text"
-                    defaultValue="GM-INS-88190"
+                    placeholder="e.g. POL-998201"
                     className="w-full p-2.5 rounded-lg border border-outline-variant/40 bg-surface-container-lowest text-sm font-mono"
                   />
                 </div>
@@ -265,7 +265,7 @@ export default function ProfilePage() {
                   </label>
                   <input
                     type="text"
-                    defaultValue="GRP-9901"
+                    placeholder="e.g. GRP-44012"
                     className="w-full p-2.5 rounded-lg border border-outline-variant/40 bg-surface-container-lowest text-sm font-mono"
                   />
                 </div>

@@ -145,26 +145,6 @@ export default function ReceptionistLoginPage() {
               )}
             </div>
 
-            {/* Demo Quickfill */}
-            <div className="p-3 bg-surface-container-low rounded-xl border border-outline-variant/20 flex items-center justify-between">
-              <div>
-                <p className="text-[11px] font-bold text-on-surface">Reception Desk Demo</p>
-                <p className="text-[10px] text-outline font-mono">receptionist@goingmerry.hms</p>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="text-xs h-7 px-2.5 border-emerald-400 text-emerald-800 hover:bg-emerald-50"
-                onClick={() => {
-                  setValue("identifier", "receptionist@goingmerry.hms");
-                  setValue("password", "Password123!");
-                }}
-              >
-                Autofill
-              </Button>
-            </div>
-
             <Button
               type="submit"
               variant="primary"

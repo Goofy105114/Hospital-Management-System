@@ -41,31 +41,25 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    let logs: unknown[] = [];
-    try {
-      const records = await prisma.notificationLog.findMany({
-        where: {
-          ...(statusParam ? { status: statusParam } : {}),
-          ...(recipientId ? { recipientId } : {}),
-          ...(dateFrom ? { createdAt: { gte: new Date(dateFrom) } } : {}),
-        },
-        orderBy: { createdAt: "desc" },
-        take: 200,
-      });
+    const records = await prisma.notificationLog.findMany({
+      where: {
+        ...(statusParam ? { status: statusParam } : {}),
+        ...(recipientId ? { recipientId } : {}),
+        ...(dateFrom ? { createdAt: { gte: new Date(dateFrom) } } : {}),
+      },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+    });
 
-      logs = records.map((r) => ({
-        id: r.id,
-        recipientId: r.recipientId,
-        channel: r.channel,
-        title: r.title,
-        message: r.message,
-        status: r.status,
-        createdAt: r.createdAt.toISOString(),
-      }));
-    } catch {
-      // DB offline — return empty list (admin will retry once DB is available)
-      logs = [];
-    }
+    const logs = records.map((r) => ({
+      id: r.id,
+      recipientId: r.recipientId,
+      channel: r.channel,
+      title: r.title,
+      message: r.message,
+      status: r.status,
+      createdAt: r.createdAt.toISOString(),
+    }));
 
     return apiSuccess(logs);
   } catch (err: any) {

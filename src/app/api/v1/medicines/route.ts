@@ -78,35 +78,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    try {
-      const medicine = await prisma.medicine.create({
-        data: {
-          name,
-          genericName,
-          form: form as MedicineForm,
-          strength: strength || null,
-          unit: unit || "Tablet",
-          manufacturer: manufacturer || null,
-          unitPrice: unitPrice ? Number(unitPrice) : 1.5,
-          isActive: true,
-        },
-      });
-      return NextResponse.json(successResponse(medicine), { status: 201 });
-    } catch {
-      // DB offline — return intent confirmation
-      const newMedicine = {
-        id: `med-${Date.now()}`,
+    const medicine = await prisma.medicine.create({
+      data: {
         name,
         genericName,
-        form,
-        strength: strength || "Standard",
-        unit: unit || "Unit",
+        form: form as MedicineForm,
+        strength: strength || null,
+        unit: unit || "Tablet",
         manufacturer: manufacturer || null,
-        unitPrice: Number(unitPrice) || 1.5,
+        unitPrice: unitPrice ? Number(unitPrice) : 1.5,
         isActive: true,
-      };
-      return NextResponse.json(successResponse(newMedicine), { status: 201 });
-    }
+      },
+    });
+    return NextResponse.json(successResponse(medicine), { status: 201 });
   } catch (error) {
     return NextResponse.json(
       errorResponse("PHA_CREATE_FAILED", "Failed to add medicine to formulary", {

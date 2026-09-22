@@ -113,7 +113,7 @@ export default function PatientLoginPage() {
               <input
                 type="text"
                 {...register("identifier")}
-                placeholder="eleanor.vance@example.com or GM-84920"
+                placeholder="patient@example.com or MRN-12345"
                 className="w-full h-11 px-3.5 bg-surface-container-low text-on-surface rounded-xl border border-outline-variant/40 focus:border-primary focus:ring-1 focus:ring-primary text-sm font-medium"
               />
               {errors.identifier && (
@@ -141,26 +141,6 @@ export default function PatientLoginPage() {
               {errors.password && (
                 <p className="text-[11px] text-error mt-1">{errors.password.message}</p>
               )}
-            </div>
-
-            {/* Demo Quickfill */}
-            <div className="p-3 bg-surface-container-low rounded-xl border border-outline-variant/20 flex items-center justify-between">
-              <div>
-                <p className="text-[11px] font-bold text-on-surface">Demo Patient Record</p>
-                <p className="text-[10px] text-outline font-mono">eleanor.vance@example.com</p>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="text-xs h-7 px-2.5"
-                onClick={() => {
-                  setValue("identifier", "eleanor.vance@example.com");
-                  setValue("password", "Password123!");
-                }}
-              >
-                Autofill
-              </Button>
             </div>
 
             <Button

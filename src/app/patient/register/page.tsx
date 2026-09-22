@@ -47,7 +47,7 @@ export default function PatientRegisterPage() {
       dob: "1995-04-12",
       gender: "FEMALE",
       bloodGroup: "O+",
-      phone: "+1 (555) 345-6789",
+      phone: "",
       email: "",
       password: "",
       confirmPassword: "",
@@ -62,42 +62,39 @@ export default function PatientRegisterPage() {
         phone: values.phone,
       });
 
-      let generatedMrn = `GM-${Math.floor(10000 + Math.random() * 90000)}`;
-      let userId = `pat-${Date.now()}`;
+      const res = await api.post("/auth/register", {
+        name: values.name,
+        email: values.email,
+        phone: values.phone,
+        dob: values.dob,
+        gender: values.gender,
+        password: values.password,
+        bloodGroup: values.bloodGroup,
+      });
 
-      try {
-        const res = await api.post("/auth/register", {
-          name: values.name,
-          email: values.email,
-          phone: values.phone,
-          dob: values.dob,
-          gender: values.gender,
-          password: values.password,
-          bloodGroup: values.bloodGroup,
-        });
-        if (res.data?.data) {
-          generatedMrn = res.data.data.mrn || generatedMrn;
-          userId = res.data.data.userId || userId;
-        }
-      } catch (backendErr) {
-        console.warn("[BACKEND PATIENT REGISTER FALLBACK]", backendErr);
+      const data = res.data?.data;
+      if (!data) {
+        throw new Error("Registration response was invalid. Please try again.");
       }
 
-      setNewMrn(generatedMrn);
+      const registeredMrn = data.mrn || "";
+      const userId = data.userId || data.id || "";
+
+      setNewMrn(registeredMrn);
       setAuth(
         {
           id: userId,
           name: values.name,
           email: values.email,
           role: "PATIENT",
-          mrn: generatedMrn,
+          mrn: registeredMrn,
         },
-        `token-${Date.now()}`
+        data.token || ""
       );
       setActiveRole("PATIENT");
       setIsSuccess(true);
     } catch (err: any) {
-      setErrorMsg(err?.message || "Failed to create patient account. Please verify your details.");
+      setErrorMsg(err?.response?.data?.error?.message || err?.message || "Failed to create patient account. Please verify your details.");
     }
   };
 
