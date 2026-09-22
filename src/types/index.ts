@@ -494,3 +494,49 @@ export interface PrescriptionSafetyCheckResultDTO {
   }>;
 }
 
+export interface AllergyInputDTO {
+  patientId: string;
+  allergen: string;
+  severity?: "MILD" | "MODERATE" | "SEVERE" | "LIFE_THREATENING";
+  reaction?: string;
+}
+
+export interface MedicalHistoryInputDTO {
+  patientId: string;
+  condition: string;
+  diagnosedYear?: number;
+  notes?: string;
+}
+
+export interface PatientClinicalHistoryDTO {
+  patientId: string;
+  patientName: string;
+  patientMrn: string;
+  allergiesCount: number;
+  medicalConditionsCount: number;
+  activeMedicationsCount: number;
+  allergies: Array<{
+    id: string;
+    allergen: string;
+    severity: string;
+    reaction?: string | null;
+    recordedAt: string;
+  }>;
+  medicalHistory: Array<{
+    id: string;
+    condition: string;
+    diagnosedYear?: number | null;
+    notes?: string | null;
+  }>;
+  medicationHistory: Array<{
+    prescriptionId: string;
+    prescriptionNumber: string;
+    medicineName: string;
+    dosage: string;
+    frequency: string;
+    duration: string;
+    prescribedDate: string;
+  }>;
+}
+
+
