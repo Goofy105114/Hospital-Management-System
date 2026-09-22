@@ -418,5 +418,48 @@ export interface DiagnosticCatalogInputDTO {
   isActive?: boolean;
 }
 
+export interface StockAdjustmentInputDTO {
+  itemId: string;
+  locationId: string;
+  batchId?: string;
+  quantityDelta: number;
+  reason: "DISPENSE" | "TRANSFER_OUT" | "TRANSFER_IN" | "GOODS_RECEIPT" | "ADJUSTMENT" | "RETURN";
+  justification?: string;
+  refType?: string;
+  refId?: string;
+  createdBy?: string;
+}
 
+export interface StockLedgerEntryDTO {
+  id: string;
+  itemId: string;
+  itemName: string;
+  unit: string;
+  batchId?: string | null;
+  batchLotNumber?: string | null;
+  locationId: string;
+  locationName: string;
+  quantityDelta: number;
+  reason: string;
+  refType?: string | null;
+  refId?: string | null;
+  createdBy?: string | null;
+  createdAt: string;
+}
 
+export interface InventoryAuditReportDTO {
+  asOfDate: string;
+  totalItemsAudited: number;
+  itemsWithDiscrepancyCount: number;
+  totalDiscrepancyQty: number;
+  totalVarianceValue: number;
+  discrepancies: Array<{
+    itemId: string;
+    itemName: string;
+    category: string;
+    systemStockOnHand: number;
+    physicalCount: number;
+    varianceQty: number;
+    estimatedVarianceCost: number;
+  }>;
+}
