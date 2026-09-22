@@ -211,3 +211,28 @@ export interface TraceabilitySummaryDTO {
   byCategory: Record<string, number>;
 }
 
+export interface NoShowPredictionDTO {
+  appointmentId?: string | null;
+  patientId?: string | null;
+  riskScore: number;
+  level: "LOW" | "MODERATE" | "HIGH";
+  factors: string[];
+  suggestedMitigations: string[];
+  recommendedReminderFrequency: "STANDARD" | "ENHANCED" | "INTENSIVE";
+  advisoryNotice: string;
+  source: "heuristic" | "ai" | "fallback";
+}
+
+export interface AppointmentOptimizationDTO {
+  doctorId?: string | null;
+  clinicDate?: string | null;
+  scheduledSlots: number;
+  historicalNoShowRate: number;
+  suggestedBufferSlots: number;
+  targetUtilizationPercent: number;
+  estimatedPatientAttendance: number;
+  riskAdjustedCapacity: number;
+  isAdvisory: true;
+}
+
+
