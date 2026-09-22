@@ -463,3 +463,34 @@ export interface InventoryAuditReportDTO {
     estimatedVarianceCost: number;
   }>;
 }
+
+export interface PrescriptionSafetyCheckDTO {
+  patientId?: string;
+  medicines: string[];
+  allergies?: Array<{ allergen: string; severity: string }>;
+  existingMedications?: string[];
+}
+
+export interface PrescriptionSafetyCheckResultDTO {
+  hasConflicts: boolean;
+  requiresClinicalOverride: boolean;
+  allergyConflicts: Array<{
+    medicineName: string;
+    allergen: string;
+    severity: string;
+    warning: string;
+  }>;
+  interactionWarnings: Array<{
+    drugA: string;
+    drugB: string;
+    severity: "MILD" | "MODERATE" | "SEVERE";
+    description: string;
+  }>;
+  duplicateTherapies: Array<{
+    class: string;
+    drugA: string;
+    drugB: string;
+    warning: string;
+  }>;
+}
+
