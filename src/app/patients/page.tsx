@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/ui/data-table";
 import api from "@/lib/axios";
+import { UserPlus, FolderGit2 } from "lucide-react";
 
 export interface PatientRecord {
   id: string;
@@ -129,17 +130,22 @@ export default function PatientsDirectoryPage() {
       {
         accessorKey: "mrn",
         header: "MRN",
-        cell: ({ getValue }) => (
-          <span className="font-mono font-bold text-xs text-primary">{getValue() as string}</span>
+        cell: ({ getValue, row }) => (
+          <Link
+            href={`/patients/${row.original.id}`}
+            className="whitespace-nowrap font-mono font-semibold text-xs text-teal-700 hover:underline inline-block"
+          >
+            {getValue() as string}
+          </Link>
         ),
       },
       {
         accessorKey: "name",
         header: "Patient Name",
         cell: ({ row }) => (
-          <div>
-            <span className="font-bold text-on-surface block">{row.original.name}</span>
-            <span className="text-xs text-on-surface-variant/70">{row.original.email}</span>
+          <div className="min-w-[150px]">
+            <span className="font-semibold text-slate-900 block text-xs">{row.original.name}</span>
+            <span className="text-[11px] text-slate-400 block truncate">{row.original.email}</span>
           </div>
         ),
       },
@@ -147,14 +153,14 @@ export default function PatientsDirectoryPage() {
         header: "Demographics",
         accessorFn: (row) => `${row.age} yrs • ${row.gender}`,
         cell: ({ getValue }) => (
-          <span className="text-xs text-on-surface">{getValue() as string}</span>
+          <span className="text-xs text-slate-600 whitespace-nowrap">{getValue() as string}</span>
         ),
       },
       {
         accessorKey: "bloodGroup",
         header: "Blood Group",
         cell: ({ getValue }) => (
-          <span className="font-mono font-bold text-xs bg-surface-container-high px-2 py-0.5 rounded text-on-surface">
+          <span className="inline-flex items-center justify-center font-mono font-bold text-xs bg-slate-100 px-2 py-0.5 rounded border border-slate-200/60 text-slate-700 whitespace-nowrap">
             {getValue() as string}
           </span>
         ),
@@ -163,7 +169,7 @@ export default function PatientsDirectoryPage() {
         accessorKey: "phone",
         header: "Contact Phone",
         cell: ({ getValue }) => (
-          <span className="font-mono text-xs text-on-surface-variant">{getValue() as string}</span>
+          <span className="font-mono text-xs text-slate-600 whitespace-nowrap">{getValue() as string}</span>
         ),
       },
       {
@@ -172,11 +178,12 @@ export default function PatientsDirectoryPage() {
         cell: ({ getValue }) => {
           const count = getValue() as number;
           return count > 0 ? (
-            <Badge variant="error" className="text-[10px]">
-              {count} Alerts
-            </Badge>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200/80 whitespace-nowrap">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+              {count} Alert{count > 1 ? "s" : ""}
+            </span>
           ) : (
-            <span className="text-xs text-outline">None</span>
+            <span className="text-xs text-slate-400">None</span>
           );
         },
       },
@@ -184,7 +191,7 @@ export default function PatientsDirectoryPage() {
         accessorKey: "lastVisit",
         header: "Last Visit",
         cell: ({ getValue }) => (
-          <span className="text-xs text-outline">{getValue() as string}</span>
+          <span className="text-xs text-slate-500 whitespace-nowrap">{getValue() as string}</span>
         ),
       },
       {
@@ -193,9 +200,13 @@ export default function PatientsDirectoryPage() {
         cell: ({ row }) => (
           <div className="text-right">
             <Link href={`/patients/${row.original.id}`}>
-              <Button size="sm" variant="outline" className="text-xs gap-1 py-1 h-8">
-                <span className="material-symbols-outlined text-sm">folder_shared</span>
-                Chart
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 px-2.5 text-xs gap-1.5 rounded-lg border-slate-200 hover:border-teal-600 hover:text-teal-700 hover:bg-teal-50/40 text-slate-700 transition-colors"
+              >
+                <FolderGit2 className="w-3.5 h-3.5 text-slate-500" />
+                <span>Chart</span>
               </Button>
             </Link>
           </div>
@@ -207,53 +218,55 @@ export default function PatientsDirectoryPage() {
 
   return (
     <AppLayout>
-      <div className="max-w-7xl mx-auto space-y-space-6 pb-space-12">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-space-4 border-b border-outline-variant/30 pb-space-4">
+      <div className="max-w-7xl mx-auto space-y-5">
+        {/* Page Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200/80">
           <div>
-            <div className="flex items-center gap-space-3">
-              <h1 className="font-headline-md text-headline-md text-on-surface font-bold tracking-tight">
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight">
                 Patient Master Index (MPI)
               </h1>
-              <Badge variant="primary" className="text-xs">
-                PAT-01 TanStack Table
+              <Badge variant="outline" className="text-[11px] font-semibold bg-teal-50 text-teal-700 border-teal-200/60">
+                Directory
               </Badge>
             </div>
-            <p className="font-body-md text-on-surface-variant mt-1">
+            <p className="text-xs text-slate-500 mt-1">
               Search by MRN, Name, Phone or National ID • Medical Alerts & Patient Profiles
             </p>
           </div>
 
-          <div className="flex items-center gap-space-3">
+          <div className="flex items-center gap-3">
             <Link href="/patients/register">
-              <Button className="bg-primary text-white hover:bg-primary/90 gap-1 shadow-xs font-semibold">
-                <span className="material-symbols-outlined text-base">person_add</span>
-                Register New Patient
+              <Button className="h-9 px-3.5 text-xs font-semibold bg-teal-700 text-white hover:bg-teal-800 gap-1.5 rounded-xl shadow-2xs transition-colors">
+                <UserPlus className="w-4 h-4" />
+                <span>Register New Patient</span>
               </Button>
             </Link>
           </div>
         </div>
 
-        {/* Gender Filter Buttons */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-on-surface-variant font-semibold">Filter Gender:</span>
-          {["ALL", "FEMALE", "MALE"].map((g) => (
-            <button
-              key={g}
-              onClick={() => setGenderFilter(g)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                genderFilter === g
-                  ? "bg-primary text-white"
-                  : "bg-surface-container-high text-on-surface-variant hover:text-on-surface"
-              }`}
-            >
-              {g}
-            </button>
-          ))}
+        {/* Gender Filter Segmented Control */}
+        <div className="flex items-center gap-2.5">
+          <span className="text-xs text-slate-500 font-medium">Filter Gender:</span>
+          <div className="inline-flex items-center p-0.5 bg-slate-100 rounded-lg border border-slate-200/70">
+            {(["ALL", "FEMALE", "MALE"] as const).map((g) => (
+              <button
+                key={g}
+                onClick={() => setGenderFilter(g)}
+                className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
+                  genderFilter === g
+                    ? "bg-white text-teal-800 font-semibold shadow-2xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                {g === "ALL" ? "All" : g === "FEMALE" ? "Female" : "Male"}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* TanStack Table View */}
-        <div className="bg-surface rounded-2xl border border-outline-variant/30 p-4 shadow-xs">
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-2xs">
           <DataTable
             columns={columns}
             data={filteredData}

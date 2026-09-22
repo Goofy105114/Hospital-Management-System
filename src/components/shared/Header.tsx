@@ -8,13 +8,25 @@ import { useAuthStore } from "@/stores/authStore";
 import { useUiStore } from "@/stores/uiStore";
 import { UserRole } from "@prisma/client";
 import { signOutFromSupabase } from "@/lib/supabase";
+import { cn } from "@/lib/utils";
+import {
+  Search,
+  Bell,
+  ChevronDown,
+  CheckCircle2,
+  LogIn,
+  UserPlus,
+  LogOut,
+  PanelLeft,
+  PanelLeftClose,
+} from "lucide-react";
 
 import { CommandPalette } from "./CommandPalette";
 
 export function Header() {
   const router = useRouter();
   const { user, activeRole, setActiveRole, isAuthenticated, logout } = useAuthStore();
-  const { facilityLocation, setSearchModalOpen } = useUiStore();
+  const { facilityLocation, setSearchModalOpen, sidebarOpen, toggleSidebar } = useUiStore();
   const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
 
   const roles: Array<{ role: UserRole; name: string; tag: string }> = [
@@ -42,32 +54,49 @@ export function Header() {
   return (
     <>
       <CommandPalette />
-      <header className="fixed top-0 left-72 right-0 h-16 bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-40 flex items-center justify-between px-space-6 border-b border-outline-variant/30">
-        {/* Search Bar & Cmd+K Trigger */}
-        <div className="flex items-center gap-space-4 flex-1 max-w-lg">
+      <header
+        className={cn(
+          "fixed top-0 right-0 h-16 bg-white/95 backdrop-blur-xl shadow-xs z-40 flex items-center justify-between px-4 sm:px-6 border-b border-slate-200/80 transition-all duration-300 ease-in-out",
+          sidebarOpen ? "left-64" : "left-[68px]"
+        )}
+      >
+        {/* Left: Sidebar Toggle & Search Bar */}
+        <div className="flex items-center gap-3 flex-1 max-w-lg">
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+            className="p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors border border-slate-200/70 shrink-0"
+            aria-label="Toggle sidebar"
+          >
+            {sidebarOpen ? (
+              <PanelLeftClose className="w-4 h-4" />
+            ) : (
+              <PanelLeft className="w-4 h-4" />
+            )}
+          </button>
+
           <button
             type="button"
             onClick={() => setSearchModalOpen(true)}
-            className="relative w-full flex items-center h-10 pl-10 pr-3 bg-surface-container-low text-on-surface rounded-xl hover:bg-surface-container transition-all border border-outline-variant/30 hover:border-primary/40 text-left group"
+            className="relative w-full flex items-center h-9 pl-9 pr-3 bg-slate-50 text-slate-800 rounded-xl hover:bg-slate-100/80 transition-all border border-slate-200/80 hover:border-teal-600/40 text-left group shadow-2xs"
           >
-            <span className="material-symbols-outlined absolute left-3 text-outline text-[20px] group-hover:text-primary transition-colors">
-              search
-            </span>
-            <span className="text-outline font-body-md text-xs truncate flex-1">
+            <Search className="absolute left-3 w-4 h-4 text-slate-400 group-hover:text-teal-600 transition-colors" />
+            <span className="text-slate-400 text-xs truncate flex-1 font-normal">
               Search doctors, appointments, medical records, medicines...
             </span>
-            <kbd className="hidden sm:inline-flex items-center gap-0.5 px-2 py-0.5 text-[10px] font-mono bg-surface-container-high rounded border border-outline-variant/40 text-outline shrink-0">
+            <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono bg-white rounded border border-slate-200 text-slate-500 shrink-0 shadow-2xs">
               <span className="text-[11px]">⌘</span>K
             </kbd>
           </button>
         </div>
 
         {/* Right Controls */}
-        <div className="flex items-center gap-space-4">
+        <div className="flex items-center gap-3">
           {/* Facility Location Pill */}
-          <div className="hidden lg:flex items-center gap-space-2 px-space-3 py-space-1 bg-surface-container-low rounded-full border border-outline-variant/30">
-            <span className="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
-            <span className="font-label-md text-label-md text-on-surface-variant font-medium">
+          <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-slate-100 rounded-full border border-slate-200/80">
+            <span className="w-2 h-2 rounded-full bg-teal-600 animate-pulse"></span>
+            <span className="text-xs text-slate-600 font-medium">
               {facilityLocation}
             </span>
           </div>
@@ -77,16 +106,16 @@ export function Header() {
             <div className="hidden sm:flex items-center gap-2">
               <Link
                 href="/login"
-                className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-outline-variant/40 hover:border-primary hover:text-primary transition-colors text-on-surface flex items-center gap-1"
+                className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 hover:border-teal-600 hover:text-teal-700 transition-colors text-slate-700 flex items-center gap-1.5"
               >
-                <span className="material-symbols-outlined text-[16px]">login</span>
+                <LogIn className="w-3.5 h-3.5" />
                 <span>Sign In</span>
               </Link>
               <Link
                 href="/register"
-                className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors flex items-center gap-1 shadow-xs"
+                className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-teal-700 text-white hover:bg-teal-800 transition-colors flex items-center gap-1.5 shadow-2xs"
               >
-                <span className="material-symbols-outlined text-[16px]">person_add</span>
+                <UserPlus className="w-3.5 h-3.5" />
                 <span>Sign Up</span>
               </Link>
             </div>
@@ -115,21 +144,21 @@ export function Header() {
                               ? "/inventory-manager/notifications"
                               : "/patient/notifications"
             }
-            className="relative p-space-2 rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors"
+            className="relative p-2 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors"
             title="Clinical Notifications & Alerts"
           >
-            <span className="material-symbols-outlined text-[22px]">notifications</span>
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-error animate-ping"></span>
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-error"></span>
+            <Bell className="w-4 h-4" />
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500"></span>
           </Link>
 
           {/* User Profile & Role Switcher */}
           <div className="relative">
             <button
               onClick={() => setRoleDropdownOpen(!roleDropdownOpen)}
-              className="flex items-center gap-space-3 pl-space-3 py-1 pr-2 rounded-lg hover:bg-surface-container-low transition-colors text-left border border-outline-variant/30"
+              className="flex items-center gap-2.5 pl-2.5 py-1 pr-2 rounded-xl hover:bg-slate-100 transition-colors text-left border border-slate-200/80"
             >
-              <div className="relative w-8 h-8 rounded-full overflow-hidden bg-surface-container shrink-0 border border-outline-variant/50">
+              <div className="relative w-7 h-7 rounded-full overflow-hidden bg-slate-100 shrink-0 border border-slate-200">
                 <Image
                   src={
                     activeRole === "DOCTOR"
@@ -143,33 +172,31 @@ export function Header() {
                 />
               </div>
               <div className="flex flex-col text-left">
-                <span className="font-label-md text-label-md text-on-surface font-semibold leading-tight">
+                <span className="text-xs text-slate-800 font-semibold leading-tight">
                   {user?.name || currentRoleInfo.name}
                 </span>
-                <span className="font-label-sm text-label-sm text-primary font-bold">
+                <span className="text-[10px] text-teal-700 font-bold">
                   {activeRole} {user?.mrn ? `(${user.mrn})` : ""}
                 </span>
               </div>
-              <span className="material-symbols-outlined text-outline text-[18px]">
-                expand_more
-              </span>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
             </button>
 
             {/* User Account & Role Switcher Dropdown */}
             {roleDropdownOpen && (
-              <div className="absolute right-0 top-12 mt-2 w-80 bg-surface-container-lowest rounded-2xl shadow-2xl border border-outline-variant/40 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+              <div className="absolute right-0 top-11 mt-1.5 w-80 bg-white rounded-2xl shadow-xl border border-slate-200 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
                 {/* Profile Card Header */}
-                <div className="px-4 py-3 border-b border-outline-variant/20 bg-surface-container-low/50 rounded-t-2xl">
-                  <p className="text-xs font-bold text-on-surface">
+                <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50 rounded-t-2xl">
+                  <p className="text-xs font-bold text-slate-800">
                     {user?.name || "Active Session"}
                   </p>
-                  <p className="text-[11px] text-outline">{user?.email || "Signed in"}</p>
+                  <p className="text-[11px] text-slate-500">{user?.email || "Signed in"}</p>
                   <div className="mt-2 flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary/15 text-primary">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-50 text-teal-700 border border-teal-200/60">
                       {activeRole}
                     </span>
                     {user?.mrn && (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-surface-container-high text-on-surface">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-slate-100 text-slate-700">
                         {user.mrn}
                       </span>
                     )}
@@ -177,39 +204,35 @@ export function Header() {
                 </div>
 
                 {/* Fast Auth Links */}
-                <div className="p-2 border-b border-outline-variant/20 space-y-1">
+                <div className="p-1.5 border-b border-slate-100 space-y-0.5">
                   <Link
                     href="/login"
                     onClick={() => setRoleDropdownOpen(false)}
-                    className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-on-surface hover:bg-surface-container-low transition-colors"
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-teal-700 transition-colors"
                   >
-                    <span className="material-symbols-outlined text-[18px] text-primary">
-                      login
-                    </span>
+                    <LogIn className="w-3.5 h-3.5 text-teal-600" />
                     <span>Sign In with Another Account</span>
                   </Link>
                   <Link
                     href="/register"
                     onClick={() => setRoleDropdownOpen(false)}
-                    className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-on-surface hover:bg-surface-container-low transition-colors"
+                    className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-teal-700 transition-colors"
                   >
-                    <span className="material-symbols-outlined text-[18px] text-primary">
-                      person_add
-                    </span>
+                    <UserPlus className="w-3.5 h-3.5 text-teal-600" />
                     <span>Register New Patient Account</span>
                   </Link>
                   <button
                     onClick={handleSignOut}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-error hover:bg-error/10 transition-colors"
+                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-rose-600 hover:bg-rose-50 transition-colors"
                   >
-                    <span className="material-symbols-outlined text-[18px] text-error">logout</span>
+                    <LogOut className="w-3.5 h-3.5 text-rose-600" />
                     <span>Sign Out of System</span>
                   </button>
                 </div>
 
                 {/* Persona Switcher Section */}
-                <div className="px-4 py-2 border-b border-outline-variant/20">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-outline">
+                <div className="px-4 py-2 border-b border-slate-100">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
                     One-Click Persona Switcher
                   </p>
                 </div>
@@ -242,22 +265,20 @@ export function Header() {
                                           : "/patient";
                         router.push(roleHome);
                       }}
-                      className={`w-full text-left px-4 py-2 flex items-center justify-between hover:bg-surface-container-low transition-colors ${
+                      className={`w-full text-left px-4 py-2 flex items-center justify-between hover:bg-slate-50 transition-colors ${
                         activeRole === r.role
-                          ? "bg-primary-fixed/30 text-primary font-semibold"
-                          : "text-on-surface"
+                          ? "bg-teal-50 text-teal-800 font-semibold"
+                          : "text-slate-700"
                       }`}
                     >
                       <div>
                         <p className="text-xs font-medium">{r.name}</p>
-                        <p className="text-[10px] text-outline">
+                        <p className="text-[10px] text-slate-400">
                           {r.role} • {r.tag}
                         </p>
                       </div>
                       {activeRole === r.role && (
-                        <span className="material-symbols-outlined text-primary text-[16px]">
-                          check_circle
-                        </span>
+                        <CheckCircle2 className="w-4 h-4 text-teal-600" />
                       )}
                     </button>
                   ))}
