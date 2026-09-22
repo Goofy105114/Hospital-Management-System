@@ -46,8 +46,6 @@ import {
   FolderGit2,
   ReceiptText,
   Headphones,
-  PanelLeftClose,
-  PanelLeft,
   LogOut,
   ArrowLeftRight,
   ShieldCheck,
@@ -428,32 +426,7 @@ export function Sidebar() {
               </div>
             )}
           </Link>
-
-          {sidebarOpen && (
-            <button
-              onClick={toggleSidebar}
-              title="Collapse sidebar"
-              className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors shrink-0"
-              aria-label="Collapse sidebar"
-            >
-              <PanelLeftClose className="w-4 h-4" />
-            </button>
-          )}
         </div>
-
-        {/* Collapsed Toggle Button at top */}
-        {!sidebarOpen && (
-          <div className="flex justify-center mb-3">
-            <button
-              onClick={toggleSidebar}
-              title="Expand sidebar"
-              className="p-1.5 rounded-lg text-slate-400 hover:text-teal-700 hover:bg-slate-100 transition-colors"
-              aria-label="Expand sidebar"
-            >
-              <PanelLeft className="w-4 h-4" />
-            </button>
-          </div>
-        )}
 
         {/* Navigation Sections */}
         <nav className="flex flex-col gap-3">
