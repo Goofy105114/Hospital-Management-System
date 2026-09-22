@@ -159,5 +159,64 @@ describe("IPD-04 — Inpatient care, medication and discharge coordination", () 
       expect(billing.totalNetAmount).toBe(2350.0);
     });
   });
+
+  describe("IPD-01 — Admission request and approval", () => {
+    it("validates valid admission request", async () => {
+      const { validateAdmissionRequestInput } = await import(
+        "@/server/domain/inpatient-care"
+      );
+
+      const valid = validateAdmissionRequestInput({
+        patientId: "pat-123",
+        reasonForAdmission: "Observation post acute severe asthma attack",
+        admittingDoctorId: "doc-456",
+        preferredWardType: "MALE_GENERAL",
+      });
+      expect(valid.isValid).toBe(true);
+
+      const missingPatient = validateAdmissionRequestInput({
+        reasonForAdmission: "Asthma observation",
+      });
+      expect(missingPatient.isValid).toBe(false);
+      expect(missingPatient.errorCode).toBe("IPD_INVALID_PATIENT");
+
+      const emptyReason = validateAdmissionRequestInput({
+        patientId: "pat-123",
+        reasonForAdmission: "   ",
+      });
+      expect(emptyReason.isValid).toBe(false);
+      expect(emptyReason.errorCode).toBe("IPD_REASON_EMPTY");
+    });
+
+    it("validates admission approval authorization and bed allocation", async () => {
+      const { validateAdmissionApproval, generateAdmissionNumber } =
+        await import("@/server/domain/inpatient-care");
+
+      const validDoctor = validateAdmissionApproval({
+        requestId: "req-101",
+        approverRole: "DOCTOR",
+        bedId: "bed-001",
+      });
+      expect(validDoctor.isValid).toBe(true);
+
+      const invalidNurse = validateAdmissionApproval({
+        requestId: "req-101",
+        approverRole: "NURSE",
+        bedId: "bed-001",
+      });
+      expect(invalidNurse.isValid).toBe(false);
+      expect(invalidNurse.errorCode).toBe("FORBIDDEN");
+
+      const missingBed = validateAdmissionApproval({
+        requestId: "req-101",
+        approverRole: "DOCTOR",
+      });
+      expect(missingBed.isValid).toBe(false);
+      expect(missingBed.errorCode).toBe("IPD_BED_REQUIRED");
+
+      const admNum = generateAdmissionNumber(42);
+      expect(admNum).toMatch(/^IPD-\d{8}-0042$/);
+    });
+  });
 });
 

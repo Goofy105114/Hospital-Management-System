@@ -228,3 +228,90 @@ export function calculateStayDurationAndBedCharges(
   };
 }
 
+// ---------------------------------------------------------------------------
+// IPD-01 — Admission request and approval
+// ---------------------------------------------------------------------------
+
+export interface AdmissionRequestInput {
+  patientId?: string;
+  encounterId?: string;
+  admittingDoctorId?: string;
+  reasonForAdmission?: string;
+  admittingDiagnosis?: string;
+  preferredWardType?: string;
+  priority?: "ROUTINE" | "URGENT" | "EMERGENCY";
+}
+
+export interface AdmissionApprovalInput {
+  requestId?: string;
+  approverRole?: string;
+  approverId?: string;
+  bedId?: string;
+  admittingDoctorId?: string;
+}
+
+export function validateAdmissionRequestInput(input: AdmissionRequestInput): {
+  isValid: boolean;
+  errorCode?: string;
+  errorMessage?: string;
+} {
+  if (!input.patientId || typeof input.patientId !== "string") {
+    return {
+      isValid: false,
+      errorCode: "IPD_INVALID_PATIENT",
+      errorMessage: "A valid patientId is required to request inpatient admission",
+    };
+  }
+  if (
+    !input.reasonForAdmission ||
+    typeof input.reasonForAdmission !== "string" ||
+    input.reasonForAdmission.trim() === ""
+  ) {
+    return {
+      isValid: false,
+      errorCode: "IPD_REASON_EMPTY",
+      errorMessage: "Reason for inpatient admission is required",
+    };
+  }
+  return { isValid: true };
+}
+
+export function validateAdmissionApproval(input: AdmissionApprovalInput): {
+  isValid: boolean;
+  errorCode?: string;
+  errorMessage?: string;
+} {
+  if (
+    input.approverRole !== "DOCTOR" &&
+    input.approverRole !== "ADMIN" &&
+    input.approverRole !== "SUPER_ADMIN"
+  ) {
+    return {
+      isValid: false,
+      errorCode: "FORBIDDEN",
+      errorMessage:
+        "Only attending doctors or hospital administrators can approve admissions",
+    };
+  }
+  if (!input.bedId || typeof input.bedId !== "string") {
+    return {
+      isValid: false,
+      errorCode: "IPD_BED_REQUIRED",
+      errorMessage: "An allocated bedId is required to approve admission",
+    };
+  }
+  return { isValid: true };
+}
+
+export function generateAdmissionNumber(seq?: number): string {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const suffix = seq
+    ? String(seq).padStart(4, "0")
+    : Math.floor(1000 + Math.random() * 9000).toString();
+  return `IPD-${yyyy}${mm}${dd}-${suffix}`;
+}
+
+

@@ -11,6 +11,7 @@ import {
   DiagnosticOrderStatus,
   InvoiceStatus,
   BedStatus,
+  AdmissionStatus,
 } from "@prisma/client";
 
 export interface DoctorDTO {
@@ -263,5 +264,42 @@ export interface DischargeResultDTO {
   totalCharges: number;
 }
 
+export interface AdmissionRequestDTO {
+  id?: string;
+  patientId: string;
+  encounterId?: string;
+  admittingDoctorId: string;
+  reasonForAdmission: string;
+  admittingDiagnosis?: string;
+  preferredWardType?: string;
+  priority?: "ROUTINE" | "URGENT" | "EMERGENCY";
+  notes?: string;
+}
 
+export interface AdmissionApprovalDTO {
+  bedId: string;
+  admittingDoctorId?: string;
+  approverRole?: string;
+  approverId?: string;
+  initialNotes?: string;
+}
 
+export interface AdmissionDetailDTO {
+  id: string;
+  admissionNumber: string;
+  patientId: string;
+  patientName: string;
+  patientMrn: string;
+  admittingDoctorId: string;
+  doctorName: string;
+  bedId: string;
+  bedNumber: string;
+  wardName: string;
+  dailyRate: number;
+  admissionDate: string;
+  dischargeDate?: string | null;
+  admissionDiagnosis?: string | null;
+  dischargeSummary?: string | null;
+  status: AdmissionStatus;
+  createdAt: string;
+}
