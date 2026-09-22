@@ -144,5 +144,81 @@ describe("ADM-04 system configuration and operational administration", () => {
       expect(bySprint["Sprint 4"]).toBe(12);
     });
   });
+
+  describe("ADM-02 — User lifecycle, staff onboarding and administrative approvals", () => {
+    it("validates staff onboarding input details", async () => {
+      const { validateStaffOnboardingInput } = await import(
+        "@/server/domain/system-config"
+      );
+
+      const valid = validateStaffOnboardingInput({
+        name: "Dr. Gregory House",
+        email: "gregory.house@goingmerry.org",
+        phone: "+1-555-0199",
+        role: "DOCTOR",
+      });
+      expect(valid.isValid).toBe(true);
+
+      const invalidEmail = validateStaffOnboardingInput({
+        name: "Dr. House",
+        email: "not-an-email",
+        role: "DOCTOR",
+      });
+      expect(invalidEmail.isValid).toBe(false);
+      expect(invalidEmail.errorCode).toBe("ADM_INVALID_EMAIL");
+
+      const invalidRole = validateStaffOnboardingInput({
+        name: "John Doe",
+        email: "john@goingmerry.org",
+        role: "PRESIDENT_OF_UNIVERSE",
+      });
+      expect(invalidRole.isValid).toBe(false);
+      expect(invalidRole.errorCode).toBe("ADM_INVALID_STAFF_ROLE");
+    });
+
+    it("enforces admin authorization for user lifecycle status changes", async () => {
+      const { canTransitionUserStatus } = await import(
+        "@/server/domain/system-config"
+      );
+
+      const adminOk = canTransitionUserStatus("PENDING_VERIFICATION", "ACTIVE", "ADMIN");
+      expect(adminOk.allowed).toBe(true);
+
+      const doctorDenied = canTransitionUserStatus("ACTIVE", "SUSPENDED", "DOCTOR");
+      expect(doctorDenied.allowed).toBe(false);
+      expect(doctorDenied.errorCode).toBe("FORBIDDEN");
+
+      const sameStatus = canTransitionUserStatus("ACTIVE", "ACTIVE", "ADMIN");
+      expect(sameStatus.allowed).toBe(false);
+      expect(sameStatus.errorCode).toBe("ADM_STATUS_UNCHANGED");
+    });
+
+    it("validates administrative approval action decision rules", async () => {
+      const { validateAdministrativeApprovalAction } = await import(
+        "@/server/domain/system-config"
+      );
+
+      const validApprove = validateAdministrativeApprovalAction({
+        approverRole: "ADMIN",
+        decision: "APPROVED",
+      });
+      expect(validApprove.isValid).toBe(true);
+
+      const rejectWithoutReason = validateAdministrativeApprovalAction({
+        approverRole: "ADMIN",
+        decision: "REJECTED",
+      });
+      expect(rejectWithoutReason.isValid).toBe(false);
+      expect(rejectWithoutReason.errorCode).toBe("ADM_REJECTION_REASON_REQUIRED");
+
+      const unauthorized = validateAdministrativeApprovalAction({
+        approverRole: "NURSE",
+        decision: "APPROVED",
+      });
+      expect(unauthorized.isValid).toBe(false);
+      expect(unauthorized.errorCode).toBe("FORBIDDEN");
+    });
+  });
 });
+
 

@@ -539,4 +539,34 @@ export interface PatientClinicalHistoryDTO {
   }>;
 }
 
+export interface StaffOnboardingDTO {
+  name: string;
+  email: string;
+  phone?: string;
+  role: UserRole;
+  departmentId?: string;
+  specialization?: string;
+  consultationFee?: number;
+}
+
+export interface UserStatusUpdateDTO {
+  userId: string;
+  status: "ACTIVE" | "SUSPENDED" | "LOCKED" | "PENDING_VERIFICATION";
+  reason?: string;
+  actorRole?: string;
+}
+
+export interface AdministrativeApprovalDTO {
+  id: string;
+  approvalType: string;
+  referenceId: string;
+  status: "PENDING_APPROVAL" | "APPROVED" | "REJECTED";
+  requestedBy: string;
+  approvedBy?: string | null;
+  reason: string;
+  createdAt: string;
+  approvedAt?: string | null;
+}
+
+
 
