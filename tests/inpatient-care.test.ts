@@ -102,4 +102,62 @@ describe("IPD-04 — Inpatient care, medication and discharge coordination", () 
       expect(check.allowed).toBe(true);
     });
   });
+
+  describe("IPD-05 — Discharge summary, final billing and follow-up tracking", () => {
+    it("validates doctor authored discharge summary", async () => {
+      const { validateDischargeSummaryInput } = await import(
+        "@/server/domain/inpatient-care"
+      );
+
+      const valid = validateDischargeSummaryInput({
+        admissionId: "adm-101",
+        summaryText: "Patient treated for acute bronchitis. Complete resolution.",
+        authorRole: "DOCTOR",
+      });
+      expect(valid.isValid).toBe(true);
+
+      const emptyText = validateDischargeSummaryInput({
+        admissionId: "adm-101",
+        summaryText: "   ",
+        authorRole: "DOCTOR",
+      });
+      expect(emptyText.isValid).toBe(false);
+      expect(emptyText.errorCode).toBe("IPD_DISCHARGE_SUMMARY_EMPTY");
+
+      const forbiddenRole = validateDischargeSummaryInput({
+        admissionId: "adm-101",
+        summaryText: "Summary by nurse",
+        authorRole: "NURSE",
+      });
+      expect(forbiddenRole.isValid).toBe(false);
+      expect(forbiddenRole.errorCode).toBe("FORBIDDEN");
+    });
+
+    it("accurately calculates stay duration and consolidated bed charges", async () => {
+      const { calculateStayDurationAndBedCharges } = await import(
+        "@/server/domain/inpatient-care"
+      );
+
+      const admissionDate = new Date("2026-09-10T10:00:00.000Z");
+      const dischargeDate = new Date("2026-09-14T15:00:00.000Z"); // 4.2 days -> 5 billed days
+
+      const billing = calculateStayDurationAndBedCharges({
+        admittedAt: admissionDate,
+        dischargedAt: dischargeDate,
+        dailyRate: 300.0,
+        medicationTotal: 150.0,
+        diagnosticsTotal: 200.0,
+        procedureTotal: 500.0,
+      });
+
+      expect(billing.stayDays).toBe(5);
+      expect(billing.bedDailyRate).toBe(300.0);
+      expect(billing.totalBedCharges).toBe(1500.0);
+      expect(billing.medicationCharges).toBe(150.0);
+      expect(billing.diagnosticsCharges).toBe(200.0);
+      expect(billing.procedureCharges).toBe(500.0);
+      expect(billing.totalNetAmount).toBe(2350.0);
+    });
+  });
 });
+

@@ -235,4 +235,33 @@ export interface AppointmentOptimizationDTO {
   isAdvisory: true;
 }
 
+export interface DischargeSummaryDTO {
+  id: string;
+  admissionId: string;
+  patientId: string;
+  patientName: string;
+  patientMrn: string;
+  doctorId: string;
+  doctorName: string;
+  admittingDiagnosis: string;
+  finalDiagnosis: string;
+  treatmentSummary: string;
+  dischargeCondition: string;
+  followUpInstructions?: string | null;
+  followUpDate?: string | null;
+  createdAt: string;
+}
+
+export interface DischargeResultDTO {
+  admissionId: string;
+  patientId: string;
+  status: "DISCHARGED";
+  dischargedAt: string;
+  stayDays: number;
+  releasedBedId?: string | null;
+  finalInvoiceId?: string | null;
+  totalCharges: number;
+}
+
+
 
