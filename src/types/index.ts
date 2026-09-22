@@ -393,4 +393,30 @@ export interface DiagnosticWorkQueueItemDTO {
   isSlaBreached: boolean;
 }
 
+export interface DiagnosticCatalogDTO {
+  id: string;
+  code: string;
+  name: string;
+  category: "LABORATORY" | "RADIOLOGY" | "CARDIOLOGY" | "PATHOLOGY";
+  sampleType?: string | null;
+  referenceRange?: string | null;
+  price: number;
+  turnaroundTimeHours?: number;
+  preparationInstructions?: string | null;
+  isActive: boolean;
+}
+
+export interface DiagnosticCatalogInputDTO {
+  code: string;
+  name: string;
+  category: "LABORATORY" | "RADIOLOGY" | "CARDIOLOGY" | "PATHOLOGY";
+  sampleType?: string;
+  referenceRange?: string;
+  price: number;
+  turnaroundTimeHours?: number;
+  preparationInstructions?: string;
+  isActive?: boolean;
+}
+
+
 
