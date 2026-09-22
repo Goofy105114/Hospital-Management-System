@@ -132,3 +132,32 @@ export async function POST(request: NextRequest) {
     return apiError("INTERNAL_ERROR", err.message || "Failed to create bed", 500);
   }
 }
+
+/**
+ * IPD-03 — PATCH /api/v1/inpatient/beds
+ *
+ * Updates bed status (OCCUPIED, CLEANING, AVAILABLE, MAINTENANCE).
+ */
+export async function PATCH(request: NextRequest) {
+  const user = getAuthUser(request);
+  if (!user) return apiError("UNAUTHENTICATED", "Authentication required", 401);
+
+  try {
+    const body = await request.json();
+    const { bedId, status } = body;
+    if (!bedId) return apiError("BAD_REQUEST", "bedId is required", 400);
+
+    const updated = await prisma.bed.update({
+      where: { id: bedId },
+      data: {
+        ...(status ? { status: status as BedStatus } : {}),
+      },
+      include: { ward: true },
+    });
+
+    return apiSuccess(updated);
+  } catch (err: any) {
+    return apiError("INTERNAL_ERROR", err.message || "Failed to update bed", 500);
+  }
+}
+

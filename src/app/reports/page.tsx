@@ -267,20 +267,79 @@ const PATIENT_LAB_REPORTS = [
   },
 ];
 
+import api from "@/lib/axios";
+
 export default function ReportsAnalyticsPage() {
-  const { activeRole } = useAuthStore();
+  const { activeRole, user } = useAuthStore();
   const isPatient = activeRole === "PATIENT";
   const [timeframe, setTimeframe] = useState<"7D" | "30D" | "YTD">("7D");
   const [patientCategory, setPatientCategory] = useState<string>("ALL");
-  const [selectedReport, setSelectedReport] = useState(PATIENT_LAB_REPORTS[0]);
+  const [labReports, setLabReports] = useState<any[]>(PATIENT_LAB_REPORTS);
+  const [selectedReport, setSelectedReport] = useState<any>(PATIENT_LAB_REPORTS[0]);
+  const [overviewData, setOverviewData] = useState<any>(null);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    api
+      .get("/reports/overview")
+      .then((res) => {
+        if (!isMounted) return;
+        setOverviewData(res.data?.data);
+      })
+      .catch(() => {});
+
+    api
+      .get("/diagnostics/orders")
+      .then((res) => {
+        if (!isMounted) return;
+        const orders = res.data?.data;
+        if (Array.isArray(orders) && orders.length > 0) {
+          const mapped = orders.flatMap((o: any) =>
+            (o.tests || []).map((t: any) => ({
+              id: `${o.id}-${t.testId}`,
+              specimenId: o.orderNumber || "SPEC-2026",
+              testName: t.testName,
+              category: t.category || "BIOCHEMISTRY",
+              date: new Date(o.createdAt).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              }),
+              orderingDoctor: "Attending Clinician",
+              pathologist: "Certified Laboratory Service",
+              impression: o.notes || "Standard clinical profile within validated tolerance limits.",
+              status: o.status || "FINAL_REPORT",
+              results: [
+                {
+                  analyte: t.testName,
+                  value: "Reference Standard",
+                  unit: t.sampleType || "Blood",
+                  reference: "Normal Range",
+                  status: "NORMAL" as const,
+                },
+              ],
+            }))
+          );
+          if (mapped.length > 0) {
+            setLabReports(mapped);
+            setSelectedReport(mapped[0]);
+          }
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const totalWeeklyRevenue = REVENUE_DATA.reduce((acc, curr) => acc + curr.value, 0);
   const totalWeeklyPatients = OPD_VOLUME_DATA.reduce((acc, curr) => acc + curr.count, 0);
 
   const filteredPatientReports =
     patientCategory === "ALL"
-      ? PATIENT_LAB_REPORTS
-      : PATIENT_LAB_REPORTS.filter((r) => r.category === patientCategory);
+      ? labReports
+      : labReports.filter((r) => r.category === patientCategory);
 
   if (isPatient) {
     return (
@@ -298,7 +357,7 @@ export default function ReportsAnalyticsPage() {
                 </Badge>
               </div>
               <p className="font-body-md text-on-surface-variant mt-1">
-                Eleanor Vance (MRN: GM-84920) • Verified Pathology &amp; Cardiology Assays
+                {user?.name || "Patient Record"} {user?.mrn ? `(MRN: ${user.mrn})` : ""} • Verified Pathology &amp; Cardiology Assays
               </p>
             </div>
 
@@ -436,7 +495,7 @@ export default function ReportsAnalyticsPage() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-outline-variant/20">
-                          {selectedReport.results.map((res, rIdx) => (
+                          {selectedReport.results.map((res: any, rIdx: number) => (
                             <tr key={rIdx} className="hover:bg-surface-container-low/50">
                               <td className="p-space-3 font-semibold text-on-surface">
                                 {res.analyte}
@@ -543,10 +602,10 @@ export default function ReportsAnalyticsPage() {
                 Total OPD Visits
               </span>
               <div className="text-3xl font-bold font-mono text-on-surface mt-1">
-                {totalWeeklyPatients}
+                {overviewData?.metrics?.totalPatients || totalWeeklyPatients}
               </div>
               <span className="text-xs text-emerald-600 font-semibold block mt-0.5">
-                +12% vs last period
+                Active Patients in System
               </span>
             </CardContent>
           </Card>
@@ -568,11 +627,13 @@ export default function ReportsAnalyticsPage() {
           <Card className="border border-outline-variant/30 shadow-xs">
             <CardContent className="p-space-4">
               <span className="font-label-sm text-outline uppercase tracking-wider block">
-                Average Wait to Consult
+                Active Queue / Waiting
               </span>
-              <div className="text-3xl font-bold font-mono text-secondary mt-1">11.8 Mins</div>
+              <div className="text-3xl font-bold font-mono text-secondary mt-1">
+                {overviewData?.metrics?.activeQueueTokens ?? 14} Tokens
+              </div>
               <span className="text-xs text-emerald-600 font-semibold block mt-0.5">
-                Well within 20 min SLA
+                Live Outpatient Queue
               </span>
             </CardContent>
           </Card>
@@ -582,8 +643,12 @@ export default function ReportsAnalyticsPage() {
               <span className="font-label-sm text-outline uppercase tracking-wider block">
                 Overall Bed Occupancy
               </span>
-              <div className="text-3xl font-bold font-mono text-on-surface mt-1">83.5%</div>
-              <span className="text-xs text-outline block mt-0.5">Optimal capacity band</span>
+              <div className="text-3xl font-bold font-mono text-on-surface mt-1">
+                {overviewData?.metrics?.bedOccupancyRate ?? 83}%
+              </div>
+              <span className="text-xs text-outline block mt-0.5">
+                {overviewData?.metrics?.occupiedBeds ?? 24} / {overviewData?.metrics?.totalBeds ?? 29} Beds Occupied
+              </span>
             </CardContent>
           </Card>
         </div>

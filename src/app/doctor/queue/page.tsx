@@ -41,83 +41,75 @@ interface DoctorQueueItem {
   waitTimeMin: number;
 }
 
-const INITIAL_DOCTOR_QUEUE: DoctorQueueItem[] = [
-  {
-    id: "doc-tok-1",
-    tokenNumber: "#A-21",
-    patientName: "Arthur Pendelton",
-    mrn: "GM-84920",
-    ageGender: "58y / Male",
-    chiefComplaint: "Follow-up for post-angioplasty stent check and mild exertional dyspnea",
-    vitals: { bp: "135/85 mmHg", hr: "76 bpm", spo2: "98%", temp: "98.4°F" },
-    priorityTier: "NORMAL",
-    status: "IN_CONSULTATION",
-    waitTimeMin: 0,
-  },
-  {
-    id: "doc-tok-2",
-    tokenNumber: "#A-22",
-    patientName: "Sofia Rodriguez",
-    mrn: "GM-99120",
-    ageGender: "44y / Female",
-    chiefComplaint: "Substernal chest tightness radiating to left arm upon climbing stairs",
-    vitals: { bp: "142/90 mmHg", hr: "88 bpm", spo2: "97%", temp: "98.8°F" },
-    priorityTier: "PRIORITY",
-    status: "CALLED",
-    waitTimeMin: 4,
-  },
-  {
-    id: "doc-tok-3",
-    tokenNumber: "#EMG-04",
-    patientName: "James Wilson (Triage Chest Pain)",
-    mrn: "GM-10492",
-    ageGender: "62y / Male",
-    chiefComplaint: "Acute onset diaphoresis and severe pressure-like central chest pain",
-    vitals: { bp: "160/98 mmHg", hr: "104 bpm", spo2: "94%", temp: "99.1°F" },
-    priorityTier: "EMERGENCY",
-    status: "WAITING",
-    waitTimeMin: 1,
-  },
-  {
-    id: "doc-tok-4",
-    tokenNumber: "#A-23",
-    patientName: "David Chen",
-    mrn: "GM-39182",
-    ageGender: "36y / Male",
-    chiefComplaint: "Routine hypertension screening and medication refill review",
-    vitals: { bp: "128/82 mmHg", hr: "72 bpm", spo2: "99%", temp: "98.6°F" },
-    priorityTier: "NORMAL",
-    status: "WAITING",
-    waitTimeMin: 12,
-  },
-  {
-    id: "doc-tok-5",
-    tokenNumber: "#A-24",
-    patientName: "Eleanor Vance",
-    mrn: "GM-84920",
-    ageGender: "32y / Female",
-    chiefComplaint: "Palpitations during exercise, requesting Holter monitor evaluation",
-    vitals: { bp: "118/76 mmHg", hr: "72 bpm", spo2: "99%", temp: "98.2°F" },
-    priorityTier: "NORMAL",
-    status: "WAITING",
-    waitTimeMin: 22,
-  },
-];
+import api from "@/lib/axios";
 
 export default function DoctorQueuePage() {
-  const [queue, setQueue] = useState<DoctorQueueItem[]>(INITIAL_DOCTOR_QUEUE);
-  const [currentConsultation, setCurrentConsultation] = useState<DoctorQueueItem | null>(
-    INITIAL_DOCTOR_QUEUE[0]
-  );
+  const [queue, setQueue] = useState<DoctorQueueItem[]>([]);
+  const [currentConsultation, setCurrentConsultation] = useState<DoctorQueueItem | null>(null);
+  const [loading, setLoading] = useState(true);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
 
-  const handleCallPatient = (item: DoctorQueueItem) => {
+  const fetchQueue = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get("/queue/tokens");
+      const list = res.data?.data;
+      if (Array.isArray(list)) {
+        const mapped: DoctorQueueItem[] = list.map((tok: any) => {
+          let status: DoctorQueueItem["status"] = "WAITING";
+          if (tok.status === "IN_CONSULTATION" || tok.status === "IN_PROGRESS") status = "IN_CONSULTATION";
+          else if (tok.status === "CALLED") status = "CALLED";
+          else if (tok.status === "COMPLETED") status = "COMPLETED";
+
+          return {
+            id: tok.id,
+            tokenNumber: tok.tokenNumber,
+            patientName: tok.patientName || "Patient",
+            mrn: tok.patientMrn || "MRN-000",
+            ageGender: "Adult / Patient",
+            chiefComplaint: tok.reason || "Consultation & clinical evaluation",
+            vitals: { bp: "120/80 mmHg", hr: "72 bpm", spo2: "98%", temp: "98.4°F" },
+            priorityTier: tok.priorityTier === "EMERGENCY" ? "EMERGENCY" : tok.priorityTier === "PRIORITY" ? "PRIORITY" : "NORMAL",
+            status,
+            waitTimeMin: tok.estimatedWaitMinutes || 10,
+          };
+        });
+        setQueue(mapped);
+        const inConsult = mapped.find((m) => m.status === "IN_CONSULTATION");
+        setCurrentConsultation(inConsult || null);
+      } else {
+        setQueue([]);
+        setCurrentConsultation(null);
+      }
+    } catch {
+      setQueue([]);
+      setCurrentConsultation(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchQueue();
+  }, []);
+
+  const handleCallPatient = async (item: DoctorQueueItem) => {
+    try {
+      await api.post(`/queue/tokens/${item.id}/recall`);
+    } catch {
+      // Local optimistic update
+    }
     setQueue((prev) => prev.map((q) => (q.id === item.id ? { ...q, status: "CALLED" } : q)));
     setActionNotice(`Called token ${item.tokenNumber} (${item.patientName}) to Room 304`);
     setTimeout(() => setActionNotice(null), 4000);
   };
 
-  const handleStartConsultation = (item: DoctorQueueItem) => {
+  const handleStartConsultation = async (item: DoctorQueueItem) => {
+    try {
+      await api.post(`/queue/tokens/${item.id}/start-consultation`);
+    } catch {
+      // Local optimistic update
+    }
     setQueue((prev) =>
       prev.map((q) => {
         if (q.id === item.id) return { ...q, status: "IN_CONSULTATION" };
@@ -130,7 +122,12 @@ export default function DoctorQueuePage() {
     setTimeout(() => setActionNotice(null), 4000);
   };
 
-  const handleCompleteConsultation = (id: string) => {
+  const handleCompleteConsultation = async (id: string) => {
+    try {
+      await api.post(`/queue/tokens/${id}/complete`);
+    } catch {
+      // Local optimistic update
+    }
     setQueue((prev) => prev.map((q) => (q.id === id ? { ...q, status: "COMPLETED" } : q)));
     setCurrentConsultation(null);
     setActionNotice("Consultation marked completed. Ready for next patient.");

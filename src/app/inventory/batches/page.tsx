@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { AppLayout } from "@/components/shared/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import api from "@/lib/axios";
 
 interface BatchLot {
   id: string;
@@ -21,96 +22,62 @@ interface BatchLot {
   daysToExpiry: number;
 }
 
-const INITIAL_BATCHES: BatchLot[] = [
-  {
-    id: "batch-01",
-    lotNumber: "LOT-AML-2025-09",
-    medicineName: "Amlodipine Besylate 5mg",
-    location: "Main Pharmacy Store",
-    quantity: 320,
-    manufacturedDate: "2025-09-01",
-    expiryDate: "2027-08-31",
-    isColdChain: false,
-    status: "ACTIVE",
-    daysToExpiry: 687,
-  },
-  {
-    id: "batch-02",
-    lotNumber: "LOT-MET-2024-11",
-    medicineName: "Metformin 500mg",
-    location: "OPD Sub-Dispensary",
-    quantity: 140,
-    manufacturedDate: "2024-11-15",
-    expiryDate: "2026-11-30",
-    isColdChain: false,
-    status: "ACTIVE",
-    daysToExpiry: 48,
-  },
-  {
-    id: "batch-03",
-    lotNumber: "LOT-INS-2025-03",
-    medicineName: "Regular Insulin 100 IU/mL",
-    location: "Refrigerated Depot (2-8°C)",
-    quantity: 45,
-    manufacturedDate: "2025-03-10",
-    expiryDate: "2026-10-31",
-    isColdChain: true,
-    status: "ACTIVE",
-    daysToExpiry: 18,
-  },
-  {
-    id: "batch-04",
-    lotNumber: "LOT-AMO-2024-06",
-    medicineName: "Amoxicillin / Clavulanate 625mg",
-    location: "Main Pharmacy Store",
-    quantity: 80,
-    manufacturedDate: "2024-06-01",
-    expiryDate: "2026-05-31",
-    isColdChain: false,
-    status: "QUARANTINED",
-    quarantineReason: "Suspected packaging seal moisture compromise during transit",
-    daysToExpiry: 0,
-  },
-];
-
 export default function BatchLotTrackerPage() {
-  const [batches, setBatches] = useState<BatchLot[]>(INITIAL_BATCHES);
+  const [batches, setBatches] = useState<BatchLot[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedBatch, setSelectedBatch] = useState<BatchLot | null>(null);
   const [showQuarantineModal, setShowQuarantineModal] = useState(false);
   const [quarantineReason, setQuarantineReason] = useState("");
 
-  const handleQuarantine = (e: React.FormEvent) => {
+  const fetchBatches = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get("/inventory/batches");
+      const list = res.data?.data;
+      if (Array.isArray(list)) {
+        setBatches(list);
+      }
+    } catch {
+      setBatches([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBatches();
+  }, []);
+
+  const handleQuarantine = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedBatch || !quarantineReason.trim()) return;
 
-    setBatches(
-      batches.map((b) =>
-        b.id === selectedBatch.id
-          ? {
-              ...b,
-              status: "QUARANTINED",
-              quarantineReason,
-            }
-          : b
-      )
-    );
-    setShowQuarantineModal(false);
-    setSelectedBatch(null);
-    setQuarantineReason("");
+    try {
+      await api.patch("/inventory/batches", {
+        batchId: selectedBatch.id,
+        status: "QUARANTINED",
+        reason: quarantineReason,
+      });
+      await fetchBatches();
+    } catch {
+      // Handled
+    } finally {
+      setShowQuarantineModal(false);
+      setSelectedBatch(null);
+      setQuarantineReason("");
+    }
   };
 
-  const handleRelease = (batchId: string) => {
-    setBatches(
-      batches.map((b) =>
-        b.id === batchId
-          ? {
-              ...b,
-              status: "ACTIVE",
-              quarantineReason: undefined,
-            }
-          : b
-      )
-    );
+  const handleRelease = async (batchId: string) => {
+    try {
+      await api.patch("/inventory/batches", {
+        batchId,
+        status: "ACTIVE",
+      });
+      await fetchBatches();
+    } catch {
+      // Handled
+    }
   };
 
   const nearExpiryCount = batches.filter((b) => b.daysToExpiry > 0 && b.daysToExpiry <= 60).length;
@@ -159,132 +126,143 @@ export default function BatchLotTrackerPage() {
         {nearExpiryCount > 0 && (
           <div className="p-space-4 bg-warning/15 border border-warning/30 rounded-xl flex items-center justify-between text-on-warning-container">
             <div className="flex items-center gap-space-3">
-              <span className="material-symbols-outlined text-warning text-[28px]">
-                notification_important
-              </span>
+              <span className="material-symbols-outlined text-[24px] text-warning">warning</span>
               <div>
-                <span className="font-title-sm font-bold text-on-surface block">
-                  Near-Expiry Risk Warning: {nearExpiryCount} Batch Lots Expiring within 60 Days
+                <span className="font-bold text-label-lg">
+                  {nearExpiryCount} Lot(s) Approaching Expiry ({`<=`}60 Days)
                 </span>
-                <span className="text-body-sm text-outline">
-                  First-Expiry-First-Out (FEFO) dispensing policy is actively prioritizing these
-                  lots in the dispensary queue.
-                </span>
+                <p className="text-body-sm text-outline">
+                  First-Expiry-First-Out (FEFO) dispensing rules automatically prioritize these lots
+                  at dispensary counters.
+                </p>
               </div>
             </div>
-            <Badge variant="warning" className="font-mono">
-              FEFO ACTIVE
-            </Badge>
           </div>
         )}
 
-        {/* Batch Lots Table */}
+        {/* Batches Table Card */}
         <Card>
           <CardHeader>
-            <CardTitle>Registered Pharmaceutical Batches ({batches.length})</CardTitle>
+            <CardTitle>Tracked Stock Lots</CardTitle>
             <CardDescription>
-              Quarantined and expired lots are strictly blocked from outpatient dispensing in
-              PHA-04.
+              Real-time batch allocations and regulatory quarantine status from central pharmacy storage.
             </CardDescription>
           </CardHeader>
-          <CardContent className="p-0 overflow-x-auto">
-            <table className="w-full text-body-sm text-left border-collapse">
-              <thead className="bg-surface-container text-label-sm font-semibold text-outline uppercase border-y border-outline-variant/30">
-                <tr>
-                  <th className="py-space-3 px-space-4">Batch Lot Number</th>
-                  <th className="py-space-3 px-space-4">Medicine Item</th>
-                  <th className="py-space-3 px-space-4">Current Location</th>
-                  <th className="py-space-3 px-space-4">Storage Environment</th>
-                  <th className="py-space-3 px-space-4">Expiry Date</th>
-                  <th className="py-space-3 px-space-4">Lot Balance</th>
-                  <th className="py-space-3 px-space-4">Status</th>
-                  <th className="py-space-3 px-space-4 text-right">Quarantine Controls</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-outline-variant/20">
-                {batches.map((batch) => (
-                  <tr key={batch.id} className="hover:bg-surface-container-high/40">
-                    <td className="py-space-3 px-space-4 font-mono font-bold text-primary">
-                      {batch.lotNumber}
-                    </td>
-                    <td className="py-space-3 px-space-4 font-semibold text-on-surface">
-                      {batch.medicineName}
-                    </td>
-                    <td className="py-space-3 px-space-4 text-outline">{batch.location}</td>
-                    <td className="py-space-3 px-space-4">
-                      {batch.isColdChain ? (
-                        <Badge
-                          variant="secondary"
-                          className="text-secondary bg-secondary/10 border-secondary/30"
-                        >
-                          ❄️ Cold Chain (2-8°C)
-                        </Badge>
-                      ) : (
-                        <span className="text-label-sm text-outline">Controlled Ambient</span>
-                      )}
-                    </td>
-                    <td className="py-space-3 px-space-4 font-mono">
-                      <span
-                        className={
-                          batch.daysToExpiry <= 30
-                            ? "text-error font-bold"
-                            : batch.daysToExpiry <= 60
-                              ? "text-warning font-bold"
-                              : "text-on-surface"
-                        }
-                      >
-                        {batch.expiryDate} ({batch.daysToExpiry}d left)
-                      </span>
-                    </td>
-                    <td className="py-space-3 px-space-4 font-mono font-bold">
-                      {batch.quantity} units
-                    </td>
-                    <td className="py-space-3 px-space-4">
-                      <Badge
-                        variant="outline"
-                        className={
-                          batch.status === "ACTIVE"
-                            ? "bg-success/15 text-success border-success/30 font-semibold"
-                            : batch.status === "QUARANTINED"
-                              ? "bg-error/15 text-error border-error/30 font-semibold"
-                              : "bg-outline/15 text-outline font-semibold"
-                        }
-                      >
-                        {batch.status}
-                      </Badge>
-                    </td>
-                    <td className="py-space-3 px-space-4 text-right">
-                      {batch.status === "ACTIVE" ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="border-error/50 text-error hover:bg-error/10 gap-1 text-xs"
-                          onClick={() => {
-                            setSelectedBatch(batch);
-                            setShowQuarantineModal(true);
-                          }}
-                        >
-                          <span className="material-symbols-outlined text-[16px]">block</span>
-                          Quarantine
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          className="gap-1 text-xs"
-                          onClick={() => handleRelease(batch.id)}
-                        >
-                          <span className="material-symbols-outlined text-[16px]">
-                            check_circle
+          <CardContent>
+            {loading ? (
+              <div className="py-12 flex flex-col items-center justify-center text-outline">
+                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-3"></div>
+                <p className="text-body-sm font-medium">Loading batch records from warehouse...</p>
+              </div>
+            ) : batches.length === 0 ? (
+              <div className="py-12 text-center text-outline border border-dashed border-outline-variant/30 rounded-xl">
+                <span className="material-symbols-outlined text-[40px] text-outline/50 mb-2">inventory_2</span>
+                <p className="font-semibold text-on-surface">No stock batches found</p>
+                <p className="text-body-sm text-outline mt-1">
+                  Receive goods through Purchase Orders or create initial inventory items to register new batches.
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-body-sm">
+                  <thead className="border-b border-outline-variant/30 text-label-sm font-semibold text-outline uppercase bg-surface-container/30">
+                    <tr>
+                      <th className="py-space-3 px-space-4">Lot #</th>
+                      <th className="py-space-3 px-space-4">Medicine Item</th>
+                      <th className="py-space-3 px-space-4">Location</th>
+                      <th className="py-space-3 px-space-4">Storage Spec</th>
+                      <th className="py-space-3 px-space-4">Expiry Date</th>
+                      <th className="py-space-3 px-space-4">Stock Qty</th>
+                      <th className="py-space-3 px-space-4">Status</th>
+                      <th className="py-space-3 px-space-4 text-right">Quarantine Controls</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-outline-variant/20">
+                    {batches.map((batch) => (
+                      <tr key={batch.id} className="hover:bg-surface-container-high/40">
+                        <td className="py-space-3 px-space-4 font-mono font-bold text-primary">
+                          {batch.lotNumber}
+                        </td>
+                        <td className="py-space-3 px-space-4 font-semibold text-on-surface">
+                          {batch.medicineName}
+                        </td>
+                        <td className="py-space-3 px-space-4 text-outline">{batch.location}</td>
+                        <td className="py-space-3 px-space-4">
+                          {batch.isColdChain ? (
+                            <Badge
+                              variant="secondary"
+                              className="text-secondary bg-secondary/10 border-secondary/30"
+                            >
+                              ❄️ Cold Chain (2-8°C)
+                            </Badge>
+                          ) : (
+                            <span className="text-label-sm text-outline">Controlled Ambient</span>
+                          )}
+                        </td>
+                        <td className="py-space-3 px-space-4 font-mono">
+                          <span
+                            className={
+                              batch.daysToExpiry <= 30
+                                ? "text-error font-bold"
+                                : batch.daysToExpiry <= 60
+                                  ? "text-warning font-bold"
+                                  : "text-on-surface"
+                            }
+                          >
+                            {batch.expiryDate} ({batch.daysToExpiry}d left)
                           </span>
-                          Release
-                        </Button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                        </td>
+                        <td className="py-space-3 px-space-4 font-mono font-bold">
+                          {batch.quantity} units
+                        </td>
+                        <td className="py-space-3 px-space-4">
+                          <Badge
+                            variant="outline"
+                            className={
+                              batch.status === "ACTIVE"
+                                ? "bg-success/15 text-success border-success/30 font-semibold"
+                                : batch.status === "QUARANTINED"
+                                  ? "bg-error/15 text-error border-error/30 font-semibold"
+                                  : "bg-outline/15 text-outline font-semibold"
+                            }
+                          >
+                            {batch.status}
+                          </Badge>
+                        </td>
+                        <td className="py-space-3 px-space-4 text-right">
+                          {batch.status === "ACTIVE" ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="border-error/50 text-error hover:bg-error/10 gap-1 text-xs"
+                              onClick={() => {
+                                setSelectedBatch(batch);
+                                setShowQuarantineModal(true);
+                              }}
+                            >
+                              <span className="material-symbols-outlined text-[16px]">block</span>
+                              Quarantine
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              className="gap-1 text-xs"
+                              onClick={() => handleRelease(batch.id)}
+                            >
+                              <span className="material-symbols-outlined text-[16px]">
+                                check_circle
+                              </span>
+                              Release
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </CardContent>
         </Card>
 

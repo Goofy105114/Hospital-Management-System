@@ -25,21 +25,27 @@ import { CommandPalette } from "./CommandPalette";
 
 export function Header() {
   const router = useRouter();
-  const { user, activeRole, setActiveRole, isAuthenticated, logout } = useAuthStore();
+  const [mounted, setMounted] = useState(false);
+  const { user, activeRole, setActiveRole, isAuthenticated, logout, hydrate } = useAuthStore();
   const { facilityLocation, setSearchModalOpen, sidebarOpen, toggleSidebar } = useUiStore();
   const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
 
+  React.useEffect(() => {
+    hydrate();
+    setMounted(true);
+  }, [hydrate]);
+
   const roles: Array<{ role: UserRole; name: string; tag: string }> = [
-    { role: "PATIENT", name: "Eleanor Vance", tag: "MRN: GM-84920" },
-    { role: "DOCTOR", name: "Dr. Marcus Vance, MD", tag: "Cardiology Lead" },
-    { role: "RECEPTIONIST", name: "Sarah Connor", tag: "Front Desk & Kiosk" },
-    { role: "NURSE", name: "Rachel Adams, RN", tag: "Triage Station 4" },
-    { role: "PHARMACIST", name: "David Miller, RPh", tag: "Central Pharmacy" },
-    { role: "INVENTORY_MANAGER", name: "Alex Chen", tag: "Supply & Logistics" },
-    { role: "LAB_TECH", name: "Dr. Sarah Jenkins", tag: "Pathology Diagnostics" },
-    { role: "BILLING_STAFF", name: "Emily Watson", tag: "Cashier & Invoicing" },
-    { role: "ADMIN", name: "Hospital Administrator", tag: "Facility Ops & Master Data" },
-    { role: "SUPER_ADMIN", name: "Super Admin", tag: "Security & Full Access" },
+    { role: "PATIENT", name: "Patient Portal", tag: "Patient Self-Service" },
+    { role: "DOCTOR", name: "Clinician Workspace", tag: "Consultation & EMR" },
+    { role: "RECEPTIONIST", name: "Front Desk & Reception", tag: "Kiosk & Queue Desk" },
+    { role: "NURSE", name: "Nursing Station", tag: "Triage & Vitals" },
+    { role: "PHARMACIST", name: "Pharmacy Dispensary", tag: "Medication & Formulary" },
+    { role: "INVENTORY_MANAGER", name: "Supply & Inventory", tag: "Procurement & Stock" },
+    { role: "LAB_TECH", name: "Diagnostic Laboratory", tag: "Assays & Pathology" },
+    { role: "BILLING_STAFF", name: "Cashier & Billing", tag: "Invoicing & Claims" },
+    { role: "ADMIN", name: "Hospital Administration", tag: "Facility Ops & Master Data" },
+    { role: "SUPER_ADMIN", name: "System Super Admin", tag: "Security & Full Access" },
   ];
 
   const currentRoleInfo = roles.find((r) => r.role === activeRole) || roles[0];
@@ -102,7 +108,7 @@ export function Header() {
           </div>
 
           {/* Quick Nav to Login & Sign Up (Only shown when not authenticated) */}
-          {!isAuthenticated && (
+          {mounted && !isAuthenticated && (
             <div className="hidden sm:flex items-center gap-2">
               <Link
                 href="/login"
@@ -171,12 +177,12 @@ export function Header() {
                   unoptimized
                 />
               </div>
-              <div className="flex flex-col text-left">
-                <span className="text-xs text-slate-800 font-semibold leading-tight">
-                  {user?.name || currentRoleInfo.name}
+              <div className="flex flex-col text-left" suppressHydrationWarning>
+                <span className="text-xs text-slate-800 font-semibold leading-tight" suppressHydrationWarning>
+                  {mounted && user?.name ? user.name : currentRoleInfo.name}
                 </span>
-                <span className="text-[10px] text-teal-700 font-bold">
-                  {activeRole} {user?.mrn ? `(${user.mrn})` : ""}
+                <span className="text-[10px] text-teal-700 font-bold" suppressHydrationWarning>
+                  {activeRole} {mounted && user?.mrn ? `(${user.mrn})` : ""}
                 </span>
               </div>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400" />

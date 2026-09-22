@@ -1,18 +1,71 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { AppLayout } from "@/components/shared/AppLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { useAuthStore } from "@/stores/authStore";
+import api from "@/lib/axios";
 
 export default function ProfilePage() {
+  const { user } = useAuthStore();
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [dob, setDob] = useState("");
+  const [bloodGroup, setBloodGroup] = useState("O+");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [mrn, setMrn] = useState("");
   const [saved, setSaved] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    let isMounted = true;
+    api
+      .get("/auth/me")
+      .then((res) => {
+        if (!isMounted) return;
+        const u = res.data?.data;
+        if (u) {
+          const names = (u.name || "").split(" ");
+          setFirstName(names[0] || "");
+          setLastName(names.slice(1).join(" ") || "");
+          setEmail(u.email || "");
+          setPhone(u.phone || "");
+          if (u.patientProfile) {
+            setMrn(u.patientProfile.mrn || "");
+            setDob(
+              u.patientProfile.dob ? u.patientProfile.dob.split("T")[0] : ""
+            );
+            setBloodGroup(u.patientProfile.bloodGroup || "O+");
+            setAddress(u.patientProfile.address || "");
+          }
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    setIsSubmitting(true);
+    try {
+      await api.patch("/auth/me", {
+        name: `${firstName} ${lastName}`.trim(),
+        phone,
+        address,
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch {
+      alert("Failed to update profile.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -23,14 +76,14 @@ export default function ProfilePage() {
           <div>
             <div className="flex items-center gap-space-3">
               <h1 className="font-headline-md text-headline-md text-on-surface font-bold tracking-tight">
-                Patient Demographics & Medical Identity
+                Patient Demographics &amp; Medical Identity
               </h1>
               <Badge variant="outline" className="font-mono text-xs">
-                MRN-2026-001842
+                {mrn || user?.mrn || "Verified Patient Record"}
               </Badge>
             </div>
             <p className="font-body-md text-on-surface-variant mt-1">
-              Official Identification • Verified Emergency Contacts & Health Insurance
+              Official Identification • Verified Emergency Contacts &amp; Health Insurance
             </p>
           </div>
         </div>
@@ -38,7 +91,7 @@ export default function ProfilePage() {
         {saved && (
           <div className="p-space-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2">
             <span className="material-symbols-outlined text-sm">check_circle</span>
-            Patient profile updated successfully.
+            Patient profile updated successfully in database.
           </div>
         )}
 
@@ -58,7 +111,8 @@ export default function ProfilePage() {
                   </label>
                   <input
                     type="text"
-                    defaultValue="Eleanor"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
                     className="w-full p-2.5 rounded-lg border border-outline-variant/40 bg-surface-container-lowest text-sm"
                   />
                 </div>
@@ -68,7 +122,8 @@ export default function ProfilePage() {
                   </label>
                   <input
                     type="text"
-                    defaultValue="Pena"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
                     className="w-full p-2.5 rounded-lg border border-outline-variant/40 bg-surface-container-lowest text-sm"
                   />
                 </div>
@@ -78,7 +133,8 @@ export default function ProfilePage() {
                   </label>
                   <input
                     type="date"
-                    defaultValue="1988-04-15"
+                    value={dob}
+                    onChange={(e) => setDob(e.target.value)}
                     className="w-full p-2.5 rounded-lg border border-outline-variant/40 bg-surface-container-lowest text-sm font-mono"
                   />
                 </div>
@@ -88,7 +144,7 @@ export default function ProfilePage() {
                   </label>
                   <input
                     type="text"
-                    defaultValue="A+"
+                    value={bloodGroup}
                     readOnly
                     className="w-full p-2.5 rounded-lg border border-outline-variant/40 bg-surface-container-low text-sm font-mono font-bold"
                   />
@@ -99,8 +155,9 @@ export default function ProfilePage() {
                   </label>
                   <input
                     type="email"
-                    defaultValue="eleanor.pena@example.com"
-                    className="w-full p-2.5 rounded-lg border border-outline-variant/40 bg-surface-container-lowest text-sm"
+                    value={email}
+                    readOnly
+                    className="w-full p-2.5 rounded-lg border border-outline-variant/40 bg-surface-container-low text-sm"
                   />
                 </div>
                 <div>
@@ -109,10 +166,23 @@ export default function ProfilePage() {
                   </label>
                   <input
                     type="tel"
-                    defaultValue="+1 (555) 234-5678"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
                     className="w-full p-2.5 rounded-lg border border-outline-variant/40 bg-surface-container-lowest text-sm font-mono"
                   />
                 </div>
+              </div>
+              <div>
+                <label className="font-label-md font-semibold text-on-surface block mb-1">
+                  Residential Address
+                </label>
+                <input
+                  type="text"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Street address, city, state, postal code"
+                  className="w-full p-2.5 rounded-lg border border-outline-variant/40 bg-surface-container-lowest text-sm"
+                />
               </div>
             </CardContent>
           </Card>
@@ -132,7 +202,7 @@ export default function ProfilePage() {
                   </label>
                   <input
                     type="text"
-                    defaultValue="David Pena"
+                    defaultValue="Primary Next of Kin"
                     className="w-full p-2.5 rounded-lg border border-outline-variant/40 bg-surface-container-lowest text-sm"
                   />
                 </div>
@@ -142,7 +212,7 @@ export default function ProfilePage() {
                   </label>
                   <input
                     type="text"
-                    defaultValue="Spouse"
+                    defaultValue="Family Member"
                     className="w-full p-2.5 rounded-lg border border-outline-variant/40 bg-surface-container-lowest text-sm"
                   />
                 </div>
@@ -152,7 +222,7 @@ export default function ProfilePage() {
                   </label>
                   <input
                     type="tel"
-                    defaultValue="+1 (555) 987-6543"
+                    defaultValue={phone || "+1 (555) 000-0000"}
                     className="w-full p-2.5 rounded-lg border border-outline-variant/40 bg-surface-container-lowest text-sm font-mono"
                   />
                 </div>
@@ -175,7 +245,7 @@ export default function ProfilePage() {
                   </label>
                   <input
                     type="text"
-                    defaultValue="BlueCross BlueShield"
+                    defaultValue="Going Merry Health Coverage"
                     className="w-full p-2.5 rounded-lg border border-outline-variant/40 bg-surface-container-lowest text-sm"
                   />
                 </div>
@@ -185,7 +255,7 @@ export default function ProfilePage() {
                   </label>
                   <input
                     type="text"
-                    defaultValue="BC-992144-PPO"
+                    defaultValue="GM-INS-88190"
                     className="w-full p-2.5 rounded-lg border border-outline-variant/40 bg-surface-container-lowest text-sm font-mono"
                   />
                 </div>
@@ -195,7 +265,7 @@ export default function ProfilePage() {
                   </label>
                   <input
                     type="text"
-                    defaultValue="GRP-88219"
+                    defaultValue="GRP-9901"
                     className="w-full p-2.5 rounded-lg border border-outline-variant/40 bg-surface-container-lowest text-sm font-mono"
                   />
                 </div>
@@ -204,8 +274,12 @@ export default function ProfilePage() {
           </Card>
 
           <div className="flex justify-end">
-            <Button type="submit" className="bg-primary text-white">
-              Save Profile Changes
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="bg-primary text-white"
+            >
+              {isSubmitting ? "Saving..." : "Save Profile Changes"}
             </Button>
           </div>
         </form>

@@ -156,12 +156,12 @@ export default function DashboardPage() {
                   Good morning,{" "}
                   {dashboard?.patient?.name?.split(" ")[0] ||
                     user?.name?.split(" ")[0] ||
-                    "Eleanor"}
+                    "Patient"}
                 </h1>
                 <p className="font-body-md text-body-md text-on-surface-variant mt-0.5">
                   MRN:{" "}
                   <span className="font-mono font-bold text-primary">
-                    {dashboard?.patient?.mrn || user?.mrn || "GM-84920"}
+                    {dashboard?.patient?.mrn || user?.mrn || "Pending MRN"}
                   </span>{" "}
                   • Here is your real-time health overview and queue status.
                 </p>
@@ -174,7 +174,14 @@ export default function DashboardPage() {
                 calendar_month
               </span>
               <span className="font-label-md text-label-md text-on-surface font-semibold">
-                Thursday, Oct 24, 2026
+                {mounted
+                  ? new Date().toLocaleDateString("en-US", {
+                      weekday: "long",
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })
+                  : "Today"}
               </span>
             </div>
             <button
@@ -194,9 +201,9 @@ export default function DashboardPage() {
             <div className="absolute top-0 right-0 w-36 h-36 bg-gradient-to-bl from-primary/10 via-transparent to-transparent pointer-events-none rounded-tr-xl"></div>
             {isLoading ? (
               <div className="space-y-4">
-                <div className="flex justify-between">
-                  <Skeleton className="h-5 w-40" />
-                  <Skeleton className="h-5 w-24 rounded-full" />
+                <div className="flex justify-between items-center">
+                  <Skeleton className="h-6 w-32" />
+                  <Skeleton className="h-6 w-24 rounded-full" />
                 </div>
                 <div className="flex gap-4 items-center">
                   <Skeleton className="h-16 w-16 rounded-xl" />
@@ -210,7 +217,7 @@ export default function DashboardPage() {
                   <Skeleton className="h-12 w-full rounded-lg" />
                 </div>
               </div>
-            ) : (
+            ) : appt ? (
               <>
                 <div>
                   <div className="flex items-center justify-between gap-space-2 pb-space-4">
@@ -224,7 +231,7 @@ export default function DashboardPage() {
                     </div>
                     <span className="inline-flex items-center gap-1.5 px-space-3 py-1 rounded-full bg-secondary-fixed/50 text-on-secondary-fixed-variant font-label-sm text-label-sm font-semibold">
                       <span className="w-1.5 h-1.5 rounded-full bg-secondary"></span>
-                      {appt?.status || "Confirmed"} • In 2 Hours
+                      {appt.status} • {new Date(appt.slotStart).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
                     </span>
                   </div>
 
@@ -233,8 +240,8 @@ export default function DashboardPage() {
                       <Image
                         className="object-cover"
                         src={
-                          appt?.doctorPhoto ||
-                          "https://lh3.googleusercontent.com/aida-public/AB6AXuASMiD_yIVTlPeVGR7BMhyNEBY4UL5xU-OoFzIFeJzBj4GmKdxC0eh0O4xcyAS3CeXQ8NnQ0gvEJtDPR7t5t1JjDePFWPhcRLZp7XojtXi3GXzaHG2TEhrMGeUo60Zagx_dPuYjl9yycKazLAPMm422VDhdlpJWf5p52tJw9hokXGmV5eJKYysRs8n32VNtjWqaxUdA2CEbErmKL4Y7-Qo8a6D-QSVTBbeSyA9KcMLyiD4Dunv2el8b"
+                          appt.doctorPhoto ||
+                          "https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=400&auto=format&fit=crop&q=80"
                         }
                         alt="Doctor Photo"
                         fill
@@ -244,24 +251,23 @@ export default function DashboardPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-space-2">
                         <h3 className="font-headline-md text-headline-md text-on-surface font-semibold truncate">
-                          {appt?.doctorName || "Dr. Marcus Vance, MD"}
+                          {appt.doctorName}
                         </h3>
                         <span
                           className="material-symbols-outlined text-primary text-[18px]"
-                          title="Board Certified Cardiologist"
+                          title="Board Certified"
                         >
                           verified
                         </span>
                       </div>
                       <p className="font-label-md text-label-md text-primary font-medium">
-                        {appt?.doctorSpecialization ||
-                          "Department of Cardiology • Senior Specialist"}
+                        {appt.doctorSpecialization}
                       </p>
                       <p className="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-1 mt-0.5">
                         <span className="material-symbols-outlined text-[16px] text-outline">
                           location_on
                         </span>
-                        {appt?.roomNumber || "Consultation Room 304, East Wing (3rd Floor)"}
+                        {appt.roomNumber || "Consultation Room"}
                       </p>
                     </div>
                   </div>
@@ -277,7 +283,7 @@ export default function DashboardPage() {
                           Slot Time
                         </span>
                         <span className="font-label-md text-label-md text-on-surface font-semibold">
-                          11:30 AM – 12:15 PM
+                          {new Date(appt.slotStart).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })} – {new Date(appt.slotEnd).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
                         </span>
                       </div>
                     </div>
@@ -290,7 +296,7 @@ export default function DashboardPage() {
                           Visit Type
                         </span>
                         <span className="font-label-md text-label-md text-on-surface font-semibold">
-                          {appt?.appointmentType || "Follow-up Consultation"}
+                          {appt.appointmentType || "Consultation"}
                         </span>
                       </div>
                     </div>
@@ -301,23 +307,39 @@ export default function DashboardPage() {
                   <div className="flex items-center gap-space-2 text-primary font-label-md text-label-md">
                     <span className="material-symbols-outlined text-[18px]">check_circle</span>
                     <span className="font-semibold">
-                      {appt?.preVisitStatus || "Checked In Online"}
+                      {appt.preVisitStatus || "Confirmed"}
                     </span>
                   </div>
                   <div className="flex items-center gap-space-2 w-full sm:w-auto">
-                    <Link href="/queue" className="w-full sm:w-auto">
+                    <Link href={`/appointments`} className="w-full sm:w-auto">
                       <Button
                         size="sm"
                         variant="primary"
                         className="w-full font-semibold gap-1.5 shadow-xs"
                       >
-                        <span>Open Live Queue Pass</span>
+                        <span>Manage Appointment</span>
                         <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
                       </Button>
                     </Link>
                   </div>
                 </div>
               </>
+            ) : (
+              <div className="py-8 text-center space-y-3 my-auto">
+                <div className="w-12 h-12 mx-auto rounded-full bg-surface-container flex items-center justify-center text-outline">
+                  <span className="material-symbols-outlined text-[26px]">calendar_today</span>
+                </div>
+                <div>
+                  <h3 className="font-title-md font-bold text-on-surface">No Upcoming Appointments</h3>
+                  <p className="text-body-sm text-outline mt-1">You have no scheduled clinical visits at this time.</p>
+                </div>
+                <Link href="/appointments/book" className="inline-block mt-2">
+                  <Button variant="primary" size="sm" className="font-semibold gap-1.5 shadow-xs">
+                    <span className="material-symbols-outlined text-[16px]">add</span>
+                    <span>Book an Appointment</span>
+                  </Button>
+                </Link>
+              </div>
             )}
           </div>
 
@@ -335,7 +357,7 @@ export default function DashboardPage() {
                 </div>
                 <Skeleton className="h-10 w-full rounded-lg" />
               </div>
-            ) : (
+            ) : queue ? (
               <>
                 <div>
                   <div className="flex items-center justify-between gap-space-2 pb-space-3">
@@ -349,7 +371,7 @@ export default function DashboardPage() {
                     </div>
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-label-sm text-label-sm font-bold">
                       <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
-                      {queue?.stationName || "Station 4 Active"}
+                      {queue.stationName || "OPD Active"}
                     </span>
                   </div>
 
@@ -359,13 +381,13 @@ export default function DashboardPage() {
                       Your Queue Token
                     </span>
                     <span className="font-mono text-[42px] font-black text-primary leading-tight block">
-                      {queue?.tokenNumber || "#A-24"}
+                      {queue.tokenNumber}
                     </span>
                     <div className="flex items-center justify-center gap-2 mt-1">
                       <span className="text-xs font-semibold text-on-surface">
                         Currently Serving:{" "}
                         <span className="font-mono text-primary font-bold">
-                          {queue?.nowServing || "#A-21"}
+                          {queue.nowServing}
                         </span>
                       </span>
                     </div>
@@ -374,27 +396,27 @@ export default function DashboardPage() {
                   {/* Queue Details List */}
                   <div className="space-y-2 my-3 text-xs">
                     <div className="flex justify-between py-1 border-b border-outline-variant/20">
-                      <span className="text-outline">Patients Ahead:</span>
+                      <span className="text-outline">Position Ahead:</span>
                       <span className="font-bold text-on-surface">
-                        {queue?.positionAhead ?? 3} Patients
+                        {queue.positionAhead} Patient(s)
                       </span>
                     </div>
                     <div className="flex justify-between py-1 border-b border-outline-variant/20">
                       <span className="text-outline">Estimated Wait:</span>
                       <span className="font-bold text-primary">
-                        ~{queue?.estimatedWaitMinutes ?? 18} Minutes
+                        ~{queue.estimatedWaitMinutes} Minutes
                       </span>
                     </div>
                     <div className="flex justify-between py-1">
-                      <span className="text-outline">Assigned Doctor:</span>
+                      <span className="text-outline">Assigned Clinician:</span>
                       <span className="font-semibold text-on-surface">
-                        {queue?.doctorName || "Dr. Marcus Vance"}
+                        {queue.doctorName}
                       </span>
                     </div>
                   </div>
                 </div>
 
-                <Link href="/queue" className="w-full">
+                <Link href="/patient/queue" className="w-full">
                   <Button variant="outline" size="sm" className="w-full font-semibold gap-1.5">
                     <span className="material-symbols-outlined text-[16px]">
                       notifications_active
@@ -403,6 +425,22 @@ export default function DashboardPage() {
                   </Button>
                 </Link>
               </>
+            ) : (
+              <div className="py-8 text-center space-y-3 my-auto">
+                <div className="w-12 h-12 mx-auto rounded-full bg-surface-container flex items-center justify-center text-outline">
+                  <span className="material-symbols-outlined text-[26px]">timer_off</span>
+                </div>
+                <div>
+                  <h3 className="font-title-md font-bold text-on-surface">Not in Queue</h3>
+                  <p className="text-body-sm text-outline mt-1">Check in upon arrival at the hospital kiosk or reception counter to receive a queue token.</p>
+                </div>
+                <Link href="/queue/kiosk" className="inline-block mt-2">
+                  <Button variant="outline" size="sm" className="font-semibold gap-1.5">
+                    <span className="material-symbols-outlined text-[16px]">how_to_reg</span>
+                    <span>Self-Service Kiosk Check-In</span>
+                  </Button>
+                </Link>
+              </div>
             )}
           </div>
         </div>
@@ -419,7 +457,7 @@ export default function DashboardPage() {
               </span>
             </div>
             <span className="text-xs text-outline">
-              {vitals?.recordedAt || "Recorded Today, 08:30 AM"}
+              {vitals?.recordedAt || "No recent intake record"}
             </span>
           </div>
 
@@ -431,52 +469,56 @@ export default function DashboardPage() {
                   <Skeleton className="h-6 w-20" />
                 </div>
               ))
-            ) : (
+            ) : vitals ? (
               <>
                 <div className="p-3 bg-surface-container-low rounded-lg">
                   <span className="text-[10px] uppercase font-bold text-outline block">
                     Blood Pressure
                   </span>
                   <span className="font-mono font-bold text-sm text-on-surface block mt-0.5">
-                    {vitals?.bloodPressure || "118/76 mmHg"}
+                    {vitals.bloodPressure}
                   </span>
-                  <span className="text-[10px] text-success font-semibold">Optimal</span>
+                  <span className="text-[10px] text-success font-semibold">Recorded</span>
                 </div>
                 <div className="p-3 bg-surface-container-low rounded-lg">
                   <span className="text-[10px] uppercase font-bold text-outline block">
                     Heart Rate
                   </span>
                   <span className="font-mono font-bold text-sm text-on-surface block mt-0.5">
-                    {vitals?.heartRate || "72 bpm"}
+                    {vitals.heartRate}
                   </span>
-                  <span className="text-[10px] text-success font-semibold">Resting Normal</span>
+                  <span className="text-[10px] text-success font-semibold">Recorded</span>
                 </div>
                 <div className="p-3 bg-surface-container-low rounded-lg">
                   <span className="text-[10px] uppercase font-bold text-outline block">
                     SpO2 Oxygen
                   </span>
                   <span className="font-mono font-bold text-sm text-on-surface block mt-0.5">
-                    {vitals?.oxygenSaturation || "99%"}
+                    {vitals.oxygenSaturation}
                   </span>
-                  <span className="text-[10px] text-success font-semibold">Normal Room Air</span>
+                  <span className="text-[10px] text-success font-semibold">Recorded</span>
                 </div>
                 <div className="p-3 bg-surface-container-low rounded-lg">
                   <span className="text-[10px] uppercase font-bold text-outline block">
                     Temperature
                   </span>
                   <span className="font-mono font-bold text-sm text-on-surface block mt-0.5">
-                    {vitals?.temperature || "98.2°F"}
+                    {vitals.temperature}
                   </span>
-                  <span className="text-[10px] text-success font-semibold">Afebrile</span>
+                  <span className="text-[10px] text-success font-semibold">Recorded</span>
                 </div>
                 <div className="p-3 bg-surface-container-low rounded-lg col-span-2 sm:col-span-1">
                   <span className="text-[10px] uppercase font-bold text-outline block">BMI</span>
                   <span className="font-mono font-bold text-sm text-on-surface block mt-0.5">
-                    {vitals?.bmi || "22.4"}
+                    {vitals.bmi}
                   </span>
-                  <span className="text-[10px] text-success font-semibold">Healthy Range</span>
+                  <span className="text-[10px] text-success font-semibold">Calculated</span>
                 </div>
               </>
+            ) : (
+              <div className="col-span-2 sm:col-span-5 py-4 text-center text-xs text-outline">
+                No clinical vitals recorded yet. Vitals are captured during triage and nursing intake.
+              </div>
             )}
           </div>
         </div>
@@ -503,44 +545,50 @@ export default function DashboardPage() {
             </div>
 
             <div className="space-y-2">
-              {isLoading
-                ? Array.from({ length: 3 }).map((_, i) => (
-                    <div key={i} className="p-3 bg-surface-container-low rounded-lg space-y-2">
-                      <Skeleton className="h-4 w-40" />
-                      <Skeleton className="h-3 w-60" />
-                    </div>
-                  ))
-                : prescriptions.map((med: any) => (
-                    <div
-                      key={med.id}
-                      className="p-3 bg-surface-container-low rounded-xl border border-outline-variant/20 flex items-center justify-between gap-3"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="material-symbols-outlined text-primary text-[22px]">
-                          medication
+              {isLoading ? (
+                Array.from({ length: 2 }).map((_, i) => (
+                  <div key={i} className="p-3 bg-surface-container-low rounded-lg space-y-2">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-3 w-60" />
+                  </div>
+                ))
+              ) : prescriptions.length > 0 ? (
+                prescriptions.map((med: any) => (
+                  <div
+                    key={med.id}
+                    className="p-3 bg-surface-container-low rounded-xl border border-outline-variant/20 flex items-center justify-between gap-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="material-symbols-outlined text-primary text-[22px]">
+                        medication
+                      </span>
+                      <div>
+                        <span className="font-bold text-xs text-on-surface block">
+                          {med.name}
                         </span>
-                        <div>
-                          <span className="font-bold text-xs text-on-surface block">
-                            {med.name}
-                          </span>
-                          <span className="text-[11px] text-outline block">
-                            {med.dosage} • {med.sig}
-                          </span>
-                        </div>
+                        <span className="text-[11px] text-outline block">
+                          {med.dosage} • {med.sig}
+                        </span>
                       </div>
-                      <Button
-                        size="sm"
-                        variant={takenDoses[med.id] ? "secondary" : "outline"}
-                        onClick={() => handleMarkDose(med.id)}
-                        className="text-xs h-7 px-3 gap-1"
-                      >
-                        <span className="material-symbols-outlined text-[14px]">
-                          {takenDoses[med.id] ? "check" : "radio_button_unchecked"}
-                        </span>
-                        <span>{takenDoses[med.id] ? "Taken" : "Mark Taken"}</span>
-                      </Button>
                     </div>
-                  ))}
+                    <Button
+                      size="sm"
+                      variant={takenDoses[med.id] ? "secondary" : "outline"}
+                      onClick={() => handleMarkDose(med.id)}
+                      className="text-xs h-7 px-3 gap-1"
+                    >
+                      <span className="material-symbols-outlined text-[14px]">
+                        {takenDoses[med.id] ? "check" : "radio_button_unchecked"}
+                      </span>
+                      <span>{takenDoses[med.id] ? "Taken" : "Mark Taken"}</span>
+                    </Button>
+                  </div>
+                ))
+              ) : (
+                <div className="py-6 text-center text-xs text-outline">
+                  No active outpatient prescriptions found.
+                </div>
+              )}
             </div>
           </div>
 
@@ -557,7 +605,7 @@ export default function DashboardPage() {
                   </span>
                 </div>
                 <span className="font-mono text-xs font-semibold text-outline">
-                  {billing?.latestInvoiceNumber || "INV-20241024-0032"}
+                  {billing?.latestInvoiceNumber || "No Due Invoices"}
                 </span>
               </div>
 
@@ -572,10 +620,10 @@ export default function DashboardPage() {
                     Outstanding Balance Due
                   </span>
                   <span className="font-mono text-3xl font-black text-on-surface block mt-1">
-                    ${copayPaid ? "0.00" : Number(billing?.totalOwing ?? 20.0).toFixed(2)}
+                    ${copayPaid ? "0.00" : Number(billing?.totalOwing ?? 0.0).toFixed(2)}
                   </span>
                   <p className="text-[11px] text-success font-semibold mt-1">
-                    Insurance Covered: ${Number(billing?.insuranceCovered ?? 100.0).toFixed(2)}
+                    Insurance Covered: ${Number(billing?.insuranceCovered ?? 0.0).toFixed(2)}
                   </p>
                 </div>
               )}
@@ -585,15 +633,15 @@ export default function DashboardPage() {
               <Button
                 variant="primary"
                 size="sm"
-                disabled={copayPaid || isLoading}
+                disabled={copayPaid || isLoading || Number(billing?.totalOwing ?? 0) <= 0}
                 onClick={() => setCopayPaid(true)}
                 className="w-full font-bold gap-1.5"
               >
                 <span className="material-symbols-outlined text-[16px]">credit_card</span>
                 <span>
-                  {copayPaid
+                  {copayPaid || Number(billing?.totalOwing ?? 0) <= 0
                     ? "Settled Successfully"
-                    : `Pay Co-Pay ($${Number(billing?.totalOwing ?? 20.0).toFixed(2)})`}
+                    : `Pay Co-Pay ($${Number(billing?.totalOwing ?? 0.0).toFixed(2)})`}
                 </span>
               </Button>
               <Link

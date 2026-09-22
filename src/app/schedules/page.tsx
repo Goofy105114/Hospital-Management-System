@@ -33,94 +33,68 @@ interface DoctorLeave {
   status: "PENDING" | "APPROVED" | "REJECTED";
 }
 
-const INITIAL_SESSIONS: ClinicSession[] = [
-  {
-    id: "sch-01",
-    doctorId: "doc-01",
-    doctorName: "Dr. Marcus Vance",
-    department: "Cardiology",
-    dayOfWeek: 1,
-    dayName: "Monday",
-    startTime: "09:00",
-    endTime: "13:00",
-    slotDurationMinutes: 15,
-    maxCapacity: 16,
-    roomNumber: "Room 104 (Echo Suite)",
-    isPublished: true,
-  },
-  {
-    id: "sch-02",
-    doctorId: "doc-01",
-    doctorName: "Dr. Marcus Vance",
-    department: "Cardiology",
-    dayOfWeek: 3,
-    dayName: "Wednesday",
-    startTime: "14:00",
-    endTime: "18:00",
-    slotDurationMinutes: 15,
-    maxCapacity: 16,
-    roomNumber: "Room 104 (Echo Suite)",
-    isPublished: true,
-  },
-  {
-    id: "sch-03",
-    doctorId: "doc-02",
-    doctorName: "Dr. Sarah Jenkins",
-    department: "Pediatrics",
-    dayOfWeek: 2,
-    dayName: "Tuesday",
-    startTime: "09:00",
-    endTime: "14:00",
-    slotDurationMinutes: 20,
-    maxCapacity: 15,
-    roomNumber: "Room 202 (Pediatric Suite)",
-    isPublished: true,
-  },
-  {
-    id: "sch-04",
-    doctorId: "doc-03",
-    doctorName: "Dr. Emily Chen",
-    department: "Neurology",
-    dayOfWeek: 4,
-    dayName: "Thursday",
-    startTime: "10:00",
-    endTime: "16:00",
-    slotDurationMinutes: 30,
-    maxCapacity: 12,
-    roomNumber: "Room 305 (Neuro Lab)",
-    isPublished: false,
-  },
-];
+import api from "@/lib/axios";
 
-const INITIAL_LEAVES: DoctorLeave[] = [
-  {
-    id: "lve-01",
-    doctorId: "doc-01",
-    doctorName: "Dr. Marcus Vance",
-    department: "Cardiology",
-    startDate: "2026-11-15",
-    endDate: "2026-11-18",
-    reason: "Attending Annual American College of Cardiology Summit",
-    status: "APPROVED",
-  },
-  {
-    id: "lve-02",
-    doctorId: "doc-03",
-    doctorName: "Dr. Emily Chen",
-    department: "Neurology",
-    startDate: "2026-11-20",
-    endDate: "2026-11-22",
-    reason: "Personal Emergency Leave",
-    status: "PENDING",
-  },
-];
+const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 export default function DoctorSchedulingPage() {
-  const [sessions, setSessions] = useState<ClinicSession[]>(INITIAL_SESSIONS);
-  const [leaves, setLeaves] = useState<DoctorLeave[]>(INITIAL_LEAVES);
+  const [sessions, setSessions] = useState<ClinicSession[]>([]);
+  const [leaves, setLeaves] = useState<DoctorLeave[]>([]);
+  const [availableDoctors, setAvailableDoctors] = useState<
+    Array<{ id: string; name: string; department: string }>
+  >([]);
   const [activeTab, setActiveTab] = useState<"sessions" | "leaves" | "rooms" | "publish">(
     "sessions"
   );
+
+  React.useEffect(() => {
+    let isMounted = true;
+    api
+      .get("/schedules")
+      .then((res) => {
+        if (!isMounted) return;
+        const list = res.data?.data;
+        if (Array.isArray(list)) {
+          const mapped: ClinicSession[] = list.map((s: any) => ({
+            id: s.id,
+            doctorId: s.doctorId,
+            doctorName: s.doctor?.user?.name || s.doctorName || "Doctor",
+            department: s.doctor?.department?.name || s.department || "Clinical Care",
+            dayOfWeek: s.dayOfWeek,
+            dayName: DAY_NAMES[s.dayOfWeek] || "Day",
+            startTime: s.startTime,
+            endTime: s.endTime,
+            slotDurationMinutes: s.slotDurationMinutes || 15,
+            maxCapacity: s.maxCapacity || 20,
+            roomNumber: s.roomNumber || "Consultation Room",
+            isPublished: s.isPublished ?? true,
+          }));
+          setSessions(mapped);
+        }
+      })
+      .catch(() => {});
+
+    api
+      .get("/doctors")
+      .then((res) => {
+        if (!isMounted) return;
+        const docList = res.data?.data;
+        if (Array.isArray(docList)) {
+          setAvailableDoctors(
+            docList.map((d: any) => ({
+              id: d.id,
+              name: d.name,
+              department: d.department || "Clinical Care",
+            }))
+          );
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Session Modal State (SCH-01, SCH-03)
   const [showSessionModal, setShowSessionModal] = useState(false);
@@ -645,13 +619,17 @@ export default function DoctorSchedulingPage() {
                     onChange={(e) => setNewDoctor(e.target.value)}
                     className="w-full px-space-3 py-space-2 bg-surface-container-lowest border border-outline-variant/40 rounded-lg text-body-md focus:outline-none focus:border-primary"
                   >
-                    <option value="Dr. Marcus Vance (Cardiology)">
-                      Dr. Marcus Vance (Cardiology)
-                    </option>
-                    <option value="Dr. Sarah Jenkins (Pediatrics)">
-                      Dr. Sarah Jenkins (Pediatrics)
-                    </option>
-                    <option value="Dr. Emily Chen (Neurology)">Dr. Emily Chen (Neurology)</option>
+                    {availableDoctors.length > 0 ? (
+                      availableDoctors.map((doc) => (
+                        <option key={doc.id} value={`${doc.name} (${doc.department})`}>
+                          {doc.name} ({doc.department})
+                        </option>
+                      ))
+                    ) : (
+                      <option value="Dr. Marcus Vance (Cardiology)">
+                        Dr. Marcus Vance (Cardiology)
+                      </option>
+                    )}
                   </select>
                 </div>
 
@@ -781,9 +759,15 @@ export default function DoctorSchedulingPage() {
                     onChange={(e) => setLeaveDoctor(e.target.value)}
                     className="w-full px-space-3 py-space-2 bg-surface-container-lowest border border-outline-variant/40 rounded-lg text-body-md focus:outline-none focus:border-primary"
                   >
-                    <option value="Dr. Marcus Vance">Dr. Marcus Vance (Cardiology)</option>
-                    <option value="Dr. Sarah Jenkins">Dr. Sarah Jenkins (Pediatrics)</option>
-                    <option value="Dr. Emily Chen">Dr. Emily Chen (Neurology)</option>
+                    {availableDoctors.length > 0 ? (
+                      availableDoctors.map((doc) => (
+                        <option key={doc.id} value={doc.name}>
+                          {doc.name} ({doc.department})
+                        </option>
+                      ))
+                    ) : (
+                      <option value="Dr. Marcus Vance">Dr. Marcus Vance (Cardiology)</option>
+                    )}
                   </select>
                 </div>
 

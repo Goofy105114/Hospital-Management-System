@@ -15,18 +15,13 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   if (!user) return apiError("UNAUTHENTICATED", "Authentication required", 401);
 
   try {
-    let token = null;
-    try {
-      token = await prisma.queueToken.findUnique({
-        where: { id: params.id },
-        include: {
-          doctor: { select: { id: true, roomNumber: true, user: { select: { name: true } } } },
-          patient: { select: { id: true, mrn: true, userId: true, user: { select: { name: true } } } },
-        },
-      });
-    } catch {
-      // DB offline
-    }
+    const token = await prisma.queueToken.findUnique({
+      where: { id: params.id },
+      include: {
+        doctor: { select: { id: true, roomNumber: true, user: { select: { name: true } } } },
+        patient: { select: { id: true, mrn: true, userId: true, user: { select: { name: true } } } },
+      },
+    });
 
     if (token === null) {
       return apiError("QUE_TOKEN_NOT_FOUND", "Queue token not found", 404);
@@ -43,7 +38,6 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const { id } = params;
@@ -51,47 +45,35 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     const { action, priorityTier } = body;
 
     if (action === "CALL") {
-      try {
-        const res = await QueueService.callToken(id);
-        if (res.success) return apiSuccess(res.data);
-      } catch {
-        // Fallback
+      const res = await QueueService.callToken(id);
+      if (!res.success) {
+        return apiError(res.code || "CALL_FAILED", "Failed to call token", res.status || 400);
       }
-      return apiSuccess({ id, status: "CALLED", calledAt: new Date().toISOString() });
+      return apiSuccess(res.data);
     }
 
     if (action === "COMPLETE") {
-      try {
-        const res = await QueueService.completeToken(id);
-        if (res.success) return apiSuccess(res.data);
-      } catch {
-        // Fallback
+      const res = await QueueService.completeToken(id);
+      if (!res.success) {
+        return apiError(res.code || "COMPLETE_FAILED", "Failed to complete token", res.status || 400);
       }
-      return apiSuccess({ id, status: "COMPLETED", completedAt: new Date().toISOString() });
+      return apiSuccess(res.data);
     }
 
     if (action === "PRIORITIZE") {
-      try {
-        await prisma.queueToken.update({
-          where: { id },
-          data: { priorityTier: priorityTier || "EMERGENCY" },
-        });
-      } catch {
-        // Fallback
-      }
-      return apiSuccess({ id, priorityTier: priorityTier || "EMERGENCY" });
+      const updated = await prisma.queueToken.update({
+        where: { id },
+        data: { priorityTier: priorityTier || "EMERGENCY" },
+      });
+      return apiSuccess(updated);
     }
 
     if (action === "IN_CONSULTATION") {
-      try {
-        await prisma.queueToken.update({
-          where: { id },
-          data: { status: "IN_CONSULTATION" },
-        });
-      } catch {
-        // Fallback
-      }
-      return apiSuccess({ id, status: "IN_CONSULTATION" });
+      const updated = await prisma.queueToken.update({
+        where: { id },
+        data: { status: "IN_CONSULTATION" },
+      });
+      return apiSuccess(updated);
     }
 
     return apiError(

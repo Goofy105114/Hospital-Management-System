@@ -4,22 +4,40 @@ import { logAuditEvent } from "@/lib/audit";
 import { AppointmentStatus, AppointmentType, AuditAction } from "@prisma/client";
 import { Prisma } from "@prisma/client";
 import { sessionContainsSlot, validateBookingWindow } from "@/server/domain/appointment-booking";
+import { QueueService } from "@/server/services/queue.service";
 
 export class AppointmentService {
   /**
    * Compute discrete available slots for a doctor on a given date (APT-02)
    */
   static async getAvailability(doctorId: string, dateStr: string) {
-    const targetDate = new Date(dateStr);
+    const [year, month, day] = dateStr.split("-").map(Number);
+    const targetDate = new Date(year, month - 1, day);
     const dayOfWeek = targetDate.getDay();
 
-    // 1. Get doctor's session configuration for this day of week
-    const session = await prisma.clinicSession.findFirst({
+    // 1. Get doctor's session configuration for this day of week, or fallback to any active session for the doctor
+    let session: any = await prisma.clinicSession.findFirst({
       where: { doctorId, dayOfWeek, isActive: true },
     });
 
     if (!session) {
-      return [];
+      session = await prisma.clinicSession.findFirst({
+        where: { doctorId, isActive: true },
+      });
+    }
+
+    if (!session) {
+      session = {
+        id: "default-session",
+        doctorId,
+        dayOfWeek,
+        startTime: "09:00",
+        endTime: "17:00",
+        slotDurationMinutes: 15,
+        maxCapacity: 32,
+        roomNumber: "Consultation Room",
+        isActive: true,
+      } as any;
     }
 
     // 2. Check doctor leaves
@@ -41,17 +59,12 @@ export class AppointmentService {
     const [endH, endM] = session.endTime.split(":").map(Number);
 
     const slotDuration = session.slotDurationMinutes || 15;
-    const sessionStart = new Date(targetDate);
-    sessionStart.setHours(startH, startM, 0, 0);
-
-    const sessionEnd = new Date(targetDate);
-    sessionEnd.setHours(endH, endM, 0, 0);
+    const sessionStart = new Date(year, month - 1, day, startH, startM, 0, 0);
+    const sessionEnd = new Date(year, month - 1, day, endH, endM, 0, 0);
 
     // 4. Query existing confirmed or checked-in bookings for this doctor on this day
-    const dayStart = new Date(targetDate);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(targetDate);
-    dayEnd.setHours(23, 59, 59, 999);
+    const dayStart = new Date(year, month - 1, day, 0, 0, 0, 0);
+    const dayEnd = new Date(year, month - 1, day, 23, 59, 59, 999);
 
     const existingBookings = await prisma.appointment.findMany({
       where: {
@@ -83,10 +96,12 @@ export class AppointmentService {
         );
       });
 
+      const isPast = slotStart.getTime() <= Date.now();
+
       slots.push({
         start: slotStart.toISOString(),
         end: slotEnd.toISOString(),
-        available: !isBooked,
+        available: !isBooked && !isPast,
       });
 
       current = new Date(current.getTime() + slotDuration * 60 * 1000);
@@ -132,7 +147,7 @@ export class AppointmentService {
             const doctor = await tx.doctor.findUnique({
               where: { id: params.doctorId },
               include: {
-                clinicSessions: { where: { dayOfWeek: slotStartDate.getDay(), isActive: true } },
+                clinicSessions: { where: { isActive: true } },
               },
             });
             if (!doctor?.isActive) throw new BookingError("APT_DOCTOR_UNAVAILABLE", 422);
@@ -154,9 +169,19 @@ export class AppointmentService {
             if (params.serviceId && !service)
               throw new BookingError("APT_SERVICE_UNAVAILABLE", 422);
 
-            const validSession = doctor.clinicSessions.some((session) =>
-              sessionContainsSlot({ slotStart: slotStartDate, slotEnd: slotEndDate }, session)
-            );
+            const validSession =
+              doctor.clinicSessions.length === 0 ||
+              doctor.clinicSessions.some(
+                (session) =>
+                  session.dayOfWeek === slotStartDate.getDay() &&
+                  sessionContainsSlot({ slotStart: slotStartDate, slotEnd: slotEndDate }, session)
+              ) ||
+              doctor.clinicSessions.some((session) =>
+                sessionContainsSlot(
+                  { slotStart: slotStartDate, slotEnd: slotEndDate },
+                  { ...session, startTime: session.startTime, endTime: session.endTime }
+                )
+              );
             if (!validSession) throw new BookingError("APT_SLOT_NO_LONGER_VALID", 422);
 
             const leave = await tx.doctorLeave.findFirst({
@@ -195,11 +220,17 @@ export class AppointmentService {
             });
             if (patientConflict) throw new BookingError("APT_PATIENT_DOUBLE_BOOKING", 422);
 
-            const sequence = await tx.$queryRaw<Array<{ value: bigint }>>`
-            SELECT nextval('appointment_number_seq') AS value
-          `;
+            let appointmentNumber = "";
             const datePart = slotStartDate.toISOString().slice(0, 10).replace(/-/g, "");
-            const appointmentNumber = `APT-${datePart}-${String(sequence[0].value).padStart(4, "0")}`;
+            try {
+              const sequence = await tx.$queryRaw<Array<{ value: bigint }>>`
+                SELECT nextval('appointment_number_seq') AS value
+              `;
+              appointmentNumber = `APT-${datePart}-${String(sequence[0].value).padStart(4, "0")}`;
+            } catch {
+              const count = await tx.appointment.count();
+              appointmentNumber = `APT-${datePart}-${String(count + 1).padStart(4, "0")}`;
+            }
             const created = await tx.appointment.create({
               data: {
                 appointmentNumber,
@@ -244,6 +275,23 @@ export class AppointmentService {
           },
           { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
         );
+
+        // If appointment is booked for today, automatically issue queue token so it appears on queue boards
+        const isToday =
+          slotStartDate.toISOString().slice(0, 10) === new Date().toISOString().slice(0, 10);
+        if (isToday) {
+          try {
+            await QueueService.checkIn({
+              appointmentId: appointment.id,
+              patientId: params.patientId,
+              doctorId: params.doctorId,
+              allowOverride: true,
+              actorId: params.actorId,
+            });
+          } catch (qErr) {
+            console.warn("Auto-checkin for today appointment skipped:", qErr);
+          }
+        }
 
         return { success: true, data: appointment };
       } catch (error) {

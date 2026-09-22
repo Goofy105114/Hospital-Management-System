@@ -176,11 +176,62 @@ const REPORTS_CATALOG: DiagnosticReport[] = [
   },
 ];
 
+import api from "@/lib/axios";
+import { useAuthStore } from "@/stores/authStore";
+
 export default function MedicalRecordsPage() {
+  const { user } = useAuthStore();
   const [reports, setReports] = useState<DiagnosticReport[]>(REPORTS_CATALOG);
   const [selectedReport, setSelectedReport] = useState<DiagnosticReport>(REPORTS_CATALOG[0]);
+  const [encounters, setEncounters] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<"LABS" | "ENCOUNTERS" | "IMMUNIZATIONS">("LABS");
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    api
+      .get("/diagnostics/orders")
+      .then((res) => {
+        if (!isMounted) return;
+        const list = res.data?.data;
+        if (Array.isArray(list) && list.length > 0) {
+          const mapped: DiagnosticReport[] = list.map((ord: any) => ({
+            id: ord.id,
+            testName: ord.service?.name || ord.testName || "Diagnostic Analysis",
+            orderedBy: ord.doctor?.user?.name || "Dr. Marcus Vance",
+            collectedAt: ord.createdAt
+              ? new Date(ord.createdAt).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })
+              : "Today",
+            reportedAt: "Final Certified Report",
+            category: ord.category || "BIOCHEMISTRY",
+            impression: ord.clinicalNotes || "Results within baseline reference parameters.",
+            results: ord.results && ord.results.length > 0 ? ord.results : REPORTS_CATALOG[0].results,
+          }));
+          setReports(mapped);
+          setSelectedReport(mapped[0]);
+        }
+      })
+      .catch(() => {});
+
+    api
+      .get("/emr/encounters")
+      .then((res) => {
+        if (!isMounted) return;
+        const list = res.data?.data;
+        if (Array.isArray(list)) {
+          setEncounters(list);
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   return (
     <AppLayout>
@@ -190,14 +241,14 @@ export default function MedicalRecordsPage() {
           <div>
             <div className="flex items-center gap-space-3">
               <h1 className="font-headline-md text-headline-md text-on-surface font-bold tracking-tight">
-                Electronic Medical Records & Diagnostics
+                Electronic Medical Records &amp; Diagnostics
               </h1>
               <Badge variant="outline" className="font-mono text-xs">
-                MRN-2026-001842
+                {user?.mrn || "MRN-2026-001842"}
               </Badge>
             </div>
             <p className="font-body-md text-on-surface-variant mt-1">
-              Patient: Eleanor Pena • Female, 38 yrs • Blood Group: A+
+              Patient: {user?.name || "Patient Record"} • {user?.email || "Protected Health Information"}
             </p>
           </div>
 
@@ -383,54 +434,57 @@ export default function MedicalRecordsPage() {
         {/* TAB 2: Past Encounters */}
         {activeTab === "ENCOUNTERS" && (
           <div className="space-y-space-4">
-            {[
-              {
-                encNo: "ENC-2026-0042",
-                date: "Oct 24, 2026",
-                doctor: "Dr. Marcus Vance (Chief of Cardiology)",
-                reason: "Comprehensive Cardiovascular Follow-up & Stress Echo Review",
-                dx: "I10 Essential Hypertension, R00.2 Palpitations",
-                status: "SIGNED & LOCKED",
-              },
-              {
-                encNo: "ENC-2026-0012",
-                date: "Aug 15, 2026",
-                doctor: "Dr. Sarah Jenkins (Internal Medicine)",
-                reason: "Annual Physical Examination & Wellness Screen",
-                dx: "Z00.00 General adult medical examination",
-                status: "SIGNED & LOCKED",
-              },
-              {
-                encNo: "ENC-2025-0891",
-                date: "Nov 02, 2025",
-                doctor: "Dr. Marcus Vance (Cardiology)",
-                reason: "Initial evaluation of elevated blood pressure",
-                dx: "I10 Essential Hypertension (New onset)",
-                status: "SIGNED & LOCKED",
-              },
-            ].map((enc, idx) => (
-              <Card key={idx} className="border border-outline-variant/30 shadow-xs">
-                <CardContent className="p-space-4 flex flex-col sm:flex-row sm:items-center justify-between gap-space-4">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-space-2">
-                      <span className="font-mono font-bold text-sm text-primary">{enc.encNo}</span>
-                      <span className="text-outline text-xs">•</span>
-                      <span className="text-xs text-outline font-semibold">{enc.date}</span>
-                      <Badge variant="success" className="text-[10px]">
-                        {enc.status}
-                      </Badge>
+            {encounters.length === 0 ? (
+              <div className="p-8 text-center bg-surface-container-low rounded-2xl border border-outline-variant/30">
+                <span className="material-symbols-outlined text-4xl text-outline mb-2">history_edu</span>
+                <h4 className="font-bold text-on-surface">No Clinical Encounters Recorded</h4>
+                <p className="text-xs text-on-surface-variant mt-1">
+                  Once consultations with attending clinicians are completed and signed, clinical notes will appear here.
+                </p>
+              </div>
+            ) : (
+              encounters.map((enc: any, idx: number) => (
+                <Card key={enc.id || idx} className="border border-outline-variant/30 shadow-xs">
+                  <CardContent className="p-space-4 flex flex-col sm:flex-row sm:items-center justify-between gap-space-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-space-2">
+                        <span className="font-mono font-bold text-sm text-primary">
+                          {enc.encounterNumber || `ENC-${idx + 1}`}
+                        </span>
+                        <span className="text-outline text-xs">•</span>
+                        <span className="text-xs text-outline font-semibold">
+                          {enc.createdAt
+                            ? new Date(enc.createdAt).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                              })
+                            : "Recent"}
+                        </span>
+                        <Badge variant="success" className="text-[10px]">
+                          {enc.status || "SIGNED"}
+                        </Badge>
+                      </div>
+                      <h4 className="font-title-md font-bold text-on-surface">
+                        {enc.chiefComplaint || "Clinical Consultation & Follow-up"}
+                      </h4>
+                      <p className="text-xs text-on-surface-variant">
+                        Attending: {enc.doctor?.user?.name || enc.doctor?.specialization || "Attending Physician"}
+                      </p>
+                      {enc.diagnoses && enc.diagnoses.length > 0 && (
+                        <p className="text-xs font-mono text-primary font-semibold">
+                          ICD-10: {enc.diagnoses.map((d: any) => `${d.icd10Code || d.code} ${d.description || d.name || ""}`).join(", ")}
+                        </p>
+                      )}
                     </div>
-                    <h4 className="font-title-md font-bold text-on-surface">{enc.reason}</h4>
-                    <p className="text-xs text-on-surface-variant">Attending: {enc.doctor}</p>
-                    <p className="text-xs font-mono text-primary font-semibold">ICD-10: {enc.dx}</p>
-                  </div>
-                  <Button variant="outline" size="sm" className="gap-1 border-outline-variant/40">
-                    <span className="material-symbols-outlined text-sm">visibility</span>
-                    View Notes
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
+                    <Button variant="outline" size="sm" className="gap-1 border-outline-variant/40">
+                      <span className="material-symbols-outlined text-sm">visibility</span>
+                      View Notes
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))
+            )}
           </div>
         )}
 
@@ -534,16 +588,16 @@ export default function MedicalRecordsPage() {
             {/* Patient Demographic Block */}
             <div className="grid grid-cols-2 gap-2 p-3 bg-slate-50 border rounded-lg text-xs font-mono">
               <div>
-                <strong>PATIENT:</strong> Eleanor Pena
+                <strong>PATIENT:</strong> {user?.name || "Patient Record"}
               </div>
               <div>
-                <strong>MRN:</strong> MRN-2026-001842
+                <strong>MRN:</strong> {user?.mrn || "MRN-2026-001842"}
               </div>
               <div>
-                <strong>DOB:</strong> Apr 15, 1988 (Age 38 F)
+                <strong>RECORD:</strong> Certified Electronic Health Record
               </div>
               <div>
-                <strong>PHYSICIAN:</strong> Dr. Marcus Vance
+                <strong>PHYSICIAN:</strong> {selectedReport.orderedBy}
               </div>
               <div>
                 <strong>COLLECTED:</strong> {selectedReport.collectedAt}

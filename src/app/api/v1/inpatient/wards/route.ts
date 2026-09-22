@@ -48,43 +48,8 @@ export async function GET() {
     }));
 
     return apiSuccess(formatted);
-  } catch {
-    return apiSuccess([
-      {
-        id: "ward-01",
-        name: "Coronary Care Unit (CCU)",
-        type: "CRITICAL_CARE",
-        totalBeds: 6,
-        occupiedBeds: 2,
-        availableBeds: 3,
-        beds: [
-          {
-            id: "b-01",
-            bedNumber: "CCU-01",
-            status: "OCCUPIED",
-            dailyRate: 1200,
-            patientName: "Eleanor Pena",
-            patientMrn: "MRN-2026-001842",
-          },
-          {
-            id: "b-02",
-            bedNumber: "CCU-02",
-            status: "OCCUPIED",
-            dailyRate: 1200,
-            patientName: "Robert Hastings",
-            patientMrn: "MRN-2026-001640",
-          },
-          {
-            id: "b-03",
-            bedNumber: "CCU-03",
-            status: "AVAILABLE",
-            dailyRate: 1200,
-            patientName: null,
-            patientMrn: null,
-          },
-        ],
-      },
-    ]);
+  } catch (error: any) {
+    return apiError("WARDS_FETCH_FAILED", error.message || "Failed to retrieve inpatient wards", 500);
   }
 }
 

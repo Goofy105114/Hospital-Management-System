@@ -23,12 +23,18 @@ export async function comparePassword(password: string, hash: string): Promise<b
   return bcrypt.compare(password, hash);
 }
 
+import crypto from "crypto";
+
 export function generateAccessToken(payload: TokenPayload): string {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: "15m" });
 }
 
 export function generateRefreshToken(userId: string): string {
-  return jwt.sign({ sub: userId, type: "refresh" }, JWT_SECRET, { expiresIn: "7d" });
+  return jwt.sign(
+    { sub: userId, type: "refresh", jti: crypto.randomUUID() },
+    JWT_SECRET,
+    { expiresIn: "7d" }
+  );
 }
 
 export function verifyToken(token: string): TokenPayload | null {

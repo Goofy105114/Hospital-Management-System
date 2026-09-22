@@ -76,7 +76,7 @@ interface AppointmentDetail {
 export default function AppointmentDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const appointmentId = (params?.id as string) || "APT-2026-0042";
+  const appointmentId = params?.id as string;
 
   const [appointment, setAppointment] = useState<AppointmentDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -88,6 +88,7 @@ export default function AppointmentDetailPage() {
 
   useEffect(() => {
     async function loadAppointment() {
+      if (!appointmentId) return;
       try {
         setLoading(true);
         const res = await api.get(`/appointments/${appointmentId}`);
@@ -134,6 +135,26 @@ export default function AppointmentDetailPage() {
             </span>
             <p className="font-label-lg text-outline">Loading clinical appointment record...</p>
           </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (!appointment) {
+    return (
+      <AppLayout>
+        <div className="max-w-xl mx-auto py-16 text-center space-y-4">
+          <div className="w-16 h-16 mx-auto rounded-full bg-surface-container flex items-center justify-center text-outline">
+            <span className="material-symbols-outlined text-[32px]">event_busy</span>
+          </div>
+          <h2 className="text-headline-sm font-bold text-on-surface">Appointment Not Found</h2>
+          <p className="text-body-md text-outline">The requested appointment record could not be found in the system.</p>
+          <Link href="/appointments" className="inline-block mt-2">
+            <Button variant="primary" className="gap-2">
+              <span className="material-symbols-outlined text-sm">arrow_back</span>
+              Back to Appointments
+            </Button>
+          </Link>
         </div>
       </AppLayout>
     );

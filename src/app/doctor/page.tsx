@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import api from "@/lib/axios";
+import { useAuthStore } from "@/stores/authStore";
 import {
   Save,
   FileSignature,
@@ -44,48 +45,6 @@ interface QueuePatient {
   status: "IN_ROOM" | "WAITING" | "COMPLETED";
 }
 
-const PATIENTS_QUEUE: QueuePatient[] = [
-  {
-    id: "pat-01",
-    tokenNumber: "#A-24",
-    name: "Eleanor Pena",
-    mrn: "MRN-2026-001842",
-    age: 38,
-    gender: "Female",
-    bloodGroup: "A+",
-    allergies: ["Penicillin (Anaphylaxis)", "Aspirin / NSAIDs (Gastritis)"],
-    reason: "Post-exertion palpitations & cardiac follow-up",
-    time: "10:15 AM",
-    status: "IN_ROOM",
-  },
-  {
-    id: "pat-02",
-    tokenNumber: "#A-22",
-    name: "Sofia Rodriguez",
-    mrn: "MRN-2026-001802",
-    age: 45,
-    gender: "Female",
-    bloodGroup: "O+",
-    allergies: ["Sulfa drugs"],
-    reason: "Hypertension medication review",
-    time: "10:00 AM",
-    status: "WAITING",
-  },
-  {
-    id: "pat-03",
-    tokenNumber: "#A-23",
-    name: "David Chen",
-    mrn: "MRN-2026-001815",
-    age: 52,
-    gender: "Male",
-    bloodGroup: "B+",
-    allergies: [],
-    reason: "Pre-operative cardiac clearance",
-    time: "10:10 AM",
-    status: "WAITING",
-  },
-];
-
 const ICD10_CATALOG = [
   { code: "I10", label: "Essential (primary) hypertension" },
   { code: "I25.10", label: "Atherosclerotic heart disease of native coronary artery" },
@@ -105,8 +64,63 @@ const AVAILABLE_MEDS = [
 ];
 
 export default function DoctorWorkspacePage() {
-  const [selectedPatient, setSelectedPatient] = useState<QueuePatient>(PATIENTS_QUEUE[0]);
+  const { user } = useAuthStore();
+  const [patientsQueue, setPatientsQueue] = useState<QueuePatient[]>([]);
+  const [availableMeds, setAvailableMeds] = useState(AVAILABLE_MEDS);
+  const [selectedPatient, setSelectedPatient] = useState<QueuePatient | null>(null);
   const [activeTab, setActiveTab] = useState<"SOAP" | "DIAGNOSIS" | "RX" | "LABS">("SOAP");
+
+  React.useEffect(() => {
+    let isMounted = true;
+    api
+      .get("/queue/tokens")
+      .then((res) => {
+        if (!isMounted) return;
+        const list = res.data?.data;
+        if (Array.isArray(list)) {
+          const mapped: QueuePatient[] = list.map((tok: any) => ({
+            id: tok.patientId || tok.id,
+            tokenNumber: tok.tokenNumber,
+            name: tok.patientName || tok.patient?.name || "Patient",
+            mrn: tok.patientMrn || tok.patient?.mrn || "MRN-000",
+            age: tok.patient?.age || 38,
+            gender: tok.patient?.gender || "Female",
+            bloodGroup: tok.patient?.bloodGroup || "A+",
+            allergies: tok.patient?.allergies || [],
+            reason: tok.reason || "Clinical evaluation",
+            time: tok.checkedInAt ? new Date(tok.checkedInAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "Today",
+            status: tok.status === "IN_PROGRESS" || tok.status === "CALLED" ? "IN_ROOM" : "WAITING",
+          }));
+          setPatientsQueue(mapped);
+          if (mapped.length > 0) {
+            setSelectedPatient(mapped[0]);
+          }
+        }
+      })
+      .catch(() => {});
+
+    api
+      .get("/medicines")
+      .then((res) => {
+        if (!isMounted) return;
+        const list = res.data?.data;
+        if (Array.isArray(list) && list.length > 0) {
+          setAvailableMeds(
+            list.map((m: any) => ({
+              id: m.id,
+              name: m.name,
+              defaultDose: m.strength || "10mg",
+              category: m.category || "Formulary",
+            }))
+          );
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // SOAP State
   const [subjective, setSubjective] = useState(
@@ -159,6 +173,7 @@ export default function DoctorWorkspacePage() {
 
   // Check drug interactions & allergies dynamically
   const checkForSafetyAlerts = (medName: string) => {
+    if (!selectedPatient) return;
     const alerts: string[] = [];
 
     // Allergy check
@@ -194,7 +209,7 @@ export default function DoctorWorkspacePage() {
   };
 
   const handleAddMedication = () => {
-    const med = AVAILABLE_MEDS.find((m) => m.id === rxMedId);
+    const med = availableMeds.find((m) => m.id === rxMedId);
     if (!med) return;
 
     checkForSafetyAlerts(med.name);
@@ -228,6 +243,7 @@ export default function DoctorWorkspacePage() {
   };
 
   const handleAiAssistant = async () => {
+    if (!selectedPatient) return;
     setAiGenerating(true);
     try {
       const res = await api.post("/ai/clinical-assistant", {
@@ -253,11 +269,12 @@ export default function DoctorWorkspacePage() {
   };
 
   const handleSignEncounter = async () => {
+    if (!selectedPatient) return;
     try {
       await api.post("/emr/encounters", {
         action: "SIGN",
         patientId: selectedPatient.id,
-        doctorId: "doc-001",
+        doctorId: user?.id || "doc-001",
         notes: { subjective, objective, assessment, plan },
         diagnosis: diagnoses,
         prescriptions,
@@ -284,7 +301,7 @@ export default function DoctorWorkspacePage() {
               </Badge>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Dr. Marcus Vance, MD, FACC • Chief of Cardiology
+              {user?.name || "Dr. Marcus Vance, MD, FACC"} • Cardiology Consult
             </p>
           </div>
 
@@ -302,7 +319,7 @@ export default function DoctorWorkspacePage() {
             <Button
               size="sm"
               onClick={handleSignEncounter}
-              disabled={isSigned}
+              disabled={isSigned || !selectedPatient}
               className={`gap-1.5 text-xs font-semibold h-9 rounded-xl shadow-2xs transition-all ${
                 isSigned
                   ? "bg-emerald-600 text-white cursor-default hover:bg-emerald-600"
@@ -331,65 +348,81 @@ export default function DoctorWorkspacePage() {
                     Today&apos;s Queue
                   </CardTitle>
                   <span className="font-mono text-[11px] text-slate-500 font-semibold bg-white px-2 py-0.5 rounded-full border border-slate-200">
-                    {PATIENTS_QUEUE.length} Patients
+                    {patientsQueue.length} Patients
                   </span>
                 </div>
               </CardHeader>
               <CardContent className="p-2 space-y-1.5">
-                {PATIENTS_QUEUE.map((patient) => {
-                  const isSelected = selectedPatient.id === patient.id;
-                  return (
-                    <button
-                      key={patient.id}
-                      onClick={() => {
-                        setSelectedPatient(patient);
-                        setIsSigned(false);
-                      }}
-                      className={`w-full text-left p-3 rounded-xl transition-all border ${
-                        isSelected
-                          ? "bg-teal-50/80 border-teal-600/40 shadow-2xs"
-                          : "bg-white border-slate-100 hover:border-slate-200 hover:bg-slate-50/60"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono font-bold text-xs text-teal-800 bg-teal-100/70 px-1.5 py-0.5 rounded">
-                          {patient.tokenNumber}
-                        </span>
-                        <span className="text-[10px] font-mono text-slate-400 flex items-center gap-1">
-                          <Clock className="w-2.5 h-2.5" />
-                          {patient.time}
-                        </span>
-                      </div>
-                      <h4 className="text-xs font-bold text-slate-800 truncate mt-1.5">
-                        {patient.name}
-                      </h4>
-                      <p className="font-mono text-[11px] text-slate-400">{patient.mrn}</p>
-                      <p className="text-[11px] text-slate-500 line-clamp-1 mt-1">
-                        {patient.reason}
-                      </p>
-                      {patient.allergies.length > 0 && (
-                        <div className="mt-1.5 inline-flex items-center gap-1 text-[10px] text-rose-700 font-semibold bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200/60">
-                          <AlertTriangle className="w-2.5 h-2.5" />
-                          Allergies Flagged
+                {patientsQueue.length === 0 ? (
+                  <div className="p-6 text-center text-xs text-slate-400">
+                    No active patients in queue
+                  </div>
+                ) : (
+                  patientsQueue.map((patient) => {
+                    const isSelected = selectedPatient?.id === patient.id;
+                    return (
+                      <button
+                        key={patient.id}
+                        onClick={() => {
+                          setSelectedPatient(patient);
+                          setIsSigned(false);
+                        }}
+                        className={`w-full text-left p-3 rounded-xl transition-all border ${
+                          isSelected
+                            ? "bg-teal-50/80 border-teal-600/40 shadow-2xs"
+                            : "bg-white border-slate-100 hover:border-slate-200 hover:bg-slate-50/60"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono font-bold text-xs text-teal-800 bg-teal-100/70 px-1.5 py-0.5 rounded">
+                            {patient.tokenNumber}
+                          </span>
+                          <span className="text-[10px] font-mono text-slate-400 flex items-center gap-1">
+                            <Clock className="w-2.5 h-2.5" />
+                            {patient.time}
+                          </span>
                         </div>
-                      )}
-                    </button>
-                  );
-                })}
+                        <h4 className="text-xs font-bold text-slate-800 truncate mt-1.5">
+                          {patient.name}
+                        </h4>
+                        <p className="font-mono text-[11px] text-slate-400">{patient.mrn}</p>
+                        <p className="text-[11px] text-slate-500 line-clamp-1 mt-1">
+                          {patient.reason}
+                        </p>
+                        {patient.allergies.length > 0 && (
+                          <div className="mt-1.5 inline-flex items-center gap-1 text-[10px] text-rose-700 font-semibold bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200/60">
+                            <AlertTriangle className="w-2.5 h-2.5" />
+                            Allergies Flagged
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })
+                )}
               </CardContent>
             </Card>
           </div>
 
           {/* Right Column: Active Patient Consultation Console (3 Cols) */}
           <div className="lg:col-span-3 space-y-4">
-            {/* Active Patient Clinical Banner */}
-            <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-4">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="flex items-center gap-3.5">
-                  {/* Fixed Token Badge: No awkward wrapping */}
-                  <div className="h-12 min-w-[76px] px-3 rounded-xl bg-teal-800 text-white flex items-center justify-center font-mono font-bold text-sm tracking-wide shrink-0 shadow-xs whitespace-nowrap">
-                    {selectedPatient.tokenNumber}
-                  </div>
+            {!selectedPatient ? (
+              <div className="p-12 text-center bg-white rounded-2xl border border-slate-200/80 shadow-2xs">
+                <Users className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                <h3 className="text-sm font-bold text-slate-700">Waiting for Patient Check-In</h3>
+                <p className="text-xs text-slate-400 mt-1">
+                  When patients check in at reception, their clinical consultation chart will appear here.
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Active Patient Clinical Banner */}
+                <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs space-y-4">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="flex items-center gap-3.5">
+                      {/* Fixed Token Badge: No awkward wrapping */}
+                      <div className="h-12 min-w-[76px] px-3 rounded-xl bg-teal-800 text-white flex items-center justify-center font-mono font-bold text-sm tracking-wide shrink-0 shadow-xs whitespace-nowrap">
+                        {selectedPatient.tokenNumber}
+                      </div>
                   <div>
                     <div className="flex items-center gap-2">
                       <h2 className="text-base font-bold text-slate-800">
@@ -712,12 +745,12 @@ export default function DoctorWorkspacePage() {
                         value={rxMedId}
                         onChange={(e) => {
                           setRxMedId(e.target.value);
-                          const m = AVAILABLE_MEDS.find((med) => med.id === e.target.value);
+                          const m = availableMeds.find((med) => med.id === e.target.value);
                           if (m) setRxDose(m.defaultDose);
                         }}
                         className="w-full p-2 rounded-lg border border-slate-200 bg-white text-xs text-slate-800 focus:outline-none focus:border-teal-600"
                       >
-                        {AVAILABLE_MEDS.map((m) => (
+                        {availableMeds.map((m) => (
                           <option key={m.id} value={m.id}>
                             {m.name} ({m.category})
                           </option>
@@ -872,6 +905,8 @@ export default function DoctorWorkspacePage() {
                   })}
                 </div>
               </div>
+            )}
+            </>
             )}
           </div>
         </div>

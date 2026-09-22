@@ -37,3 +37,21 @@ export async function GET() {
     ]);
   }
 }
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { name, code, description } = body;
+    if (!name || !code) {
+      return apiSuccess({ error: "Name and code are required" }, undefined, 400);
+    }
+    const dept = await prisma.department.upsert({
+      where: { code: code.toUpperCase() },
+      update: { name, description },
+      create: { name, code: code.toUpperCase(), description, isActive: true },
+    });
+    return apiSuccess(dept, undefined, 201);
+  } catch (error: any) {
+    return apiSuccess({ error: error.message }, undefined, 500);
+  }
+}

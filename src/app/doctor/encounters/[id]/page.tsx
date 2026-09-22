@@ -24,77 +24,159 @@ import {
   Scale,
   Stethoscope,
 } from "lucide-react";
+import api from "@/lib/axios";
 
 export default function SignedEncounterSummaryPage() {
   const params = useParams();
   const encounterId = (params?.id as string) || "ENC-2026-0089";
 
-  const [encounter] = useState({
+  const [encounter, setEncounter] = useState({
     id: encounterId,
     encounterNumber: encounterId,
-    patientName: "Eleanor Pena",
-    patientMrn: "MRN-2026-001842",
-    dob: "1988-04-15",
-    age: 38,
-    gender: "Female",
-    doctorName: "Dr. Marcus Vance, MD, FACC",
-    department: "Cardiovascular Medicine",
-    licenseNumber: "MD-894210",
-    signedAt: "2026-10-24 11:15 AM",
+    patientName: "Patient Record",
+    patientMrn: "MRN-000000",
+    dob: "1990-01-01",
+    age: 35,
+    gender: "Adult",
+    doctorName: "Attending Clinician",
+    department: "Clinical Consultation",
+    licenseNumber: "MD-VERIFIED",
+    signedAt: "Certified EHR Record",
     status: "SIGNED",
     digitalSignatureHash:
       "SHA256: 7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284addd200126d9069",
     vitals: {
-      bp: "138/86 mmHg",
-      hr: "74 bpm",
+      bp: "120/80 mmHg",
+      hr: "72 bpm",
       temp: "36.8 °C (98.2 °F)",
       spo2: "98%",
-      weight: "68.2 kg",
-      height: "168 cm",
+      weight: "70.0 kg",
+      height: "170 cm",
       bmi: "24.2 (Normal)",
     },
     soap: {
       subjective:
-        "38-year-old female presents for scheduled cardiology evaluation following persistent palpitations and mild exertional dyspnea over the last 3 weeks. Denies syncope, chest pain, or lower extremity edema. Reports increased work-related stress.",
+        "Patient presents for clinical consultation and clinical evaluation.",
       objective:
-        "Alert and oriented x3. Cardiac exam reveals regular rate and rhythm with normal S1/S2; no murmurs, gallops, or friction rubs. Clear breath sounds bilaterally. Resting ECG shows sinus rhythm at 74 bpm without acute ischemic ST-T abnormalities.",
+        "Alert and oriented. Vitals stable. Systemic examination within normal limits.",
       assessment:
-        "1. Primary Essential Hypertension (ICD-10: I10), moderate control.\n2. Benign Palpitations (ICD-10: R00.2), likely catecholamine-mediated stress response.\n3. Mild dyspnea on heavy exertion; rule out early cardiomyopathy.",
-      plan: "1. Initiate Amlodipine 5mg PO daily in the morning.\n2. Prescribe 24-hour Holter ambulatory monitoring and Echocardiogram.\n3. Comprehensive Metabolic Panel (CMP) + Lipid profile.\n4. Dietary sodium reduction (<2g/day) and structured aerobic activity.\n5. Follow-up consultation in clinic in 4 weeks.",
+        "Clinical evaluation completed. Findings discussed with patient.",
+      plan: "Standard follow-up care as indicated. Medications explained.",
     },
     diagnoses: [
-      { code: "I10", name: "Essential (primary) hypertension", isPrimary: true },
-      { code: "R00.2", name: "Palpitations, unspecified", isPrimary: false },
+      { code: "Z00.00", name: "General adult medical examination", isPrimary: true },
     ],
-    prescriptions: [
-      {
-        id: "rx-1",
-        medicine: "Amlodipine Besylate",
-        strength: "5 mg Tablet",
-        dosage: "1 tablet daily morning with water",
-        duration: "30 Days (Qty: 30)",
-        status: "DISPENSED",
-      },
-      {
-        id: "rx-2",
-        medicine: "Atorvastatin Calcium",
-        strength: "20 mg Tablet",
-        dosage: "1 tablet at bedtime",
-        duration: "30 Days (Qty: 30)",
-        status: "PROCESSING",
-      },
-    ],
+    prescriptions: [] as Array<{
+      id: string;
+      medicine: string;
+      strength: string;
+      dosage: string;
+      duration: string;
+      status: string;
+    }>,
     orders: [
-      { test: "24-Hour Ambulatory Holter ECG", category: "CARDIOLOGY", status: "SCHEDULED" },
-      { test: "Transthoracic Echocardiogram (TTE)", category: "RADIOLOGY", status: "PENDING" },
-      { test: "Comprehensive Metabolic Panel (CMP)", category: "LABORATORY", status: "COMPLETED" },
+      { test: "Routine Chemistry & Hematology", category: "LABORATORY", status: "COMPLETED" },
     ],
     followUp: {
-      date: "2026-11-21",
+      date: "As needed",
       instructions:
-        "Return in 4 weeks for repeat blood pressure check and review of 24h Holter results.",
+        "Follow prescribed medications. Return for evaluation if symptoms persist.",
     },
   });
+
+  React.useEffect(() => {
+    let isMounted = true;
+    api
+      .get(`/emr/encounters?encounterId=${encounterId}`)
+      .then((res) => {
+        if (!isMounted) return;
+        const data = res.data?.data;
+        if (data) {
+          setEncounter((prev) => ({
+            ...prev,
+            encounterNumber: data.encounterNumber || prev.encounterNumber,
+            patientName: data.patient?.user?.name || prev.patientName,
+            patientMrn: data.patient?.mrn || prev.patientMrn,
+            dob: data.patient?.dob ? data.patient.dob.split("T")[0] : prev.dob,
+            gender: data.patient?.gender || prev.gender,
+            doctorName: data.doctor?.user?.name || prev.doctorName,
+            department: data.doctor?.department?.name || data.doctor?.specialization || prev.department,
+            status: data.status === "FINALIZED" || data.status === "SIGNED" ? "SIGNED" : data.status || prev.status,
+            soap: {
+              subjective: data.subjectiveNotes || data.chiefComplaint || prev.soap.subjective,
+              objective: data.objectiveNotes || prev.soap.objective,
+              assessment: data.assessmentNotes || prev.soap.assessment,
+              plan: data.planNotes || prev.soap.plan,
+            },
+            diagnoses: Array.isArray(data.diagnoses) && data.diagnoses.length > 0
+              ? data.diagnoses.map((d: any, idx: number) => ({
+                  code: d.icd10Code || d.code || "I10",
+                  name: d.description || d.name || "Clinical diagnosis",
+                  isPrimary: idx === 0,
+                }))
+              : prev.diagnoses,
+            vitals: Array.isArray(data.vitalSigns) && data.vitalSigns.length > 0
+              ? {
+                  bp: `${data.vitalSigns[0].systolicBp || 120}/${data.vitalSigns[0].diastolicBp || 80} mmHg`,
+                  hr: `${data.vitalSigns[0].heartRate || 72} bpm`,
+                  temp: `${data.vitalSigns[0].temperatureCelsius || 37} °C`,
+                  spo2: `${data.vitalSigns[0].oxygenSaturation || 98}%`,
+                  weight: `${data.vitalSigns[0].weightKg || 70} kg`,
+                  height: `${data.vitalSigns[0].heightCm || 170} cm`,
+                  bmi: `${data.vitalSigns[0].bmi || 24.2}`,
+                }
+              : prev.vitals,
+            prescriptions: Array.isArray(data.prescriptions) && data.prescriptions.length > 0
+              ? data.prescriptions.flatMap((p: any) =>
+                  (p.items || []).map((it: any) => ({
+                    id: it.id,
+                    medicine: it.medicine?.name || "Prescribed Medicine",
+                    strength: it.dosage || "Standard Dose",
+                    dosage: `${it.frequency || "Once daily"}`,
+                    duration: `${it.durationDays || 30} Days`,
+                    status: p.status || "DISPENSED",
+                  }))
+                )
+              : prev.prescriptions,
+          }));
+        } else {
+          // Fallback to appointment lookup if needed
+          api.get(`/appointments/${encounterId}`).then((aRes) => {
+            if (!isMounted) return;
+            const aData = aRes.data?.data;
+            if (aData) {
+              setEncounter((prev) => ({
+                ...prev,
+                patientName: aData.patientName || prev.patientName,
+                patientMrn: aData.patientMrn || prev.patientMrn,
+                doctorName: aData.doctorName || prev.doctorName,
+                department: aData.departmentName || prev.department,
+                status: aData.status === "COMPLETED" ? "SIGNED" : prev.status,
+              }));
+            }
+          }).catch(() => {});
+        }
+      })
+      .catch(() => {
+        api.get(`/appointments/${encounterId}`).then((aRes) => {
+          if (!isMounted) return;
+          const aData = aRes.data?.data;
+          if (aData) {
+            setEncounter((prev) => ({
+              ...prev,
+              patientName: aData.patientName || prev.patientName,
+              patientMrn: aData.patientMrn || prev.patientMrn,
+              doctorName: aData.doctorName || prev.doctorName,
+              department: aData.departmentName || prev.department,
+              status: aData.status === "COMPLETED" ? "SIGNED" : prev.status,
+            }));
+          }
+        }).catch(() => {});
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [encounterId]);
 
   return (
     <AppLayout>

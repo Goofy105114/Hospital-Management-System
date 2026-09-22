@@ -12,73 +12,6 @@ import {
 
 export const dynamic = "force-dynamic";
 
-const FALLBACK_SCHEDULES = [
-  {
-    id: "sch-01",
-    doctorId: "doc-01",
-    doctorName: "Dr. Marcus Vance",
-    department: "Cardiology",
-    dayOfWeek: 1, // Monday
-    dayName: "Monday",
-    startTime: "09:00",
-    endTime: "13:00",
-    slotDurationMinutes: 15,
-    maxCapacity: 16,
-    roomNumber: "Room 104 (Echo Suite)",
-    isPublished: true,
-    isActive: true,
-    effectiveFrom: "2026-01-01",
-  },
-  {
-    id: "sch-02",
-    doctorId: "doc-01",
-    doctorName: "Dr. Marcus Vance",
-    department: "Cardiology",
-    dayOfWeek: 3, // Wednesday
-    dayName: "Wednesday",
-    startTime: "14:00",
-    endTime: "18:00",
-    slotDurationMinutes: 15,
-    maxCapacity: 16,
-    roomNumber: "Room 104 (Echo Suite)",
-    isPublished: true,
-    isActive: true,
-    effectiveFrom: "2026-01-01",
-  },
-  {
-    id: "sch-03",
-    doctorId: "doc-02",
-    doctorName: "Dr. Sarah Jenkins",
-    department: "Pediatrics",
-    dayOfWeek: 2, // Tuesday
-    dayName: "Tuesday",
-    startTime: "09:00",
-    endTime: "14:00",
-    slotDurationMinutes: 20,
-    maxCapacity: 15,
-    roomNumber: "Room 202 (Pediatric Suite)",
-    isPublished: true,
-    isActive: true,
-    effectiveFrom: "2026-01-01",
-  },
-  {
-    id: "sch-04",
-    doctorId: "doc-03",
-    doctorName: "Dr. Emily Chen",
-    department: "Neurology",
-    dayOfWeek: 4, // Thursday
-    dayName: "Thursday",
-    startTime: "10:00",
-    endTime: "16:00",
-    slotDurationMinutes: 30,
-    maxCapacity: 12,
-    roomNumber: "Room 305 (Neuro Lab)",
-    isPublished: false,
-    isActive: true,
-    effectiveFrom: "2026-02-01",
-  },
-];
-
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
@@ -86,40 +19,24 @@ export async function GET(req: NextRequest) {
     const dayOfWeekParam = searchParams.get("dayOfWeek");
     const dayOfWeek = dayOfWeekParam !== null ? Number(dayOfWeekParam) : undefined;
 
-    try {
-      const dbSchedules = await prisma.clinicSession.findMany({
-        where: {
-          ...(doctorId ? { doctorId } : {}),
-          ...(dayOfWeek !== undefined ? { dayOfWeek } : {}),
-          isActive: true,
-        },
-        include: {
-          doctor: {
-            include: {
-              user: true,
-              department: true,
-            },
+    const dbSchedules = await prisma.clinicSession.findMany({
+      where: {
+        ...(doctorId ? { doctorId } : {}),
+        ...(dayOfWeek !== undefined ? { dayOfWeek } : {}),
+        isActive: true,
+      },
+      include: {
+        doctor: {
+          include: {
+            user: true,
+            department: true,
           },
         },
-        orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
-      });
+      },
+      orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
+    });
 
-      if (dbSchedules.length > 0) {
-        return NextResponse.json(successResponse(dbSchedules));
-      }
-    } catch {
-      // Fallback
-    }
-
-    let filtered = FALLBACK_SCHEDULES;
-    if (doctorId) {
-      filtered = filtered.filter((s) => s.doctorId === doctorId);
-    }
-    if (dayOfWeek !== undefined) {
-      filtered = filtered.filter((s) => s.dayOfWeek === dayOfWeek);
-    }
-
-    return NextResponse.json(successResponse(filtered));
+    return NextResponse.json(successResponse(dbSchedules));
   } catch (error) {
     return NextResponse.json(
       errorResponse("SCH_FETCH_FAILED", "Failed to retrieve doctor schedules", {
@@ -196,9 +113,7 @@ export async function POST(req: NextRequest) {
         },
       });
     } catch {
-      existingSessions = FALLBACK_SCHEDULES.filter(
-        (s) => s.doctorId === sessionInput.doctorId && s.dayOfWeek === sessionInput.dayOfWeek
-      );
+      existingSessions = [];
     }
 
     const hasOverlap = detectSessionOverlap(

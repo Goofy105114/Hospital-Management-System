@@ -42,41 +42,33 @@ export default function PatientLoginPage() {
     setErrorMsg("");
 
     try {
-      // 1. Supabase Auth
-      await signInWithSupabase(values.identifier, values.password);
-
-      // 2. Prisma Database Auth
-      let authUser: any = null;
-      let token = `pat-jwt-${Date.now()}`;
-
       try {
-        const res = await api.post("/auth/login", {
-          identifier: values.identifier,
-          password: values.password,
-        });
-        if (res.data?.data) {
-          authUser = res.data.data.user;
-          token = res.data.data.accessToken;
-        }
-      } catch (backendErr) {
-        console.warn("[PATIENT AUTH NOTICE]", backendErr);
+        await signInWithSupabase(values.identifier, values.password);
+      } catch {
+        // Non-blocking if offline
       }
 
-      if (!authUser) {
-        authUser = {
-          id: "patient-eleanor-vance-id",
-          name: "Eleanor Vance",
-          email: values.identifier,
-          role: "PATIENT",
-          mrn: "GM-84920",
-        };
+      const res = await api.post("/auth/login", {
+        identifier: values.identifier,
+        password: values.password,
+      });
+
+      if (!res.data?.success || !res.data?.data?.user) {
+        throw new Error(res.data?.error?.message || "Invalid email or password.");
       }
+
+      const authUser = res.data.data.user;
+      const token = res.data.data.accessToken;
 
       setAuth(authUser, token);
       setActiveRole("PATIENT");
       router.push("/");
     } catch (err: any) {
-      setErrorMsg(err?.message || "Invalid credentials. Please verify your email and password.");
+      const msg =
+        err?.response?.data?.error?.message ||
+        err?.message ||
+        "Invalid credentials. Please verify your email and password.";
+      setErrorMsg(msg);
     } finally {
       setIsSubmitting(false);
     }

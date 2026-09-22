@@ -19,71 +19,11 @@ interface NotificationItem {
   actionLabel: string;
 }
 
-const INITIAL_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: "notif-01",
-    category: "QUEUE",
-    title: "Approaching Consultation Turn",
-    message:
-      "You are #3 in queue for Dr. Marcus Vance in Room 304. Estimated wait is approximately 18 minutes.",
-    timestamp: "10 mins ago",
-    read: false,
-    priority: "HIGH",
-    actionUrl: "/queue",
-    actionLabel: "View Live Queue",
-  },
-  {
-    id: "notif-02",
-    category: "APPOINTMENT",
-    title: "Appointment Reminder: Today at 11:30 AM",
-    message:
-      "Your Cardiology consultation with Dr. Marcus Vance is confirmed for 11:30 AM at East Wing, 3rd Floor.",
-    timestamp: "1 hour ago",
-    read: false,
-    priority: "HIGH",
-    actionUrl: "/appointments",
-    actionLabel: "View Details",
-  },
-  {
-    id: "notif-03",
-    category: "LAB",
-    title: "Diagnostic Results Ready: CMP Panel",
-    message:
-      "Your Comprehensive Metabolic Panel results have been validated by Pathology and released to your patient portal.",
-    timestamp: "2 hours ago",
-    read: true,
-    priority: "NORMAL",
-    actionUrl: "/reports",
-    actionLabel: "View Lab Report",
-  },
-  {
-    id: "notif-04",
-    category: "PHARMACY",
-    title: "Prescription Refill Approved",
-    message:
-      "Your Metoprolol 25mg refill has been verified and is ready for pickup at Central Pharmacy Dispensary Counter 2.",
-    timestamp: "Yesterday, 04:30 PM",
-    read: true,
-    priority: "NORMAL",
-    actionUrl: "/prescriptions",
-    actionLabel: "Pickup QR Pass",
-  },
-  {
-    id: "notif-05",
-    category: "BILLING",
-    title: "New Statement Generated: #INV-2026-0042",
-    message:
-      "An itemized statement for your outpatient visit has been generated. Insurance covered $336.00; patient co-pay is $84.00.",
-    timestamp: "2 days ago",
-    read: true,
-    priority: "NORMAL",
-    actionUrl: "/billing",
-    actionLabel: "Pay Statement",
-  },
-];
+import api from "@/lib/axios";
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<
     "ALL" | "QUEUE" | "APPOINTMENT" | "LAB" | "PHARMACY" | "SETTINGS"
   >("ALL");
@@ -99,6 +39,43 @@ export default function NotificationsPage() {
   });
   const [prefSaved, setPrefSaved] = useState(false);
 
+  React.useEffect(() => {
+    let isMounted = true;
+    setLoading(true);
+    api
+      .get("/users/me/notifications")
+      .then((res) => {
+        if (!isMounted) return;
+        const list = res.data?.data;
+        if (Array.isArray(list)) {
+          setNotifications(list);
+        } else {
+          setNotifications([]);
+        }
+      })
+      .catch(() => {
+        if (isMounted) setNotifications([]);
+      })
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
+
+    api
+      .get("/users/me/notification-preferences")
+      .then((res) => {
+        if (!isMounted) return;
+        const prefs = res.data?.data;
+        if (prefs) {
+          setPreferences((prev) => ({ ...prev, ...prefs }));
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const markAllAsRead = () => {
@@ -109,8 +86,13 @@ export default function NotificationsPage() {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
   };
 
-  const handleSavePreferences = (e: React.FormEvent) => {
+  const handleSavePreferences = async (e: React.FormEvent) => {
     e.preventDefault();
+    try {
+      await api.put("/users/me/notification-preferences", preferences);
+    } catch {
+      // Handled
+    }
     setPrefSaved(true);
     setTimeout(() => setPrefSaved(false), 3000);
   };

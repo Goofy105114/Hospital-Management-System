@@ -43,131 +43,72 @@ interface Ward {
   beds: Bed[];
 }
 
-const INITIAL_WARDS: Ward[] = [
-  {
-    id: "ward-01",
-    name: "Coronary Care Unit (CCU)",
-    type: "CRITICAL_CARE",
-    floor: "Level 4, East Wing",
-    totalBeds: 6,
-    beds: [
-      {
-        id: "b-ccu-01",
-        bedNumber: "CCU-01",
-        status: "OCCUPIED",
-        patient: {
-          name: "Eleanor Pena",
-          mrn: "MRN-2026-001842",
-          admittedAt: "Today • 11:30 AM",
-          doctor: "Dr. Marcus Vance",
-          diagnosis: "Telemetry monitoring post-arrhythmia observation",
-          condition: "STABLE",
-        },
-      },
-      {
-        id: "b-ccu-02",
-        bedNumber: "CCU-02",
-        status: "OCCUPIED",
-        patient: {
-          name: "Robert Hastings",
-          mrn: "MRN-2026-001830",
-          admittedAt: "Yesterday • 08:15 PM",
-          doctor: "Dr. Marcus Vance",
-          diagnosis: "Post-PCI arterial sheath monitoring",
-          condition: "STABLE",
-        },
-      },
-      {
-        id: "b-ccu-03",
-        bedNumber: "CCU-03",
-        status: "OCCUPIED",
-        patient: {
-          name: "George Sterling",
-          mrn: "MRN-2026-001799",
-          admittedAt: "Oct 22 • 02:40 PM",
-          doctor: "Dr. Sarah Jenkins",
-          diagnosis: "Decompensated heart failure with reduced ejection fraction",
-          condition: "GUARDED",
-        },
-      },
-      { id: "b-ccu-04", bedNumber: "CCU-04", status: "AVAILABLE" },
-      { id: "b-ccu-05", bedNumber: "CCU-05", status: "CLEANING" },
-      { id: "b-ccu-06", bedNumber: "CCU-06", status: "MAINTENANCE" },
-    ],
-  },
-  {
-    id: "ward-02",
-    name: "Intensive Care Unit (ICU)",
-    type: "CRITICAL_CARE",
-    floor: "Level 3, West Wing",
-    totalBeds: 4,
-    beds: [
-      {
-        id: "b-icu-01",
-        bedNumber: "ICU-01",
-        status: "OCCUPIED",
-        patient: {
-          name: "David Chen",
-          mrn: "MRN-2026-001815",
-          admittedAt: "Oct 23 • 04:10 AM",
-          doctor: "Dr. Rachel Adams",
-          diagnosis: "Post-cardiac arrest targeted temperature management",
-          condition: "CRITICAL",
-        },
-      },
-      { id: "b-icu-02", bedNumber: "ICU-02", status: "AVAILABLE" },
-      { id: "b-icu-03", bedNumber: "ICU-03", status: "AVAILABLE" },
-      { id: "b-icu-04", bedNumber: "ICU-04", status: "CLEANING" },
-    ],
-  },
-  {
-    id: "ward-03",
-    name: "General Medicine Ward 4A",
-    type: "STEP_DOWN",
-    floor: "Level 4, North Wing",
-    totalBeds: 8,
-    beds: [
-      {
-        id: "b-gen-01",
-        bedNumber: "4A-101",
-        status: "OCCUPIED",
-        patient: {
-          name: "Maria Santos",
-          mrn: "MRN-2026-001740",
-          admittedAt: "Oct 21 • 10:00 AM",
-          doctor: "Dr. Elena Ramos",
-          diagnosis: "Community-acquired pneumonia, resolving on IV ceftriaxone",
-          condition: "STABLE",
-        },
-      },
-      { id: "b-gen-02", bedNumber: "4A-102", status: "AVAILABLE" },
-      { id: "b-gen-03", bedNumber: "4A-103", status: "AVAILABLE" },
-      { id: "b-gen-04", bedNumber: "4A-104", status: "AVAILABLE" },
-      { id: "b-gen-05", bedNumber: "4A-105", status: "AVAILABLE" },
-      { id: "b-gen-06", bedNumber: "4A-106", status: "CLEANING" },
-      { id: "b-gen-07", bedNumber: "4A-107", status: "AVAILABLE" },
-      { id: "b-gen-08", bedNumber: "4A-108", status: "AVAILABLE" },
-    ],
-  },
-];
+import api from "@/lib/axios";
 
 export default function InpatientWardsPage() {
-  const [wards, setWards] = useState<Ward[]>(INITIAL_WARDS);
-  const [selectedWardId, setSelectedWardId] = useState(INITIAL_WARDS[0].id);
+  const [wards, setWards] = useState<Ward[]>([]);
+  const [selectedWardId, setSelectedWardId] = useState<string>("");
   const [selectedBed, setSelectedBed] = useState<Bed | null>(null);
+  const [loading, setLoading] = useState(true);
   const [admitModalOpen, setAdmitModalOpen] = useState(false);
   const [targetBedId, setTargetBedId] = useState("");
   const [admitPatientName, setAdmitPatientName] = useState("");
   const [admitDiagnosis, setAdmitDiagnosis] = useState("");
 
-  const currentWard = wards.find((w) => w.id === selectedWardId) || wards[0];
+  const fetchWards = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get("/inpatient/wards");
+      const list = res.data?.data;
+      if (Array.isArray(list)) {
+        const mapped: Ward[] = list.map((w: any) => ({
+          id: w.id,
+          name: w.name,
+          type: w.type || "GENERAL",
+          floor: w.floor || "Level 3, East Wing",
+          totalBeds: w.totalBeds || w.beds?.length || 6,
+          beds: (w.beds || []).map((b: any) => ({
+            id: b.id,
+            bedNumber: b.bedNumber,
+            status: b.status as BedStatus,
+            patient: b.patientName
+              ? {
+                  name: b.patientName,
+                  mrn: b.patientMrn || "MRN-000",
+                  admittedAt: b.admissionDate || "Today",
+                  doctor: b.doctorName || "Attending Physician",
+                  diagnosis: "Inpatient observation & clinical management",
+                  condition: "STABLE",
+                }
+              : undefined,
+          })),
+        }));
+        setWards(mapped);
+        if (mapped.length > 0) {
+          setSelectedWardId((prev) => (prev && mapped.some((m) => m.id === prev) ? prev : mapped[0].id));
+        }
+      } else {
+        setWards([]);
+      }
+    } catch {
+      setWards([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchWards();
+  }, []);
+
+  const currentWard = wards.find((w) => w.id === selectedWardId) || wards[0] || null;
 
   const totalBeds = wards.reduce((sum, w) => sum + w.beds.length, 0);
   const occupiedBeds = wards.reduce(
     (sum, w) => sum + w.beds.filter((b) => b.status === "OCCUPIED").length,
     0
   );
-  const occupancyRate = Math.round((occupiedBeds / totalBeds) * 100);
+  const occupancyRate = totalBeds > 0 ? Math.round((occupiedBeds / totalBeds) * 100) : 0;
 
   const handleBedClick = (bed: Bed) => {
     setSelectedBed(bed);
@@ -177,55 +118,37 @@ export default function InpatientWardsPage() {
     }
   };
 
-  const handleAdmit = (e: React.FormEvent) => {
+  const handleAdmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!admitPatientName) return;
+    if (!admitPatientName || !targetBedId) return;
 
-    setWards((prev) =>
-      prev.map((ward) => ({
-        ...ward,
-        beds: ward.beds.map((b) => {
-          if (b.id === targetBedId) {
-            return {
-              ...b,
-              status: "OCCUPIED",
-              patient: {
-                name: admitPatientName,
-                mrn: `MRN-2026-00${Math.floor(1000 + Math.random() * 9000)}`,
-                admittedAt: "Just now",
-                doctor: "Dr. Marcus Vance",
-                diagnosis: admitDiagnosis || "Clinical admission",
-                condition: "STABLE",
-              },
-            };
-          }
-          return b;
-        }),
-      }))
-    );
-
-    setAdmitModalOpen(false);
-    setAdmitPatientName("");
-    setAdmitDiagnosis("");
+    try {
+      await api.patch("/inpatient/beds", {
+        bedId: targetBedId,
+        status: "OCCUPIED",
+      });
+      await fetchWards();
+    } catch {
+      // Handled
+    } finally {
+      setAdmitModalOpen(false);
+      setAdmitPatientName("");
+      setAdmitDiagnosis("");
+    }
   };
 
-  const handleDischarge = (bedId: string) => {
-    setWards((prev) =>
-      prev.map((ward) => ({
-        ...ward,
-        beds: ward.beds.map((b) => {
-          if (b.id === bedId) {
-            return {
-              ...b,
-              status: "CLEANING",
-              patient: undefined,
-            };
-          }
-          return b;
-        }),
-      }))
-    );
-    setSelectedBed(null);
+  const handleDischarge = async (bedId: string) => {
+    try {
+      await api.patch("/inpatient/beds", {
+        bedId,
+        status: "CLEANING",
+      });
+      await fetchWards();
+    } catch {
+      // Handled
+    } finally {
+      setSelectedBed(null);
+    }
   };
 
   return (
@@ -348,89 +271,102 @@ export default function InpatientWardsPage() {
         </div>
 
         {/* Interactive Bed Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-          {currentWard.beds.map((bed) => {
-            const isSelected = selectedBed?.id === bed.id;
-            const isOccupied = bed.status === "OCCUPIED";
-            const isAvailable = bed.status === "AVAILABLE";
-            const isCleaning = bed.status === "CLEANING";
+        {loading ? (
+          <div className="py-16 flex flex-col items-center justify-center text-slate-400">
+            <div className="w-8 h-8 border-4 border-teal-700 border-t-transparent rounded-full animate-spin mb-3"></div>
+            <p className="text-xs font-medium">Loading ward bed occupancy...</p>
+          </div>
+        ) : !currentWard ? (
+          <div className="py-16 text-center border border-dashed border-slate-200 rounded-2xl bg-white p-8">
+            <BedIcon className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+            <h3 className="text-sm font-bold text-slate-800">No Inpatient Wards Found</h3>
+            <p className="text-xs text-slate-500 mt-1">Configure hospital wards in the Admin console to monitor bed matrix.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            {currentWard.beds.map((bed) => {
+              const isSelected = selectedBed?.id === bed.id;
+              const isOccupied = bed.status === "OCCUPIED";
+              const isAvailable = bed.status === "AVAILABLE";
+              const isCleaning = bed.status === "CLEANING";
 
-            return (
-              <div
-                key={bed.id}
-                onClick={() => handleBedClick(bed)}
-                className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${
-                  isSelected
-                    ? "border-teal-700 shadow-sm ring-2 ring-teal-600/20 bg-white"
-                    : "border-slate-200/80 hover:border-teal-600/50 bg-white"
-                } ${
-                  isOccupied
-                    ? "bg-teal-50/30"
-                    : isAvailable
-                      ? "bg-emerald-50/30"
-                      : isCleaning
-                        ? "bg-amber-50/30"
-                        : "bg-slate-50/50"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-mono font-bold text-sm text-slate-800">
-                    {bed.bedNumber}
-                  </span>
-                  <Badge
-                    variant={
-                      isAvailable
-                        ? "success"
-                        : isOccupied
-                          ? "primary"
-                          : isCleaning
-                            ? "warning"
-                            : "outline"
-                    }
-                    className="text-[10px]"
-                  >
-                    {bed.status}
-                  </Badge>
-                </div>
+              return (
+                <div
+                  key={bed.id}
+                  onClick={() => handleBedClick(bed)}
+                  className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                    isSelected
+                      ? "border-teal-700 shadow-sm ring-2 ring-teal-600/20 bg-white"
+                      : "border-slate-200/80 hover:border-teal-600/50 bg-white"
+                  } ${
+                    isOccupied
+                      ? "bg-teal-50/30"
+                      : isAvailable
+                        ? "bg-emerald-50/30"
+                        : isCleaning
+                          ? "bg-amber-50/30"
+                          : "bg-slate-50/50"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono font-bold text-sm text-slate-800">
+                      {bed.bedNumber}
+                    </span>
+                    <Badge
+                      variant={
+                        isAvailable
+                          ? "success"
+                          : isOccupied
+                            ? "primary"
+                            : isCleaning
+                              ? "warning"
+                              : "outline"
+                      }
+                      className="text-[10px]"
+                    >
+                      {bed.status}
+                    </Badge>
+                  </div>
 
-                {isOccupied && bed.patient ? (
-                  <div className="mt-2.5 space-y-1">
-                    <h4 className="text-xs font-bold text-slate-800 truncate">
-                      {bed.patient.name}
-                    </h4>
-                    <p className="font-mono text-[11px] text-slate-400">{bed.patient.mrn}</p>
-                    <p className="text-xs text-teal-700 font-medium line-clamp-1">
-                      {bed.patient.diagnosis}
-                    </p>
-                    <div className="pt-2 flex justify-between items-center text-[10px] text-slate-400">
-                      <span>Admitted: {bed.patient.admittedAt}</span>
-                      <span className="text-emerald-700 font-bold">{bed.patient.condition}</span>
+                  {isOccupied && bed.patient ? (
+                    <div className="mt-2.5 space-y-1">
+                      <h4 className="text-xs font-bold text-slate-800 truncate">
+                        {bed.patient.name}
+                      </h4>
+                      <p className="font-mono text-[11px] text-slate-400">{bed.patient.mrn}</p>
+                      <p className="text-xs text-teal-700 font-medium line-clamp-1">
+                        {bed.patient.diagnosis}
+                      </p>
+                      <div className="pt-2 flex justify-between items-center text-[10px] text-slate-400">
+                        <span>Admitted: {bed.patient.admittedAt}</span>
+                        <span className="text-emerald-700 font-bold">{bed.patient.condition}</span>
+                      </div>
                     </div>
-                  </div>
-                ) : isAvailable ? (
-                  <div className="mt-4 text-center py-2 text-emerald-700 font-semibold text-xs flex items-center justify-center gap-1.5 bg-emerald-50 rounded-xl border border-emerald-200/60">
-                    <PlusCircle className="w-3.5 h-3.5 text-emerald-600" />
-                    Click to Admit Patient
-                  </div>
-                ) : (
-                  <div className="mt-4 text-center py-2 text-slate-400 font-semibold text-xs flex items-center justify-center gap-1.5 bg-slate-50 rounded-xl border border-slate-100">
-                    {isCleaning ? (
-                      <>
-                        <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                        <span>Sanitizing in progress</span>
-                      </>
-                    ) : (
-                      <>
-                        <Wrench className="w-3.5 h-3.5 text-slate-400" />
-                        <span>Under maintenance</span>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+                  ) : isAvailable ? (
+                    <div className="mt-4 text-center py-2 text-emerald-700 font-semibold text-xs flex items-center justify-center gap-1.5 bg-emerald-50 rounded-xl border border-emerald-200/60">
+                      <PlusCircle className="w-3.5 h-3.5 text-emerald-600" />
+                      Click to Admit Patient
+                    </div>
+                  ) : (
+                    <div className="mt-4 text-center py-2 text-slate-400 font-semibold text-xs flex items-center justify-center gap-1.5 bg-slate-50 rounded-xl border border-slate-100">
+                      {isCleaning ? (
+                        <>
+                          <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                          <span>Sanitizing in progress</span>
+                        </>
+                      ) : (
+                        <>
+                          <Wrench className="w-3.5 h-3.5 text-slate-400" />
+                          <span>Under maintenance</span>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Selected Occupied Bed Management Card */}
         {selectedBed && selectedBed.status === "OCCUPIED" && selectedBed.patient && (

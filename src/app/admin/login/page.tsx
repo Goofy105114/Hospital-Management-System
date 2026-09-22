@@ -42,40 +42,33 @@ export default function AdminLoginPage() {
     setErrorMsg("");
 
     try {
-      await signInWithSupabase(values.identifier, values.password);
-
-      let authUser: any = null;
-      let token = `admin-jwt-${Date.now()}`;
-
       try {
-        const res = await api.post("/auth/login", {
-          identifier: values.identifier,
-          password: values.password,
-        });
-        if (res.data?.data) {
-          authUser = res.data.data.user;
-          token = res.data.data.accessToken;
-        }
-      } catch (backendErr) {
-        console.warn("[ADMIN AUTH NOTICE]", backendErr);
+        await signInWithSupabase(values.identifier, values.password);
+      } catch {
+        // Non-blocking if offline
       }
 
-      if (!authUser) {
-        authUser = {
-          id: "admin-master-id",
-          name: "Hospital Administrator",
-          email: values.identifier,
-          role: "ADMIN",
-        };
+      const res = await api.post("/auth/login", {
+        identifier: values.identifier,
+        password: values.password,
+      });
+
+      if (!res.data?.success || !res.data?.data?.user) {
+        throw new Error(res.data?.error?.message || "Invalid administrator credentials.");
       }
+
+      const authUser = res.data.data.user;
+      const token = res.data.data.accessToken;
 
       setAuth(authUser, token);
       setActiveRole("ADMIN");
       router.push("/admin");
     } catch (err: any) {
-      setErrorMsg(
-        err?.message || "Invalid administrator credentials. Please check your credentials."
-      );
+      const msg =
+        err?.response?.data?.error?.message ||
+        err?.message ||
+        "Invalid administrator credentials. Please check your credentials.";
+      setErrorMsg(msg);
     } finally {
       setIsSubmitting(false);
     }

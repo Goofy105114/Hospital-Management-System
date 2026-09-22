@@ -26,84 +26,11 @@ export interface PatientRecord {
   status: "ACTIVE" | "INACTIVE";
 }
 
-const INITIAL_PATIENTS: PatientRecord[] = [
-  {
-    id: "pat-01",
-    mrn: "MRN-2026-001842",
-    name: "Eleanor Pena",
-    dob: "1988-04-15",
-    age: 38,
-    gender: "Female",
-    bloodGroup: "A+",
-    phone: "+1 (555) 234-5678",
-    email: "eleanor.pena@example.com",
-    alertsCount: 2,
-    lastVisit: "Today (Dr. Marcus Vance)",
-    status: "ACTIVE",
-  },
-  {
-    id: "pat-02",
-    mrn: "MRN-2026-001802",
-    name: "Sofia Rodriguez",
-    dob: "1981-09-22",
-    age: 45,
-    gender: "Female",
-    bloodGroup: "O+",
-    phone: "+1 (555) 345-6789",
-    email: "sofia.rodriguez@example.com",
-    alertsCount: 1,
-    lastVisit: "Today (Cardiology)",
-    status: "ACTIVE",
-  },
-  {
-    id: "pat-03",
-    mrn: "MRN-2026-001789",
-    name: "Arthur Pendelton",
-    dob: "1964-11-05",
-    age: 62,
-    gender: "Male",
-    bloodGroup: "B+",
-    phone: "+1 (555) 456-7890",
-    email: "arthur.p@example.com",
-    alertsCount: 0,
-    lastVisit: "Oct 22, 2026",
-    status: "ACTIVE",
-  },
-  {
-    id: "pat-04",
-    mrn: "MRN-2026-001815",
-    name: "David Chen",
-    dob: "1974-03-12",
-    age: 52,
-    gender: "Male",
-    bloodGroup: "AB+",
-    phone: "+1 (555) 567-8901",
-    email: "david.chen@example.com",
-    alertsCount: 1,
-    lastVisit: "Oct 20, 2026",
-    status: "ACTIVE",
-  },
-  {
-    id: "pat-05",
-    mrn: "MRN-2026-001850",
-    name: "James Wilson",
-    dob: "1985-07-30",
-    age: 41,
-    gender: "Male",
-    bloodGroup: "O-",
-    phone: "+1 (555) 678-9012",
-    email: "j.wilson@example.com",
-    alertsCount: 3,
-    lastVisit: "Today (Triage Emergency)",
-    status: "ACTIVE",
-  },
-];
-
 export default function PatientsDirectoryPage() {
   const [genderFilter, setGenderFilter] = useState("ALL");
 
   // TanStack React Query with Axios
-  const { data: patients = INITIAL_PATIENTS, isLoading } = useQuery<PatientRecord[]>({
+  const { data: patients = [], isLoading } = useQuery<PatientRecord[]>({
     queryKey: ["patients-directory"],
     queryFn: async () => {
       try {
@@ -111,10 +38,10 @@ export default function PatientsDirectoryPage() {
         if (res.data?.data && Array.isArray(res.data.data)) {
           return res.data.data;
         }
-      } catch {
-        // Fallback to local deterministic records
+      } catch (err) {
+        console.error("Failed to fetch patients", err);
       }
-      return INITIAL_PATIENTS;
+      return [];
     },
     staleTime: 60 * 1000,
   });

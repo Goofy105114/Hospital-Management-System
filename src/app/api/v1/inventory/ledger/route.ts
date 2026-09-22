@@ -35,32 +35,7 @@ export async function GET(req: NextRequest) {
     }));
 
     return apiSuccess(formatted);
-  } catch {
-    return apiSuccess([
-      {
-        id: "led-01",
-        itemId: "item-02",
-        itemName: "Metoprolol Succinate 25mg",
-        unit: "TABLET",
-        locationName: "Central Pharmacy Dispensary",
-        quantityDelta: -30,
-        reason: "DISPENSE",
-        refType: "PRESCRIPTION",
-        createdBy: "Sarah Lin (Pharmacist)",
-        createdAt: new Date().toISOString(),
-      },
-      {
-        id: "led-02",
-        itemId: "item-01",
-        itemName: "Lisinopril 10mg Tablets",
-        unit: "TABLET",
-        locationName: "Central Pharmacy Dispensary",
-        quantityDelta: -30,
-        reason: "DISPENSE",
-        refType: "PRESCRIPTION",
-        createdBy: "Sarah Lin (Pharmacist)",
-        createdAt: new Date().toISOString(),
-      },
-    ]);
+  } catch (err: any) {
+    return apiSuccess([]);
   }
 }

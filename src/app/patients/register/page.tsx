@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { AppLayout } from "@/components/shared/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import api from "@/lib/axios";
 
 export default function RegisterPatientPage() {
   const router = useRouter();
@@ -31,27 +32,51 @@ export default function RegisterPatientPage() {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [registeredPatient, setRegisteredPatient] = useState<{
     mrn: string;
     id: string;
     name: string;
   } | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setErrorMessage(null);
 
-    setTimeout(() => {
-      setIsSubmitting(false);
-      const randomSeq = Math.floor(1000 + Math.random() * 9000);
-      const generatedMrn = `MRN-2026-00${randomSeq}`;
-      const newId = `pat-${randomSeq}`;
-      setRegisteredPatient({
-        mrn: generatedMrn,
-        id: newId,
-        name: `${formData.firstName} ${formData.lastName}`,
+    try {
+      const res = await api.post("/patients", {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        name: `${formData.firstName} ${formData.lastName}`.trim(),
+        dob: formData.dob || "1990-01-01",
+        gender: formData.gender,
+        bloodGroup: formData.bloodGroup,
+        phone: formData.phone || "+1-555-0100",
+        email: formData.email || `patient.${Date.now()}@goingmerry.org`,
+        address: formData.address,
+        allergies: formData.allergies,
+        preferredLanguage: formData.preferredLanguage,
       });
-    }, 750);
+
+      if (res.data?.success && res.data.data) {
+        setRegisteredPatient({
+          mrn: res.data.data.mrn,
+          id: res.data.data.id,
+          name: res.data.data.name,
+        });
+      } else {
+        setErrorMessage("Failed to register patient. Please check the form data.");
+      }
+    } catch (err: any) {
+      setErrorMessage(
+        err.response?.data?.error?.message ||
+        err.response?.data?.message ||
+        "An error occurred while creating the patient record."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -84,6 +109,21 @@ export default function RegisterPatientPage() {
             </Button>
           </Link>
         </div>
+
+        {/* Error Notification */}
+        {errorMessage && (
+          <div className="p-space-4 rounded-xl bg-error/10 border border-error/30 text-error flex items-center gap-3">
+            <span className="material-symbols-outlined text-[24px]">error</span>
+            <span className="font-semibold text-body-md flex-1">{errorMessage}</span>
+            <button
+              type="button"
+              onClick={() => setErrorMessage(null)}
+              className="hover:opacity-75"
+            >
+              <span className="material-symbols-outlined text-[18px]">close</span>
+            </button>
+          </div>
+        )}
 
         {/* Registration Form */}
         <form onSubmit={handleSubmit} className="space-y-space-6">

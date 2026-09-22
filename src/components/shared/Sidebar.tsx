@@ -113,11 +113,32 @@ function NavIcon({ name, className }: { name: string; className?: string }) {
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { activeRole, user, isAuthenticated, logout } = useAuthStore();
+  const { activeRole, user, isAuthenticated, logout, hydrate } = useAuthStore();
   const { sidebarOpen, toggleSidebar } = useUiStore();
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    hydrate();
+    setMounted(true);
+  }, [hydrate]);
+
+  const getEffectiveRole = (): UserRole => {
+    if (pathname.startsWith("/doctor")) return "DOCTOR";
+    if (pathname.startsWith("/admin")) return "ADMIN";
+    if (pathname.startsWith("/receptionist")) return "RECEPTIONIST";
+    if (pathname.startsWith("/patient")) return "PATIENT";
+    if (pathname.startsWith("/pharmacist") || pathname.startsWith("/pharmacy")) return "PHARMACIST";
+    if (pathname.startsWith("/nurse")) return "NURSE";
+    if (pathname.startsWith("/billing-staff")) return "BILLING_STAFF";
+    if (pathname.startsWith("/inventory-manager")) return "INVENTORY_MANAGER";
+    if (pathname.startsWith("/lab")) return "LAB_TECH";
+    return activeRole;
+  };
+
+  const effectiveRole = getEffectiveRole();
 
   const getRoleLabel = () => {
-    switch (activeRole) {
+    switch (effectiveRole) {
       case "DOCTOR":
         return "Clinician Desk";
       case "RECEPTIONIST":
@@ -376,7 +397,7 @@ export function Sidebar() {
     }
   };
 
-  const sections = getSectionsForRole(activeRole);
+  const sections = getSectionsForRole(effectiveRole);
 
   const allNavItems = sections.flatMap((s) => s.items);
   const bestMatch = allNavItems
@@ -487,12 +508,12 @@ export function Sidebar() {
                 <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-700 border border-teal-200/60 flex items-center justify-center font-bold text-xs shrink-0">
                   {user?.name ? user.name.charAt(0) : "U"}
                 </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-slate-800 truncate leading-tight">
-                    {user?.name || "Active Session"}
+                <div className="min-w-0" suppressHydrationWarning>
+                  <p className="text-xs font-bold text-slate-800 truncate leading-tight" suppressHydrationWarning>
+                    {mounted && user?.name ? user.name : "Active Session"}
                   </p>
-                  <p className="text-[10px] text-teal-700 font-semibold truncate leading-tight">
-                    {activeRole} {user?.mrn ? `• ${user.mrn}` : ""}
+                  <p className="text-[10px] text-teal-700 font-semibold truncate leading-tight" suppressHydrationWarning>
+                    {effectiveRole} {mounted && user?.mrn ? `• ${user.mrn}` : ""}
                   </p>
                 </div>
               </div>

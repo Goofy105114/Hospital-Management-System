@@ -32,3 +32,55 @@ export async function GET(req: NextRequest) {
     doctorProfile: user.doctorProfile,
   });
 }
+
+export async function PATCH(req: NextRequest) {
+  const auth = getAuthUser(req);
+  if (!auth) {
+    return apiError("AUTH_UNAUTHORIZED", "Authentication required", 401);
+  }
+
+  try {
+    const body = await req.json();
+    const { name, phone, address, preferredLanguage } = body;
+
+    const updatedUser = await prisma.user.update({
+      where: { id: auth.sub },
+      data: {
+        ...(name ? { name } : {}),
+        ...(phone ? { phone } : {}),
+      },
+      include: {
+        patientProfile: true,
+        doctorProfile: true,
+      },
+    });
+
+    if (
+      updatedUser.patientProfile &&
+      (address !== undefined || preferredLanguage !== undefined)
+    ) {
+      await prisma.patient.update({
+        where: { id: updatedUser.patientProfile.id },
+        data: {
+          ...(address !== undefined ? { address } : {}),
+          ...(preferredLanguage !== undefined ? { preferredLanguage } : {}),
+        },
+      });
+    }
+
+    return apiSuccess({
+      id: updatedUser.id,
+      name: updatedUser.name,
+      email: updatedUser.email,
+      phone: updatedUser.phone,
+      role: updatedUser.role,
+    });
+  } catch (error: any) {
+    return apiError(
+      "AUTH_UPDATE_FAILED",
+      error.message || "Failed to update profile",
+      500
+    );
+  }
+}
+

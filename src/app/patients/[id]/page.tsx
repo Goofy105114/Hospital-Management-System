@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { AppLayout } from "@/components/shared/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import api from "@/lib/axios";
 
 interface EmergencyContact {
   id: string;
@@ -62,93 +63,74 @@ export default function PatientChartPage() {
   const [mergeReason, setMergeReason] = useState("");
   const [mergeSuccess, setMergeSuccess] = useState(false);
 
-  // Patient Sample Data (PAT-01, PAT-02)
-  const [patient] = useState({
+  // Patient Real Data (PAT-01, PAT-02)
+  const [patient, setPatient] = useState({
     id: patientId,
-    mrn: "MRN-2026-001842",
-    firstName: "Eleanor",
-    lastName: "Pena",
-    dob: "1988-04-15",
-    age: 38,
-    gender: "Female",
-    bloodGroup: "A+",
-    phone: "+1 (555) 234-5678",
-    secondaryPhone: "+1 (555) 987-6543",
-    email: "eleanor.pena@example.com",
-    address: "742 Evergreen Terrace, Springfield, OR 97477",
+    mrn: "MRN-PENDING",
+    firstName: "Patient",
+    lastName: "Record",
+    dob: "1990-01-01",
+    age: 35,
+    gender: "Other",
+    bloodGroup: "O+",
+    phone: "",
+    secondaryPhone: "",
+    email: "",
+    address: "Medical Record on File",
     preferredLanguage: "English",
-    insuranceProvider: "Aetna Healthcare Premier",
-    policyNumber: "AET-8492019",
+    insuranceProvider: "Going Merry Health Plan",
+    policyNumber: "GM-INS-001",
     status: "ACTIVE",
-    registeredAt: "Jan 14, 2026",
+    registeredAt: "Recent",
   });
 
-  const [emergencyContacts, setEmergencyContacts] = useState<EmergencyContact[]>([
-    {
-      id: "ec-1",
-      name: "Marcus Pena",
-      relationship: "Spouse",
-      phone: "+1 (555) 234-9988",
-    },
-    {
-      id: "ec-2",
-      name: "Sarah Jenkins",
-      relationship: "Sister",
-      phone: "+1 (555) 789-0123",
-    },
-  ]);
+  const [emergencyContacts, setEmergencyContacts] = useState<EmergencyContact[]>([]);
+  const [alerts, setAlerts] = useState<ClinicalAlert[]>([]);
+  const [documents, setDocuments] = useState<DocumentItem[]>([]);
 
-  const [alerts, setAlerts] = useState<ClinicalAlert[]>([
-    {
-      id: "alt-1",
-      type: "ALLERGY_ON_FILE",
-      note: "Severe Anaphylaxis to Penicillin and Cephalosporin derivatives.",
-      createdAt: "Jan 14, 2026",
-      createdBy: "Dr. Marcus Vance",
-    },
-    {
-      id: "alt-2",
-      type: "HIGH_RISK",
-      note: "Hypertensive crisis history in Q3 2025. Monitor baseline BP closely.",
-      createdAt: "Feb 02, 2026",
-      createdBy: "Nurse Sarah Jenkins",
-    },
-  ]);
-
-  const [documents, setDocuments] = useState<DocumentItem[]>([
-    {
-      id: "doc-1",
-      title: "Comprehensive Metabolic Panel (CMP) - Lab Results",
-      type: "LAB_REPORT",
-      uploadedAt: "Oct 24, 2026",
-      uploadedBy: "Lab Tech Alex Morgan",
-      fileSize: "1.4 MB",
-    },
-    {
-      id: "doc-2",
-      title: "12-Lead Electrocardiogram (ECG) Tracing",
-      type: "LAB_REPORT",
-      uploadedAt: "Oct 20, 2026",
-      uploadedBy: "Nurse David Ross",
-      fileSize: "3.2 MB",
-    },
-    {
-      id: "doc-3",
-      title: "External Specialist Referral Prescription Scan",
-      type: "PRESCRIPTION_SCAN",
-      uploadedAt: "Sep 12, 2026",
-      uploadedBy: "Reception Desk",
-      fileSize: "840 KB",
-    },
-    {
-      id: "doc-4",
-      title: "State Driver License Photo ID Copy",
-      type: "ID_PROOF",
-      uploadedAt: "Jan 14, 2026",
-      uploadedBy: "Reception Desk",
-      fileSize: "512 KB",
-    },
-  ]);
+  useEffect(() => {
+    let isMounted = true;
+    api
+      .get(`/patients/${patientId}`)
+      .then((res) => {
+        if (!isMounted) return;
+        const data = res.data?.data;
+        if (data) {
+          setPatient({
+            id: data.id,
+            mrn: data.mrn,
+            firstName: data.firstName,
+            lastName: data.lastName,
+            dob: data.dob,
+            age: data.age,
+            gender: data.gender,
+            bloodGroup: data.bloodGroup,
+            phone: data.phone,
+            secondaryPhone: data.secondaryPhone,
+            email: data.email,
+            address: data.address,
+            preferredLanguage: data.preferredLanguage,
+            insuranceProvider: "Going Merry Health Plan",
+            policyNumber: "GM-INS-001",
+            status: data.status,
+            registeredAt: data.registeredAt,
+          });
+          if (Array.isArray(data.emergencyContacts) && data.emergencyContacts.length > 0) {
+            setEmergencyContacts(data.emergencyContacts);
+          }
+          if (Array.isArray(data.alerts) && data.alerts.length > 0) {
+            setAlerts(data.alerts);
+          }
+          if (Array.isArray(data.documents) && data.documents.length > 0) {
+            setDocuments(data.documents);
+          }
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, [patientId]);
 
   const [newAlertNote, setNewAlertNote] = useState("");
   const [newAlertType, setNewAlertType] = useState<
