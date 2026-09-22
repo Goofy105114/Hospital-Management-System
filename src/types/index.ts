@@ -367,3 +367,30 @@ export interface FinancialReconciliationDTO {
   generatedBy?: string | null;
 }
 
+export interface SpecimenCollectionDTO {
+  orderId: string;
+  specimenType: string;
+  barcode: string;
+  collectedBy: string;
+  collectedAt: string;
+  notes?: string;
+}
+
+export interface DiagnosticWorkQueueItemDTO {
+  orderId: string;
+  orderNumber: string;
+  patientId: string;
+  patientName: string;
+  patientMrn: string;
+  status: DiagnosticOrderStatus;
+  category?: string;
+  tests: string[];
+  priority: "ROUTINE" | "URGENT" | "STAT";
+  orderedAt: string;
+  specimenBarcode?: string | null;
+  specimenCollectedAt?: string | null;
+  slaRemainingHours: number;
+  isSlaBreached: boolean;
+}
+
+
