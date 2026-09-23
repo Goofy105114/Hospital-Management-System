@@ -4,8 +4,53 @@ import React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/authStore";
+import { useUiStore } from "@/stores/uiStore";
 import { UserRole } from "@prisma/client";
 import { cn } from "@/lib/utils";
+import {
+  Stethoscope,
+  Clock,
+  Users,
+  Calendar,
+  CalendarClock,
+  BedDouble,
+  Bed,
+  FlaskConical,
+  Syringe,
+  Bell,
+  User,
+  LayoutDashboard,
+  UserPlus,
+  PlusCircle,
+  Tablet,
+  Monitor,
+  Receipt,
+  ShieldAlert,
+  Gauge,
+  UserCog,
+  Building2,
+  BarChart3,
+  Code2,
+  Package,
+  FileCheck,
+  Pill,
+  ShoppingCart,
+  CalendarX,
+  Activity,
+  TestTube2,
+  ListOrdered,
+  CreditCard,
+  Boxes,
+  LayoutGrid,
+  CalendarDays,
+  FolderGit2,
+  ReceiptText,
+  Headphones,
+  LogOut,
+  ArrowLeftRight,
+  ShieldCheck,
+  LucideIcon,
+} from "lucide-react";
 
 interface NavLinkItem {
   label: string;
@@ -19,13 +64,81 @@ interface NavSection {
   items: NavLinkItem[];
 }
 
+const ICON_MAP: Record<string, LucideIcon> = {
+  stethoscope: Stethoscope,
+  timelapse: Clock,
+  group: Users,
+  calendar_month: Calendar,
+  schedule: CalendarClock,
+  hotel: BedDouble,
+  bed: Bed,
+  biotech: FlaskConical,
+  vaccines: Syringe,
+  notifications: Bell,
+  person: User,
+  desk: LayoutDashboard,
+  person_add: UserPlus,
+  add_circle: PlusCircle,
+  touch_app: Tablet,
+  tv: Monitor,
+  receipt_long: Receipt,
+  shield_person: ShieldAlert,
+  speed: Gauge,
+  manage_accounts: UserCog,
+  domain: Building2,
+  analytics: BarChart3,
+  api: Code2,
+  inventory_2: Package,
+  policy: FileCheck,
+  medication: Pill,
+  shopping_cart: ShoppingCart,
+  event_busy: CalendarX,
+  local_hospital: Activity,
+  science: TestTube2,
+  format_list_bulleted: ListOrdered,
+  point_of_sale: CreditCard,
+  warehouse: Boxes,
+  grid_view: LayoutGrid,
+  calendar_today: CalendarDays,
+  folder_shared: FolderGit2,
+  receipt: ReceiptText,
+  support_agent: Headphones,
+};
+
+function NavIcon({ name, className }: { name: string; className?: string }) {
+  const IconComponent = ICON_MAP[name] || Activity;
+  return <IconComponent className={className || "w-4 h-4 shrink-0"} />;
+}
+
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { activeRole, user, isAuthenticated, logout } = useAuthStore();
+  const { activeRole, user, isAuthenticated, logout, hydrate } = useAuthStore();
+  const { sidebarOpen, toggleSidebar } = useUiStore();
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    hydrate();
+    setMounted(true);
+  }, [hydrate]);
+
+  const getEffectiveRole = (): UserRole => {
+    if (pathname.startsWith("/doctor")) return "DOCTOR";
+    if (pathname.startsWith("/admin")) return "ADMIN";
+    if (pathname.startsWith("/receptionist")) return "RECEPTIONIST";
+    if (pathname.startsWith("/patient")) return "PATIENT";
+    if (pathname.startsWith("/pharmacist") || pathname.startsWith("/pharmacy")) return "PHARMACIST";
+    if (pathname.startsWith("/nurse")) return "NURSE";
+    if (pathname.startsWith("/billing-staff")) return "BILLING_STAFF";
+    if (pathname.startsWith("/inventory-manager")) return "INVENTORY_MANAGER";
+    if (pathname.startsWith("/lab")) return "LAB_TECH";
+    return activeRole;
+  };
+
+  const effectiveRole = getEffectiveRole();
 
   const getRoleLabel = () => {
-    switch (activeRole) {
+    switch (effectiveRole) {
       case "DOCTOR":
         return "Clinician Desk";
       case "RECEPTIONIST":
@@ -284,9 +397,8 @@ export function Sidebar() {
     }
   };
 
-  const sections = getSectionsForRole(activeRole);
+  const sections = getSectionsForRole(effectiveRole);
 
-  // Compute the single best (longest) matching href in all current nav items to prevent multiple simultaneous highlights
   const allNavItems = sections.flatMap((s) => s.items);
   const bestMatch = allNavItems
     .filter((it) => {
@@ -304,33 +416,50 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-72 bg-surface-container-lowest shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-50 flex flex-col justify-between border-r border-outline-variant/30">
-      <div className="flex flex-col flex-1 overflow-y-auto px-space-4 pt-space-6 pb-space-4">
+    <aside
+      className={cn(
+        "fixed left-0 top-0 h-screen bg-white shadow-xs z-50 flex flex-col justify-between border-r border-slate-200/80 transition-all duration-300 ease-in-out",
+        sidebarOpen ? "w-64" : "w-[68px]"
+      )}
+    >
+      <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden p-3">
         {/* Brand Header */}
-        <Link
-          href="/"
-          className="flex items-center gap-space-3 px-space-2 pb-space-5 border-b border-outline-variant/20 mb-space-3 group"
-        >
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary font-bold text-lg shrink-0 group-hover:bg-primary/20 transition-colors">
-            <span className="material-symbols-outlined text-[24px]">local_hospital</span>
-          </div>
-          <div className="flex flex-col min-w-0">
-            <span className="font-headline-sm text-headline-sm text-primary leading-none font-bold truncate">
-              Going Merry
-            </span>
-            <span className="font-label-sm text-label-sm text-outline tracking-wider uppercase mt-space-1 font-semibold">
-              {getRoleLabel()}
-            </span>
-          </div>
-        </Link>
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
+          <Link
+            href="/"
+            className={cn(
+              "flex items-center gap-2.5 group overflow-hidden transition-all",
+              !sidebarOpen && "justify-center w-full"
+            )}
+            title="Going Merry Hospital"
+          >
+            <div className="w-9 h-9 rounded-xl bg-teal-50 text-teal-700 border border-teal-200/60 flex items-center justify-center font-bold shrink-0 group-hover:bg-teal-100 transition-colors shadow-2xs">
+              <Activity className="w-5 h-5 text-teal-700" />
+            </div>
+            {sidebarOpen && (
+              <div className="flex flex-col min-w-0 transition-opacity duration-200">
+                <span className="text-sm font-bold text-slate-900 leading-tight truncate">
+                  Going Merry
+                </span>
+                <span className="text-[10px] text-teal-700 font-semibold tracking-wide uppercase truncate mt-0.5">
+                  {getRoleLabel()}
+                </span>
+              </div>
+            )}
+          </Link>
+        </div>
 
-        {/* Navigation Sections (strictly filtered by RBAC) */}
-        <nav className="flex flex-col gap-space-4">
+        {/* Navigation Sections */}
+        <nav className="flex flex-col gap-3">
           {sections.map((section, sIdx) => (
-            <div key={sIdx} className="space-y-space-1">
-              <span className="px-space-3 text-[11px] font-bold uppercase tracking-wider text-outline/80 block">
-                {section.title}
-              </span>
+            <div key={sIdx} className="space-y-0.5">
+              {sidebarOpen ? (
+                <span className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 block truncate">
+                  {section.title}
+                </span>
+              ) : (
+                sIdx > 0 && <div className="my-1 border-t border-slate-100 mx-2" />
+              )}
               <div className="space-y-0.5">
                 {section.items.map((item) => {
                   const isActive = item.href === activeHref;
@@ -339,24 +468,27 @@ export function Sidebar() {
                     <Link
                       key={item.href}
                       href={item.href}
+                      title={!sidebarOpen ? item.label : undefined}
                       className={cn(
-                        "flex items-center gap-space-2.5 px-space-3 py-1.5 rounded-lg transition-colors font-label-md text-label-md group",
+                        "flex items-center rounded-xl transition-all group",
+                        sidebarOpen
+                          ? "gap-2.5 px-2.5 py-1.5 text-xs font-medium"
+                          : "justify-center w-10 h-10 mx-auto",
                         isActive
-                          ? "bg-primary-container text-on-primary-container font-semibold shadow-sm"
-                          : "text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface"
+                          ? "bg-teal-50 text-teal-800 font-semibold ring-1 ring-teal-600/20 shadow-2xs"
+                          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                       )}
                     >
-                      <span
+                      <NavIcon
+                        name={item.icon}
                         className={cn(
-                          "material-symbols-outlined text-[19px] shrink-0 transition-colors",
+                          "w-4 h-4 shrink-0 transition-colors",
                           isActive
-                            ? "text-primary font-bold"
-                            : "text-outline group-hover:text-primary"
+                            ? "text-teal-700"
+                            : "text-slate-400 group-hover:text-slate-700"
                         )}
-                      >
-                        {item.icon}
-                      </span>
-                      <span className="truncate">{item.label}</span>
+                      />
+                      {sidebarOpen && <span className="truncate">{item.label}</span>}
                     </Link>
                   );
                 })}
@@ -367,77 +499,96 @@ export function Sidebar() {
       </div>
 
       {/* User Auth & Session Footer */}
-      <div className="p-space-3 border-t border-outline-variant/20 bg-surface-container-lowest space-y-2">
-        {/* User Card */}
-        <div className="bg-surface-container-low rounded-xl p-2.5 border border-outline-variant/30 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-8 h-8 rounded-lg bg-primary/15 text-primary flex items-center justify-center font-bold text-xs shrink-0">
+      <div className="p-2.5 border-t border-slate-100 bg-slate-50/50 space-y-2">
+        {sidebarOpen ? (
+          <>
+            {/* User Card */}
+            <div className="bg-white rounded-xl p-2 border border-slate-200/80 flex items-center justify-between gap-2 shadow-2xs">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-700 border border-teal-200/60 flex items-center justify-center font-bold text-xs shrink-0">
+                  {user?.name ? user.name.charAt(0) : "U"}
+                </div>
+                <div className="min-w-0" suppressHydrationWarning>
+                  <p className="text-xs font-bold text-slate-800 truncate leading-tight" suppressHydrationWarning>
+                    {mounted && user?.name ? user.name : "Active Session"}
+                  </p>
+                  <p className="text-[10px] text-teal-700 font-semibold truncate leading-tight" suppressHydrationWarning>
+                    {effectiveRole} {mounted && user?.mrn ? `• ${user.mrn}` : ""}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={handleSignOut}
+                title="Sign Out"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Auth Action Buttons */}
+            {isAuthenticated ? (
+              <div className="grid grid-cols-2 gap-1.5">
+                <Link
+                  href="/login"
+                  className="flex items-center justify-center gap-1 py-1 px-2 rounded-lg text-[11px] font-medium bg-white text-slate-700 hover:bg-teal-50 hover:text-teal-800 transition-colors border border-slate-200/80 shadow-2xs"
+                >
+                  <ArrowLeftRight className="w-3 h-3" />
+                  <span>Portals</span>
+                </Link>
+                <button
+                  onClick={handleSignOut}
+                  className="flex items-center justify-center gap-1 py-1 px-2 rounded-lg text-[11px] font-medium bg-white text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors border border-slate-200/80 shadow-2xs"
+                >
+                  <LogOut className="w-3 h-3" />
+                  <span>Sign Out</span>
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-1.5">
+                <Link
+                  href="/login"
+                  className="flex items-center justify-center gap-1 py-1 px-2 rounded-lg text-[11px] font-medium bg-white text-slate-700 hover:bg-teal-50 hover:text-teal-800 transition-colors border border-slate-200/80 shadow-2xs"
+                >
+                  <span>Sign In</span>
+                </Link>
+                <Link
+                  href="/register"
+                  className="flex items-center justify-center gap-1 py-1 px-2 rounded-lg text-[11px] font-medium bg-teal-700 text-white hover:bg-teal-800 transition-colors shadow-2xs"
+                >
+                  <span>Sign Up</span>
+                </Link>
+              </div>
+            )}
+
+            {/* 24/7 Hotline Strip */}
+            <div className="flex items-center justify-between text-[10px] text-slate-400 px-1 pt-1 border-t border-slate-200/40">
+              <span className="font-semibold text-teal-700">24/7: +1 (800) 555-MERRY</span>
+              <span className="flex items-center gap-0.5 text-slate-400">
+                <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                HIPAA
+              </span>
+            </div>
+          </>
+        ) : (
+          /* Collapsed mini footer */
+          <div className="flex flex-col items-center gap-2">
+            <div
+              className="w-8 h-8 rounded-lg bg-teal-50 text-teal-700 border border-teal-200/60 flex items-center justify-center font-bold text-xs shrink-0 cursor-default"
+              title={`${user?.name || "Active Session"} (${activeRole})`}
+            >
               {user?.name ? user.name.charAt(0) : "U"}
             </div>
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-on-surface truncate leading-tight">
-                {user?.name || "Active Session"}
-              </p>
-              <p className="text-[10px] text-primary font-semibold truncate leading-tight">
-                {activeRole} {user?.mrn ? `• ${user.mrn}` : ""}
-              </p>
-            </div>
-          </div>
-
-          <button
-            onClick={handleSignOut}
-            title="Sign Out"
-            className="p-1.5 rounded-lg text-outline hover:text-error hover:bg-error/10 transition-colors"
-          >
-            <span className="material-symbols-outlined text-[18px]">logout</span>
-          </button>
-        </div>
-
-        {/* Auth Action Buttons */}
-        {isAuthenticated ? (
-          <div className="grid grid-cols-2 gap-1.5">
-            <Link
-              href="/login"
-              className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-[11px] font-semibold bg-surface-container-high text-on-surface hover:bg-primary/10 hover:text-primary transition-colors border border-outline-variant/30"
-            >
-              <span className="material-symbols-outlined text-[14px]">swap_horiz</span>
-              <span>Portals</span>
-            </Link>
             <button
               onClick={handleSignOut}
-              className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-[11px] font-semibold bg-surface-container-high text-outline hover:text-error hover:bg-error/10 transition-colors border border-outline-variant/30"
+              title="Sign Out"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
             >
-              <span className="material-symbols-outlined text-[14px]">logout</span>
-              <span>Sign Out</span>
+              <LogOut className="w-4 h-4" />
             </button>
           </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-1.5">
-            <Link
-              href="/login"
-              className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-[11px] font-semibold bg-surface-container-high text-on-surface hover:bg-primary/10 hover:text-primary transition-colors border border-outline-variant/30"
-            >
-              <span className="material-symbols-outlined text-[14px]">login</span>
-              <span>Sign In</span>
-            </Link>
-            <Link
-              href="/register"
-              className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg text-[11px] font-semibold bg-primary text-white hover:bg-primary/90 transition-colors shadow-xs"
-            >
-              <span className="material-symbols-outlined text-[14px]">person_add</span>
-              <span>Sign Up</span>
-            </Link>
-          </div>
         )}
-
-        {/* 24/7 Hotline Strip */}
-        <div className="flex items-center justify-between text-[10px] text-outline px-1 pt-1 border-t border-outline-variant/15">
-          <div className="flex items-center gap-1 text-primary">
-            <span className="material-symbols-outlined text-[13px]">emergency</span>
-            <span className="font-bold">24/7 Hotline: +1 (800) 555-MERRY</span>
-          </div>
-          <span>HIPAA</span>
-        </div>
       </div>
     </aside>
   );

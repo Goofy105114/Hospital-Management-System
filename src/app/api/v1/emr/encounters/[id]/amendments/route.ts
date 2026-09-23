@@ -46,19 +46,13 @@ export async function POST(
     }
 
     // Fetch encounter — must be FINALIZED or AMENDED to allow amendment
-    let encounter = null;
-    try {
-      encounter = await prisma.encounter.findUnique({ where: { id } });
-    } catch {
-      // DB offline
-    }
+    const encounter = await prisma.encounter.findUnique({ where: { id } });
 
-    if (encounter === null) {
+    if (!encounter) {
       return apiError("EMR_ENCOUNTER_NOT_FOUND", "Encounter not found", 404);
     }
 
     if (
-      encounter &&
       encounter.status !== EncounterStatus.FINALIZED &&
       encounter.status !== EncounterStatus.AMENDED
     ) {
@@ -70,9 +64,7 @@ export async function POST(
     }
 
     // Capture the current (before) value of the field — never modify it
-    const beforeValue = encounter
-      ? (encounter as Record<string, unknown>)[field] ?? null
-      : null;
+    const beforeValue = (encounter as Record<string, unknown>)[field] ?? null;
 
     // Write amendment as an immutable audit event
     const amendmentId = crypto.randomUUID();
@@ -96,14 +88,10 @@ export async function POST(
     });
 
     // Mark encounter as AMENDED (status change only — no clinical field mutation)
-    try {
-      await prisma.encounter.update({
-        where: { id },
-        data: { status: EncounterStatus.AMENDED },
-      });
-    } catch {
-      // DB offline — audit already written, still return success
-    }
+    await prisma.encounter.update({
+      where: { id },
+      data: { status: EncounterStatus.AMENDED },
+    });
 
     return apiSuccess(
       {

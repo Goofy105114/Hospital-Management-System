@@ -20,71 +20,10 @@ interface DiagnosticCatalogItem {
   isActive: boolean;
 }
 
-const INITIAL_CATALOG: DiagnosticCatalogItem[] = [
-  {
-    id: "cat-01",
-    name: "Comprehensive Metabolic Panel (CMP)",
-    code: "CMP-80053",
-    category: "BIOCHEMISTRY",
-    specimenType: "Serum (Gold / SST Tube)",
-    prepInstructions: "Fasting required for 8 hours prior to venipuncture.",
-    turnaroundTime: "2 Hours",
-    referenceRange: "See individual analyte panel",
-    price: 65.0,
-    isActive: true,
-  },
-  {
-    id: "cat-02",
-    name: "High-Sensitivity Cardiac Troponin I (hs-cTnI)",
-    code: "TROP-84484",
-    category: "HEMATOLOGY",
-    specimenType: "Plasma (Lithium Heparin)",
-    prepInstructions: "No fasting required. Emergency STAT assay.",
-    turnaroundTime: "30 Minutes",
-    referenceRange: "< 14 ng/L (Female), < 26 ng/L (Male)",
-    price: 85.0,
-    isActive: true,
-  },
-  {
-    id: "cat-03",
-    name: "12-Lead Electrocardiogram (ECG)",
-    code: "ECG-93000",
-    category: "CARDIOLOGY",
-    specimenType: "Direct Diagnostic Tracing",
-    prepInstructions: "Patient should avoid caffeine and strenuous exercise 2 hours prior.",
-    turnaroundTime: "15 Minutes",
-    referenceRange: "Normal sinus rhythm, HR 60-100 bpm",
-    price: 45.0,
-    isActive: true,
-  },
-  {
-    id: "cat-04",
-    name: "Chest Radiograph (X-Ray PA & Lateral)",
-    code: "CXR-71046",
-    category: "RADIOLOGY",
-    specimenType: "Digital Radiographic Capture",
-    prepInstructions: "Remove all metal jewelry and upper torso garments.",
-    turnaroundTime: "1 Hour",
-    referenceRange: "Clear bilateral lung fields, normal cardiothoracic ratio",
-    price: 110.0,
-    isActive: true,
-  },
-  {
-    id: "cat-05",
-    name: "Glycated Hemoglobin (HbA1c)",
-    code: "HBA1C-83036",
-    category: "BIOCHEMISTRY",
-    specimenType: "Whole Blood (EDTA Purple Top)",
-    prepInstructions: "No fasting necessary.",
-    turnaroundTime: "3 Hours",
-    referenceRange: "< 5.7% (Normal), 5.7-6.4% (Prediabetes)",
-    price: 38.0,
-    isActive: true,
-  },
-];
+import api from "@/lib/axios";
 
 export default function DiagnosticCatalogPage() {
-  const [catalog, setCatalog] = useState<DiagnosticCatalogItem[]>(INITIAL_CATALOG);
+  const [catalog, setCatalog] = useState<DiagnosticCatalogItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("ALL");
   const [showAddModal, setShowAddModal] = useState(false);
@@ -99,22 +38,66 @@ export default function DiagnosticCatalogPage() {
   const [newRange, setNewRange] = useState("");
   const [newPrice, setNewPrice] = useState("50.00");
 
-  const handleAddTest = (e: React.FormEvent) => {
-    e.preventDefault();
-    const newItem: DiagnosticCatalogItem = {
-      id: `cat-${Date.now()}`,
-      name: newName,
-      code: newCode || `LAB-${Math.floor(1000 + Math.random() * 9000)}`,
-      category: newCategory,
-      specimenType: newSpecimen || "Serum",
-      prepInstructions: newPrep || "No special preparation required.",
-      turnaroundTime: newTat,
-      referenceRange: newRange || "Normal values specified on final report.",
-      price: Number(newPrice),
-      isActive: true,
+  React.useEffect(() => {
+    let isMounted = true;
+    api
+      .get("/diagnostics/catalog")
+      .then((res) => {
+        if (!isMounted) return;
+        const list = res.data?.data;
+        if (Array.isArray(list)) {
+          setCatalog(
+            list.map((item: any) => ({
+              id: item.id,
+              name: item.name,
+              code: item.code,
+              category: item.category,
+              specimenType: item.specimenType || "Direct Tracing / Serum",
+              prepInstructions: item.prepInstructions || "Standard Preparation",
+              turnaroundTime: item.turnaroundTime || "2 Hours",
+              referenceRange: item.referenceRange || "Standard Reference Range",
+              price: item.price || item.tariff?.amount || 50.0,
+              isActive: item.isActive ?? true,
+            }))
+          );
+        }
+      })
+      .catch((err) => {
+        console.error("Diagnostic catalog fetch failed:", err);
+      });
+    return () => {
+      isMounted = false;
     };
-    setCatalog([...catalog, newItem]);
-    setShowAddModal(false);
+  }, []);
+
+  const handleAddTest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        name: newName,
+        code: newCode || `LAB-${Math.floor(1000 + Math.random() * 9000)}`,
+        category: newCategory,
+        specimenType: newSpecimen || "Serum",
+        prepInstructions: newPrep || "No special preparation required.",
+        turnaroundTime: newTat,
+        referenceRange: newRange || "Normal values specified on final report.",
+        price: Number(newPrice),
+      };
+      const res = await api.post("/diagnostics/catalog", payload);
+      const created = res.data?.data || {
+        id: `cat-${Date.now()}`,
+        ...payload,
+        isActive: true,
+      };
+      setCatalog((prev) => [...prev, created]);
+      setShowAddModal(false);
+      setNewName("");
+      setNewCode("");
+      setNewPrep("");
+      setNewSpecimen("");
+    } catch (err) {
+      console.error("Failed to add test:", err);
+    }
   };
 
   const filtered = catalog.filter((item) => {
@@ -217,45 +200,53 @@ export default function DiagnosticCatalogPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-outline-variant/20">
-                {filtered.map((item) => (
-                  <tr key={item.id} className="hover:bg-surface-container-high/40">
-                    <td className="py-space-3 px-space-4">
-                      <span className="font-bold text-on-surface block">{item.name}</span>
-                      <span className="font-mono text-label-xs text-primary font-semibold">
-                        {item.code}
-                      </span>
-                    </td>
-                    <td className="py-space-3 px-space-4">
-                      <Badge variant="secondary" className="font-mono text-label-xs">
-                        {item.category}
-                      </Badge>
-                    </td>
-                    <td className="py-space-3 px-space-4 text-on-surface font-medium">
-                      {item.specimenType}
-                    </td>
-                    <td className="py-space-3 px-space-4 font-mono font-semibold text-outline">
-                      {item.turnaroundTime}
-                    </td>
-                    <td className="py-space-3 px-space-4 font-mono font-bold text-on-surface">
-                      ${item.price.toFixed(2)}
-                    </td>
-                    <td className="py-space-3 px-space-4 text-label-sm text-outline max-w-xs truncate">
-                      {item.prepInstructions}
-                    </td>
-                    <td className="py-space-3 px-space-4 text-right">
-                      <Badge
-                        variant="outline"
-                        className={
-                          item.isActive
-                            ? "bg-success/15 text-success border-success/30 font-semibold"
-                            : "bg-outline/15 text-outline"
-                        }
-                      >
-                        {item.isActive ? "ACTIVE" : "INACTIVE"}
-                      </Badge>
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-8 text-center text-sm text-outline">
+                      No diagnostic catalog tests found.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filtered.map((item) => (
+                    <tr key={item.id} className="hover:bg-surface-container-high/40">
+                      <td className="py-space-3 px-space-4">
+                        <span className="font-bold text-on-surface block">{item.name}</span>
+                        <span className="font-mono text-label-xs text-primary font-semibold">
+                          {item.code}
+                        </span>
+                      </td>
+                      <td className="py-space-3 px-space-4">
+                        <Badge variant="secondary" className="font-mono text-label-xs">
+                          {item.category}
+                        </Badge>
+                      </td>
+                      <td className="py-space-3 px-space-4 text-on-surface font-medium">
+                        {item.specimenType}
+                      </td>
+                      <td className="py-space-3 px-space-4 font-mono font-semibold text-outline">
+                        {item.turnaroundTime}
+                      </td>
+                      <td className="py-space-3 px-space-4 font-mono font-bold text-on-surface">
+                        ${item.price.toFixed(2)}
+                      </td>
+                      <td className="py-space-3 px-space-4 text-label-sm text-outline max-w-xs truncate">
+                        {item.prepInstructions}
+                      </td>
+                      <td className="py-space-3 px-space-4 text-right">
+                        <Badge
+                          variant="outline"
+                          className={
+                            item.isActive
+                              ? "bg-success/15 text-success border-success/30 font-semibold"
+                              : "bg-outline/15 text-outline"
+                          }
+                        >
+                          {item.isActive ? "ACTIVE" : "INACTIVE"}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </CardContent>

@@ -60,37 +60,26 @@ export async function PATCH(
 
     const targetStatus = status as DiagnosticOrderStatus;
 
-    let order = null;
-    try {
-      order = await prisma.diagnosticOrder.findUnique({ where: { id } });
-    } catch {
-      // DB offline
-    }
+    const order = await prisma.diagnosticOrder.findUnique({ where: { id } });
 
-    if (order === null) {
+    if (!order) {
       return apiError("DIA_ORDER_NOT_FOUND", "Diagnostic order not found", 404);
     }
 
-    if (order) {
-      const allowed = DIA_TRANSITIONS[order.status];
-      if (!allowed.includes(targetStatus)) {
-        return apiError(
-          "DIA_INVALID_TRANSITION",
-          `Cannot transition from ${order.status} to ${targetStatus}`,
-          422,
-          { from: order.status, to: targetStatus, allowed }
-        );
-      }
-
-      try {
-        await prisma.diagnosticOrder.update({
-          where: { id },
-          data: { status: targetStatus },
-        });
-      } catch {
-        // DB offline
-      }
+    const allowed = DIA_TRANSITIONS[order.status];
+    if (!allowed.includes(targetStatus)) {
+      return apiError(
+        "DIA_INVALID_TRANSITION",
+        `Cannot transition from ${order.status} to ${targetStatus}`,
+        422,
+        { from: order.status, to: targetStatus, allowed }
+      );
     }
+
+    await prisma.diagnosticOrder.update({
+      where: { id },
+      data: { status: targetStatus },
+    });
 
     await logAuditEvent({
       actorId: user.sub,

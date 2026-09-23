@@ -23,25 +23,16 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   try {
     const { id } = params;
 
-    let session = null;
-    try {
-      session = await prisma.clinicSession.findUnique({ where: { id } });
-    } catch {
-      // DB offline
-    }
+    const session = await prisma.clinicSession.findUnique({ where: { id } });
 
-    if (session === null) {
+    if (!session) {
       return apiError("SCH_SESSION_NOT_FOUND", "Clinic session not found", 404);
     }
 
-    try {
-      await prisma.clinicSession.update({
-        where: { id },
-        data: { isActive: false },
-      });
-    } catch {
-      // DB offline — still emit audit and return
-    }
+    await prisma.clinicSession.update({
+      where: { id },
+      data: { isActive: false },
+    });
 
     await logAuditEvent({
       actorId: user.sub,

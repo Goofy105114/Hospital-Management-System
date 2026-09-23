@@ -22,72 +22,58 @@ export async function GET(
   try {
     const { id } = params;
 
-    let result = null;
-    try {
-      const prescription = await prisma.prescription.findUnique({
-        where: { id },
-        include: {
-          items: {
-            select: {
-              quantityPrescribed: true,
-              quantityDispensed: true,
-              durationDays: true,
-            },
-          },
-          dispensations: {
-            orderBy: { dispensedAt: "desc" },
-            take: 1,
-            select: { dispensedAt: true },
+    const prescription = await prisma.prescription.findUnique({
+      where: { id },
+      include: {
+        items: {
+          select: {
+            quantityPrescribed: true,
+            quantityDispensed: true,
+            durationDays: true,
           },
         },
-      });
+        dispensations: {
+          orderBy: { dispensedAt: "desc" },
+          take: 1,
+          select: { dispensedAt: true },
+        },
+      },
+    });
 
-      if (!prescription) {
-        return apiError("PHA_PRESCRIPTION_NOT_FOUND", "Prescription not found", 404);
-      }
-
-      // Total remaining across all prescription line items
-      const totalPrescribed = prescription.items.reduce(
-        (sum, i) => sum + i.quantityPrescribed,
-        0
-      );
-      const totalDispensed = prescription.items.reduce(
-        (sum, i) => sum + i.quantityDispensed,
-        0
-      );
-      const refillsRemaining = Math.max(0, totalPrescribed - totalDispensed);
-
-      // Next eligible date: last dispense date + max durationDays across items
-      let nextEligibleDate: string | null = null;
-      const lastDispensation = prescription.dispensations[0];
-      if (lastDispensation) {
-        const maxDuration = Math.max(...prescription.items.map((i) => i.durationDays));
-        const eligibleDate = new Date(lastDispensation.dispensedAt);
-        eligibleDate.setDate(eligibleDate.getDate() + maxDuration);
-        nextEligibleDate = eligibleDate.toISOString().slice(0, 10);
-      }
-
-      result = {
-        prescriptionId: id,
-        totalPrescribed,
-        totalDispensed,
-        refillsRemaining,
-        isFullyDispensed: refillsRemaining === 0,
-        nextEligibleDate,
-        status: prescription.status,
-      };
-    } catch {
-      // DB offline — return deterministic fallback
-      result = {
-        prescriptionId: id,
-        totalPrescribed: 30,
-        totalDispensed: 0,
-        refillsRemaining: 30,
-        isFullyDispensed: false,
-        nextEligibleDate: null,
-        status: "PENDING",
-      };
+    if (!prescription) {
+      return apiError("PHA_PRESCRIPTION_NOT_FOUND", "Prescription not found", 404);
     }
+
+    // Total remaining across all prescription line items
+    const totalPrescribed = prescription.items.reduce(
+      (sum, i) => sum + i.quantityPrescribed,
+      0
+    );
+    const totalDispensed = prescription.items.reduce(
+      (sum, i) => sum + i.quantityDispensed,
+      0
+    );
+    const refillsRemaining = Math.max(0, totalPrescribed - totalDispensed);
+
+    // Next eligible date: last dispense date + max durationDays across items
+    let nextEligibleDate: string | null = null;
+    const lastDispensation = prescription.dispensations[0];
+    if (lastDispensation) {
+      const maxDuration = Math.max(...prescription.items.map((i) => i.durationDays));
+      const eligibleDate = new Date(lastDispensation.dispensedAt);
+      eligibleDate.setDate(eligibleDate.getDate() + maxDuration);
+      nextEligibleDate = eligibleDate.toISOString().slice(0, 10);
+    }
+
+    const result = {
+      prescriptionId: id,
+      totalPrescribed,
+      totalDispensed,
+      refillsRemaining,
+      isFullyDispensed: refillsRemaining === 0,
+      nextEligibleDate,
+      status: prescription.status,
+    };
 
     return apiSuccess(result);
   } catch (err: any) {

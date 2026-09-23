@@ -37,17 +37,12 @@ export async function POST(
     }
 
     // Verify the dispensation exists
-    let dispensation = null;
-    try {
-      dispensation = await prisma.dispensation.findUnique({
-        where: { id: txId },
-        select: { id: true, patientId: true, prescriptionId: true },
-      });
-    } catch {
-      // DB offline
-    }
+    const dispensation = await prisma.dispensation.findUnique({
+      where: { id: txId },
+      select: { id: true, patientId: true, prescriptionId: true },
+    });
 
-    if (dispensation === null) {
+    if (!dispensation) {
       return apiError("PHA_DISPENSATION_NOT_FOUND", "Dispensation record not found", 404);
     }
 

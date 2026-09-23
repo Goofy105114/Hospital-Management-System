@@ -19,73 +19,50 @@ interface AuditLog {
   details: string;
 }
 
-const INITIAL_LOGS: AuditLog[] = [
-  {
-    id: "aud-01",
-    timestamp: "Today • 10:45:12 AM",
-    actor: "Sarah Lin (Pharmacist)",
-    role: "PHARMACIST",
-    action: "DISPENSE",
-    entity: "Prescription",
-    entityId: "RX-2026-0042",
-    ipAddress: "192.168.1.45",
-    status: "SUCCESS",
-    details: "Dispensed 30x Metoprolol 25mg & 30x Lisinopril 10mg to Eleanor Pena",
-  },
-  {
-    id: "aud-02",
-    timestamp: "Today • 10:30:04 AM",
-    actor: "Dr. Marcus Vance",
-    role: "DOCTOR",
-    action: "SIGN",
-    entity: "Encounter",
-    entityId: "ENC-2026-0042",
-    ipAddress: "192.168.1.102",
-    status: "SUCCESS",
-    details: "Digitally signed and locked clinical SOAP encounter record",
-  },
-  {
-    id: "aud-03",
-    timestamp: "Today • 10:15:33 AM",
-    actor: "Reception Desk Kiosk",
-    role: "RECEPTIONIST",
-    action: "CREATE",
-    entity: "QueueToken",
-    entityId: "tok-24",
-    ipAddress: "192.168.1.12",
-    status: "SUCCESS",
-    details: "Generated queue token #A-24 for appointment APT-2026-0042",
-  },
-  {
-    id: "aud-04",
-    timestamp: "Today • 08:30:19 AM",
-    actor: "Eleanor Pena",
-    role: "PATIENT",
-    action: "UPDATE",
-    entity: "PatientRecord",
-    entityId: "MRN-2026-001842",
-    ipAddress: "73.182.90.14",
-    status: "SUCCESS",
-    details: "Completed digital pre-checkin and verified HIPAA consent",
-  },
-  {
-    id: "aud-05",
-    timestamp: "Yesterday • 11:15:00 PM",
-    actor: "Unknown User (Failed Auth)",
-    role: "UNAUTHORIZED",
-    action: "UPDATE",
-    entity: "AuthSession",
-    entityId: "usr-admin-attempt",
-    ipAddress: "185.220.101.4",
-    status: "FAILED",
-    details: "Invalid password attempt 4/5. Lockout rule triggered.",
-  },
-];
+import api from "@/lib/axios";
 
 export default function AdminAuditPage() {
-  const [logs, setLogs] = useState<AuditLog[]>(INITIAL_LOGS);
+  const [logs, setLogs] = useState<AuditLog[]>([]);
   const [filterAction, setFilterAction] = useState<string>("ALL");
   const [activeTab, setActiveTab] = useState<"AUDIT" | "CONFIG" | "SYSTEM_HEALTH">("AUDIT");
+
+  React.useEffect(() => {
+    let isMounted = true;
+    api
+      .get("/admin/audit-logs")
+      .then((res) => {
+        if (!isMounted) return;
+        const list = res.data?.data;
+        if (Array.isArray(list)) {
+          const mapped: AuditLog[] = list.map((log: any) => ({
+            id: log.id,
+            timestamp: log.createdAt
+              ? new Date(log.createdAt).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  second: "2-digit",
+                })
+              : "Today",
+            actor: log.actorName || "System Staff",
+            role: log.actorRole || "SYSTEM",
+            action: (log.action as any) || "UPDATE",
+            entity: log.entityType || "Record",
+            entityId: log.entityId || "N/A",
+            ipAddress: log.ipAddress || "127.0.0.1",
+            status: "SUCCESS",
+            details:
+              typeof log.changes === "object"
+                ? JSON.stringify(log.changes)
+                : String(log.changes || "Audit trace committed"),
+          }));
+          setLogs(mapped);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Settings
   const [slotLeadTime, setSlotLeadTime] = useState(30);
@@ -202,8 +179,15 @@ export default function AdminAuditPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-outline-variant/20">
-                  {filteredLogs.map((log) => (
-                    <tr key={log.id} className="hover:bg-surface-container/40 transition-colors">
+                  {filteredLogs.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-8 text-center text-sm text-outline">
+                        No audit events recorded yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredLogs.map((log) => (
+                      <tr key={log.id} className="hover:bg-surface-container/40 transition-colors">
                       <td className="p-space-4 font-mono text-xs text-outline">{log.timestamp}</td>
                       <td className="p-space-4">
                         <span className="font-bold text-on-surface block">{log.actor}</span>
@@ -241,7 +225,8 @@ export default function AdminAuditPage() {
                         {log.details}
                       </td>
                     </tr>
-                  ))}
+                  ))
+                )}
                 </tbody>
               </table>
             </div>

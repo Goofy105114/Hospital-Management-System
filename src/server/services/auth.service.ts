@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import {
   comparePassword,
@@ -110,10 +111,11 @@ export class AuthService {
 
     // Clear old refresh tokens for this user, then store new one
     await prisma.refreshToken.deleteMany({ where: { userId: user.id } });
+    const tokenHash = crypto.createHash("sha256").update(refreshToken).digest("hex");
     await prisma.refreshToken.create({
       data: {
         userId: user.id,
-        tokenHash: refreshToken.substring(0, 64),
+        tokenHash,
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       },
     });

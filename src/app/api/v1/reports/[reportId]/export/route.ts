@@ -47,104 +47,84 @@ export async function GET(
 
     if (reportId === "overview") {
       headers = ["Metric", "Value"];
-      try {
-        const [patients, appointments, tokens, occupied, total, invoices] = await Promise.all([
-          prisma.patient.count({ where: { deletedAt: null } }),
-          prisma.appointment.count({ where: { slotStart: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } } }),
-          prisma.queueToken.count({ where: { status: { in: ["WAITING", "CALLED", "IN_CONSULTATION"] } } }),
-          prisma.bed.count({ where: { status: "OCCUPIED" } }),
-          prisma.bed.count(),
-          prisma.invoice.count(),
-        ]);
-        rows = [
-          ["Total Patients", String(patients)],
-          ["Today Appointments", String(appointments)],
-          ["Active Queue Tokens", String(tokens)],
-          ["Bed Occupancy %", total > 0 ? String(Math.round((occupied / total) * 100)) : "0"],
-          ["Total Invoices", String(invoices)],
-        ];
-      } catch {
-        rows = [["Metric", "Value"], ["Status", "Data unavailable (DB offline)"]];
-      }
+      const [patients, appointments, tokens, occupied, total, invoices] = await Promise.all([
+        prisma.patient.count({ where: { deletedAt: null } }),
+        prisma.appointment.count({ where: { slotStart: { gte: new Date(new Date().setHours(0, 0, 0, 0)) } } }),
+        prisma.queueToken.count({ where: { status: { in: ["WAITING", "CALLED", "IN_CONSULTATION"] } } }),
+        prisma.bed.count({ where: { status: "OCCUPIED" } }),
+        prisma.bed.count(),
+        prisma.invoice.count(),
+      ]);
+      rows = [
+        ["Total Patients", String(patients)],
+        ["Today Appointments", String(appointments)],
+        ["Active Queue Tokens", String(tokens)],
+        ["Bed Occupancy %", total > 0 ? String(Math.round((occupied / total) * 100)) : "0"],
+        ["Total Invoices", String(invoices)],
+      ];
 
     } else if (reportId === "appointments") {
       headers = ["AppointmentNumber", "PatientName", "DoctorName", "SlotStart", "Status"];
-      try {
-        const appts = await prisma.appointment.findMany({
-          take: 500,
-          orderBy: { slotStart: "desc" },
-          include: {
-            patient: { select: { user: { select: { name: true } } } },
-            doctor:  { select: { user: { select: { name: true } } } },
-          },
-        });
-        rows = appts.map((a) => [
-          a.appointmentNumber,
-          a.patient.user.name,
-          a.doctor.user.name,
-          a.slotStart.toISOString(),
-          a.status,
-        ]);
-      } catch {
-        rows = [];
-      }
+      const appts = await prisma.appointment.findMany({
+        take: 500,
+        orderBy: { slotStart: "desc" },
+        include: {
+          patient: { select: { user: { select: { name: true } } } },
+          doctor:  { select: { user: { select: { name: true } } } },
+        },
+      });
+      rows = appts.map((a) => [
+        a.appointmentNumber,
+        a.patient.user.name,
+        a.doctor.user.name,
+        a.slotStart.toISOString(),
+        a.status,
+      ]);
 
     } else if (reportId === "revenue") {
       headers = ["InvoiceNumber", "PatientMrn", "NetAmount", "PaidAmount", "Status", "Date"];
-      try {
-        const invoices = await prisma.invoice.findMany({
-          take: 500,
-          orderBy: { createdAt: "desc" },
-          include: { patient: { select: { mrn: true } } },
-        });
-        rows = invoices.map((inv) => [
-          inv.invoiceNumber,
-          inv.patient.mrn,
-          String(inv.netAmount),
-          String(inv.paidAmount),
-          inv.status,
-          inv.createdAt.toISOString().slice(0, 10),
-        ]);
-      } catch {
-        rows = [];
-      }
+      const invoices = await prisma.invoice.findMany({
+        take: 500,
+        orderBy: { createdAt: "desc" },
+        include: { patient: { select: { mrn: true } } },
+      });
+      rows = invoices.map((inv) => [
+        inv.invoiceNumber,
+        inv.patient.mrn,
+        String(inv.netAmount),
+        String(inv.paidAmount),
+        inv.status,
+        inv.createdAt.toISOString().slice(0, 10),
+      ]);
 
     } else if (reportId === "queue") {
       headers = ["TokenNumber", "DoctorId", "Status", "Position", "EstimatedWait", "CheckedInAt"];
-      try {
-        const tokens = await prisma.queueToken.findMany({
-          take: 500,
-          orderBy: { checkedInAt: "desc" },
-        });
-        rows = tokens.map((t) => [
-          t.tokenNumber,
-          t.doctorId,
-          t.status,
-          String(t.position),
-          String(t.estimatedWaitMinutes),
-          t.checkedInAt.toISOString(),
-        ]);
-      } catch {
-        rows = [];
-      }
+      const tokens = await prisma.queueToken.findMany({
+        take: 500,
+        orderBy: { checkedInAt: "desc" },
+      });
+      rows = tokens.map((t) => [
+        t.tokenNumber,
+        t.doctorId,
+        t.status,
+        String(t.position),
+        String(t.estimatedWaitMinutes),
+        t.checkedInAt.toISOString(),
+      ]);
 
     } else if (reportId === "inventory") {
       headers = ["ItemName", "Category", "CurrentStockOnHand", "Unit"];
-      try {
-        const items = await prisma.inventoryItem.findMany({
-          take: 500,
-          where: { isActive: true },
-          orderBy: { name: "asc" },
-        });
-        rows = items.map((i) => [
-          i.name,
-          i.category,
-          String(i.currentStockOnHand),
-          i.unit,
-        ]);
-      } catch {
-        rows = [];
-      }
+      const items = await prisma.inventoryItem.findMany({
+        take: 500,
+        where: { isActive: true },
+        orderBy: { name: "asc" },
+      });
+      rows = items.map((i) => [
+        i.name,
+        i.category,
+        String(i.currentStockOnHand),
+        i.unit,
+      ]);
     }
 
     // Build CSV

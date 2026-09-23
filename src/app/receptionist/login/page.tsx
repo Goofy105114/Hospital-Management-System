@@ -42,38 +42,33 @@ export default function ReceptionistLoginPage() {
     setErrorMsg("");
 
     try {
-      await signInWithSupabase(values.identifier, values.password);
-
-      let authUser: any = null;
-      let token = `rec-jwt-${Date.now()}`;
-
       try {
-        const res = await api.post("/auth/login", {
-          identifier: values.identifier,
-          password: values.password,
-        });
-        if (res.data?.data) {
-          authUser = res.data.data.user;
-          token = res.data.data.accessToken;
-        }
-      } catch (backendErr) {
-        console.warn("[RECEPTIONIST AUTH NOTICE]", backendErr);
+        await signInWithSupabase(values.identifier, values.password);
+      } catch {
+        // Non-blocking if offline
       }
 
-      if (!authUser) {
-        authUser = {
-          id: "rec-connor-id",
-          name: "Sarah Connor",
-          email: values.identifier,
-          role: "RECEPTIONIST",
-        };
+      const res = await api.post("/auth/login", {
+        identifier: values.identifier,
+        password: values.password,
+      });
+
+      if (!res.data?.success || !res.data?.data?.user) {
+        throw new Error(res.data?.error?.message || "Invalid credentials.");
       }
+
+      const authUser = res.data.data.user;
+      const token = res.data.data.accessToken;
 
       setAuth(authUser, token);
       setActiveRole("RECEPTIONIST");
       router.push("/patients");
     } catch (err: any) {
-      setErrorMsg(err?.message || "Invalid credentials. Please verify your email and password.");
+      const msg =
+        err?.response?.data?.error?.message ||
+        err?.message ||
+        "Invalid credentials. Please verify your email and password.";
+      setErrorMsg(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -148,26 +143,6 @@ export default function ReceptionistLoginPage() {
               {errors.password && (
                 <p className="text-[11px] text-error mt-1">{errors.password.message}</p>
               )}
-            </div>
-
-            {/* Demo Quickfill */}
-            <div className="p-3 bg-surface-container-low rounded-xl border border-outline-variant/20 flex items-center justify-between">
-              <div>
-                <p className="text-[11px] font-bold text-on-surface">Reception Desk Demo</p>
-                <p className="text-[10px] text-outline font-mono">receptionist@goingmerry.hms</p>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="text-xs h-7 px-2.5 border-emerald-400 text-emerald-800 hover:bg-emerald-50"
-                onClick={() => {
-                  setValue("identifier", "receptionist@goingmerry.hms");
-                  setValue("password", "Password123!");
-                }}
-              >
-                Autofill
-              </Button>
             </div>
 
             <Button

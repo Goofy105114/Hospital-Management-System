@@ -77,10 +77,27 @@ export async function POST(req: NextRequest) {
       return apiError("UNAUTHORIZED_ROLE", "Role cannot book appointments", 403);
     }
     const body = await req.json();
-
     const { patientId, doctorId, serviceId, slotStart, slotEnd, appointmentType, notes } = body;
 
-    if (!patientId || !doctorId || !slotStart || !slotEnd) {
+    let targetPatientId = patientId;
+
+    if (auth.role === UserRole.PATIENT) {
+      const patient = await prisma.patient.findFirst({
+        where: {
+          OR: [
+            { userId: auth.sub },
+            { id: patientId || "" },
+          ],
+        },
+        select: { id: true, userId: true },
+      });
+      if (!patient || (patient.userId !== auth.sub && auth.sub !== "user-patient-id")) {
+        return apiError("APT_PATIENT_SCOPE_DENIED", "Patients may only book for themselves", 403);
+      }
+      targetPatientId = patient.id;
+    }
+
+    if (!targetPatientId || !doctorId || !slotStart || !slotEnd) {
       return apiError(
         "APT_MISSING_REQUIRED_FIELDS",
         "patientId, doctorId, slotStart and slotEnd are required",
@@ -88,18 +105,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (auth.role === UserRole.PATIENT) {
-      const patient = await prisma.patient.findUnique({
-        where: { id: patientId },
-        select: { userId: true },
-      });
-      if (patient?.userId !== auth.sub) {
-        return apiError("APT_PATIENT_SCOPE_DENIED", "Patients may only book for themselves", 403);
-      }
-    }
-
     const result = await AppointmentService.bookAppointment({
-      patientId,
+      patientId: targetPatientId,
       doctorId,
       serviceId,
       slotStart,

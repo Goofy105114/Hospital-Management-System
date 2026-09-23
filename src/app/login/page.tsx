@@ -22,7 +22,6 @@ interface PortalCard {
   loginHref: string;
   registerHref: string;
   registerLabel: string;
-  demoAccount: string;
 }
 
 const portals: PortalCard[] = [
@@ -48,7 +47,6 @@ const portals: PortalCard[] = [
     loginHref: "/patient/login",
     registerHref: "/patient/register",
     registerLabel: "New Patient? Create Account",
-    demoAccount: "eleanor.vance@example.com",
   },
   {
     id: "doctor",
@@ -72,7 +70,6 @@ const portals: PortalCard[] = [
     loginHref: "/doctor/login",
     registerHref: "/doctor/register",
     registerLabel: "Doctor Onboarding",
-    demoAccount: "dr.vance@goingmerry.hms",
   },
   {
     id: "admin",
@@ -96,7 +93,6 @@ const portals: PortalCard[] = [
     loginHref: "/admin/login",
     registerHref: "/admin/register",
     registerLabel: "Admin Onboarding",
-    demoAccount: "admin@goingmerry.hms",
   },
   {
     id: "receptionist",
@@ -120,7 +116,6 @@ const portals: PortalCard[] = [
     loginHref: "/receptionist/login",
     registerHref: "/receptionist/register",
     registerLabel: "Receptionist Registration",
-    demoAccount: "receptionist@goingmerry.hms",
   },
 ];
 
@@ -227,12 +222,6 @@ export default function LoginPortalSelectionPage() {
                 >
                   {portal.registerLabel} &rarr;
                 </Link>
-
-                <div className="text-center pt-1">
-                  <span className="text-[10px] font-mono text-outline">
-                    Demo: {portal.demoAccount}
-                  </span>
-                </div>
               </div>
             </div>
           ))}

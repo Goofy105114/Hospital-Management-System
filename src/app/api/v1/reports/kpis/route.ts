@@ -69,16 +69,12 @@ export async function GET(request: NextRequest) {
     // BED_OCCUPANCY — point-in-time, no bucketing needed
     // -----------------------------------------------------------------------
     if (kpiCode === "BED_OCCUPANCY") {
-      try {
-        const [occupied, total] = await Promise.all([
-          prisma.bed.count({ where: { status: "OCCUPIED" } }),
-          prisma.bed.count(),
-        ]);
-        const value = total > 0 ? Math.round((occupied / total) * 100) : 0;
-        series = [{ date: new Date().toISOString().slice(0, 10), value }];
-      } catch {
-        series = [{ date: new Date().toISOString().slice(0, 10), value: 83 }];
-      }
+      const [occupied, total] = await Promise.all([
+        prisma.bed.count({ where: { status: "OCCUPIED" } }),
+        prisma.bed.count(),
+      ]);
+      const value = total > 0 ? Math.round((occupied / total) * 100) : 0;
+      series = [{ date: new Date().toISOString().slice(0, 10), value }];
       return apiSuccess({ kpiCode, dateFrom: dateFrom.toISOString().slice(0, 10), dateTo: dateTo.toISOString().slice(0, 10), series });
     }
 
@@ -94,60 +90,52 @@ export async function GET(request: NextRequest) {
     // Cap to 90 days to avoid runaway queries
     const cappedDays = days.slice(-90);
 
-    try {
-      for (const day of cappedDays) {
-        const dayStart = new Date(`${day}T00:00:00.000Z`);
-        const dayEnd   = new Date(`${day}T23:59:59.999Z`);
-        let value = 0;
+    for (const day of cappedDays) {
+      const dayStart = new Date(`${day}T00:00:00.000Z`);
+      const dayEnd   = new Date(`${day}T23:59:59.999Z`);
+      let value = 0;
 
-        if (kpiCode === "AVG_WAIT_TIME") {
-          const result = await prisma.queueToken.aggregate({
-            _avg: { estimatedWaitMinutes: true },
-            where: { checkedInAt: { gte: dayStart, lte: dayEnd } },
-          });
-          value = Math.round(result._avg.estimatedWaitMinutes ?? 0);
+      if (kpiCode === "AVG_WAIT_TIME") {
+        const result = await prisma.queueToken.aggregate({
+          _avg: { estimatedWaitMinutes: true },
+          where: { checkedInAt: { gte: dayStart, lte: dayEnd } },
+        });
+        value = Math.round(result._avg.estimatedWaitMinutes ?? 0);
 
-        } else if (kpiCode === "NO_SHOW_RATE") {
-          const [noShow, total] = await Promise.all([
-            prisma.appointment.count({
-              where: { slotStart: { gte: dayStart, lte: dayEnd }, status: AppointmentStatus.NO_SHOW },
-            }),
-            prisma.appointment.count({
-              where: {
-                slotStart: { gte: dayStart, lte: dayEnd },
-                status: { not: AppointmentStatus.CANCELLED },
-              },
-            }),
-          ]);
-          value = total > 0 ? Math.round((noShow / total) * 100) : 0;
-
-        } else if (kpiCode === "REVENUE") {
-          const result = await prisma.invoice.aggregate({
-            _sum: { paidAmount: true },
-            where: { createdAt: { gte: dayStart, lte: dayEnd } },
-          });
-          value = Number(result._sum.paidAmount ?? 0);
-
-        } else if (kpiCode === "STOCK_TURNOVER") {
-          const result = await prisma.stockLedgerEntry.aggregate({
-            _sum: { quantityDelta: true },
+      } else if (kpiCode === "NO_SHOW_RATE") {
+        const [noShow, total] = await Promise.all([
+          prisma.appointment.count({
+            where: { slotStart: { gte: dayStart, lte: dayEnd }, status: AppointmentStatus.NO_SHOW },
+          }),
+          prisma.appointment.count({
             where: {
-              createdAt: { gte: dayStart, lte: dayEnd },
-              reason: "DISPENSE",
+              slotStart: { gte: dayStart, lte: dayEnd },
+              status: { not: AppointmentStatus.CANCELLED },
             },
-          });
-          // ABS of delta (dispenses are negative)
-          value = Math.abs(Number(result._sum.quantityDelta ?? 0));
-        }
+          }),
+        ]);
+        value = total > 0 ? Math.round((noShow / total) * 100) : 0;
 
-        series.push({ date: day, value });
+      } else if (kpiCode === "REVENUE") {
+        const result = await prisma.invoice.aggregate({
+          _sum: { paidAmount: true },
+          where: { createdAt: { gte: dayStart, lte: dayEnd } },
+        });
+        value = Number(result._sum.paidAmount ?? 0);
+
+      } else if (kpiCode === "STOCK_TURNOVER") {
+        const result = await prisma.stockLedgerEntry.aggregate({
+          _sum: { quantityDelta: true },
+          where: {
+            createdAt: { gte: dayStart, lte: dayEnd },
+            reason: "DISPENSE",
+          },
+        });
+        // ABS of delta (dispenses are negative)
+        value = Math.abs(Number(result._sum.quantityDelta ?? 0));
       }
-    } catch {
-      // DB offline — return deterministic seed data
-      series = cappedDays.map((date, i) => ({
-        date,
-        value: Math.round(10 + (i % 7) * 3),
-      }));
+
+      series.push({ date: day, value });
     }
 
     return apiSuccess({

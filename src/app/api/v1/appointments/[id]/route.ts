@@ -10,132 +10,149 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   try {
     const { id } = params;
 
-    let appointment = null;
-    try {
-      appointment = await prisma.appointment.findFirst({
-        where: {
-          OR: [{ id }, { appointmentNumber: id }],
-        },
-        include: {
-          patient: true,
-          doctor: {
-            include: {
-              department: true,
-              user: true,
-            },
-          },
-          department: true,
-          queueToken: true,
-        },
-      });
-    } catch {
-      // Prisma offline/fallback
-    }
-
-    if (!appointment) {
-      // High-fidelity fallback appointment data matching Clinical Clarity Figma specs
-      return apiSuccess({
-        id: id || "apt-mock-001",
-        appointmentNumber: id.startsWith("APT-") ? id : "APT-2026-0042",
-        type: "IN_PERSON",
-        status: "CONFIRMED",
-        scheduledDate: "2026-10-24",
-        scheduledTime: "10:30 AM",
-        endTime: "11:00 AM",
-        durationMinutes: 30,
-        reason: "Comprehensive Cardiovascular Follow-up & Stress Echo Review",
-        notes:
-          "Patient reports mild palpitations post-exertion over the last 14 days. Current medications: Lisinopril 10mg, Metoprolol 25mg.",
+    const appointment = await prisma.appointment.findFirst({
+      where: {
+        OR: [{ id }, { appointmentNumber: id }],
+      },
+      include: {
         patient: {
-          id: "pat-001",
-          mrn: "MRN-2026-001842",
-          firstName: "Eleanor",
-          lastName: "Pena",
-          email: "eleanor.pena@example.com",
-          phone: "+1 (555) 234-5678",
-          dateOfBirth: "1988-04-15",
-          bloodGroup: "A_POSITIVE",
-          gender: "FEMALE",
+          include: {
+            user: true,
+            vitalSigns: { orderBy: { recordedAt: "desc" }, take: 1 },
+          },
         },
         doctor: {
-          id: "doc-001",
-          name: "Dr. Marcus Vance",
-          specialty: "Cardiology",
-          qualification: "MD, FACC - Chief of Cardiology",
-          roomNumber: "Room 402B",
-          department: {
-            id: "dept-01",
-            name: "Cardiology & Vascular Medicine",
-            floor: "Level 4, West Wing",
+          include: {
+            department: true,
+            user: true,
           },
         },
-        queueToken: {
-          id: "tok-001",
-          tokenNumber: "#A-24",
-          status: "CALLED",
-          position: 3,
-          estimatedWaitMinutes: 12,
-          currentServing: "#A-21",
-        },
-        vitals: {
-          bloodPressure: "128/82 mmHg",
-          heartRate: "72 bpm",
-          oxygenSaturation: "98%",
-          temperature: "98.4 °F",
-          weightKg: "74.2 kg",
-          bmi: "23.8",
-        },
-        timeline: [
-          {
-            title: "Appointment Requested",
-            timestamp: "Oct 18, 2026 • 09:14 AM",
-            status: "COMPLETED",
-            description: "Online booking submitted via Patient Portal",
-          },
-          {
-            title: "Physician Slot Confirmed",
-            timestamp: "Oct 18, 2026 • 09:15 AM",
-            status: "COMPLETED",
-            description: "Automated schedule allocation verified",
-          },
-          {
-            title: "Digital Pre-Check-in & Consent",
-            timestamp: "Oct 24, 2026 • 08:30 AM",
-            status: "COMPLETED",
-            description: "Health questionnaire and HIPAA consent completed",
-          },
-          {
-            title: "Arrival & Queue Token Issued",
-            timestamp: "Oct 24, 2026 • 10:15 AM",
-            status: "ACTIVE",
-            description: "Token #A-24 assigned at OPD Kiosk Station C",
-          },
-          {
-            title: "Clinical Consultation",
-            timestamp: "Expected 10:30 AM",
-            status: "PENDING",
-            description: "Consultation Room 402B with Dr. Marcus Vance",
-          },
-          {
-            title: "Prescription & Care Plan Signoff",
-            timestamp: "Expected 10:55 AM",
-            status: "UPCOMING",
-            description: "Digital Rx dispatch to Hospital Pharmacy Dispensary",
-          },
-        ],
-        facility: {
-          name: "Going Merry Memorial Medical Center",
-          building: "West Wing Medical Pavilion",
-          floor: "Level 4, Suite 400",
-          room: "Consultation Room 402B",
-          station: "Check-in Station C",
-          directions: "Take North elevators to Level 4, turn right past Cardiology Reception.",
-          parking: "Validated Parking Garage 2 (Level B)",
-        },
-      });
+        department: true,
+        queueToken: true,
+      },
+    });
+
+    if (!appointment) {
+      return apiError("APT_NOT_FOUND", "Appointment not found in database", 404);
     }
 
-    return apiSuccess(appointment);
+    const slotStart = new Date(appointment.slotStart);
+    const slotEnd = new Date(appointment.slotEnd);
+    const durationMinutes = Math.max(15, Math.round((slotEnd.getTime() - slotStart.getTime()) / 60000));
+
+    const formatted = {
+      id: appointment.id,
+      appointmentNumber: appointment.appointmentNumber,
+      type: appointment.appointmentType || "IN_PERSON",
+      status: appointment.status,
+      scheduledDate: slotStart.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }),
+      scheduledTime: slotStart.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+      }),
+      endTime: slotEnd.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+      }),
+      durationMinutes,
+      reason: appointment.notes || "Clinical Consultation",
+      notes: appointment.notes || "General clinical consultation",
+      patient: {
+        id: appointment.patient.id,
+        mrn: appointment.patient.mrn,
+        firstName: appointment.patient.user.name.split(" ")[0] || "Patient",
+        lastName: appointment.patient.user.name.split(" ").slice(1).join(" ") || "",
+        email: appointment.patient.user.email,
+        phone: appointment.patient.user.phone || "N/A",
+        bloodGroup: appointment.patient.bloodGroup || "UNKNOWN",
+      },
+      doctor: {
+        id: appointment.doctor.id,
+        name: appointment.doctor.user.name,
+        specialty: appointment.doctor.specialization || "General Medicine",
+        qualification: appointment.doctor.qualifications || "MD",
+        roomNumber: appointment.doctor.roomNumber || "Room 101",
+        department: {
+          name: appointment.doctor.department?.name || appointment.department?.name || "General OPD",
+          floor: "Ground Floor",
+        },
+      },
+      queueToken: appointment.queueToken
+        ? {
+            id: appointment.queueToken.id,
+            tokenNumber: appointment.queueToken.tokenNumber,
+            status: appointment.queueToken.status,
+            position: appointment.queueToken.position,
+            estimatedWaitMinutes: appointment.queueToken.estimatedWaitMinutes,
+            currentServing: appointment.queueToken.tokenNumber,
+          }
+        : undefined,
+      vitals: appointment.patient.vitalSigns?.[0]
+        ? {
+            bloodPressure:
+              appointment.patient.vitalSigns[0].systolicBp &&
+              appointment.patient.vitalSigns[0].diastolicBp
+                ? `${appointment.patient.vitalSigns[0].systolicBp}/${appointment.patient.vitalSigns[0].diastolicBp} mmHg`
+                : null,
+            heartRate: appointment.patient.vitalSigns[0].heartRate
+              ? `${appointment.patient.vitalSigns[0].heartRate} bpm`
+              : null,
+            oxygenSaturation: appointment.patient.vitalSigns[0].oxygenSaturation
+              ? `${appointment.patient.vitalSigns[0].oxygenSaturation}%`
+              : null,
+            temperature: appointment.patient.vitalSigns[0].temperatureCelsius
+              ? `${Number(appointment.patient.vitalSigns[0].temperatureCelsius).toFixed(1)} °C`
+              : null,
+            weightKg: appointment.patient.vitalSigns[0].weightKg
+              ? `${Number(appointment.patient.vitalSigns[0].weightKg)} kg`
+              : null,
+            bmi: appointment.patient.vitalSigns[0].bmi
+              ? String(appointment.patient.vitalSigns[0].bmi)
+              : null,
+          }
+        : null,
+      timeline: [
+        {
+          title: "Appointment Booked",
+          timestamp: new Date(appointment.createdAt).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+          }),
+          status: "COMPLETED",
+          description: "Online booking submitted via Patient Portal",
+        },
+        {
+          title: "Physician Slot Confirmed",
+          timestamp: slotStart.toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+          }),
+          status: appointment.status === "CONFIRMED" || appointment.status === "CHECKED_IN" ? "COMPLETED" : "PENDING",
+          description: `Scheduled with ${appointment.doctor.user.name}`,
+        },
+      ],
+      facility: {
+        name: "Going Merry Memorial Medical Center",
+        building: "Main Clinical Pavilion",
+        floor: "Ground Floor",
+        room: appointment.doctor.roomNumber || "Room 101",
+        station: "OPD Reception Counter",
+        directions: "Proceed to Main Entrance and check in with receptionist or kiosk.",
+        parking: "Validated Parking Garage Available",
+      },
+    };
+
+    return apiSuccess(formatted);
   } catch (err: any) {
     return apiError("INTERNAL_ERROR", err.message || "Failed to retrieve appointment details", 500);
   }
@@ -145,8 +162,11 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   // APT-06: auth guard — only authorised clinical/admin roles may mutate appointment lifecycle
   const user = getAuthUser(request);
   if (!user) return apiError("UNAUTHENTICATED", "Authentication required", 401);
-  if (!requireRole(user, ["RECEPTIONIST", "DOCTOR", "NURSE", "ADMIN"])) {
+  if (!requireRole(user, ["RECEPTIONIST", "DOCTOR", "NURSE", "ADMIN", "PATIENT"])) {
     return apiError("UNAUTHORIZED_ROLE", "Insufficient role to update appointment lifecycle", 403);
+  }
+  if (user.role === "PATIENT") {
+    // Patients are only permitted to cancel appointments
   }
 
   try {
@@ -157,16 +177,9 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     // Fetch the current appointment to validate the transition.
     // dbAvailable=false means the DB is offline; we skip the state-machine check
     // and fall through to each action's DB block (which also catches and no-ops).
-    let appointment: Awaited<ReturnType<typeof prisma.appointment.findUnique>> | null = null;
-    let dbAvailable = true;
-    try {
-      appointment = await prisma.appointment.findUnique({ where: { id } });
-      if (appointment === null) {
-        return apiError("APT_NOT_FOUND", "Appointment not found", 404);
-      }
-    } catch {
-      // DB offline — allow action handlers to proceed with their own try/catch
-      dbAvailable = false;
+    const appointment = await prisma.appointment.findUnique({ where: { id } });
+    if (!appointment) {
+      return apiError("APT_NOT_FOUND", "Appointment not found", 404);
     }
 
     // -----------------------------------------------------------------------
@@ -177,19 +190,17 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         return apiError("APT_CANCEL_REASON_REQUIRED", "A cancellation reason is required", 400);
       }
 
-      if (appointment && dbAvailable) {
-        if (!canTransitionAppointment(appointment.status, AppointmentStatus.CANCELLED)) {
-          return apiError(
-            "APT_NOT_CANCELLABLE_STATUS",
-            `Cannot cancel an appointment with status ${appointment.status}`,
-            422
-          );
-        }
-        await prisma.appointment.update({
-          where: { id },
-          data: { status: AppointmentStatus.CANCELLED, cancellationReason: reason },
-        });
+      if (!canTransitionAppointment(appointment.status, AppointmentStatus.CANCELLED)) {
+        return apiError(
+          "APT_NOT_CANCELLABLE_STATUS",
+          `Cannot cancel an appointment with status ${appointment.status}`,
+          422
+        );
       }
+      await prisma.appointment.update({
+        where: { id },
+        data: { status: AppointmentStatus.CANCELLED, cancellationReason: reason },
+      });
 
       await logAuditEvent({
         actorId: user.sub,
@@ -198,7 +209,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         entityType: "Appointment",
         entityId: id,
         changes: {
-          before: { status: appointment?.status ?? "UNKNOWN" },
+          before: { status: appointment.status },
           after: { status: "CANCELLED", reason },
         },
       });
@@ -210,19 +221,17 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     // NO_SHOW
     // -----------------------------------------------------------------------
     if (action === "NO_SHOW") {
-      if (appointment && dbAvailable) {
-        if (!canTransitionAppointment(appointment.status, AppointmentStatus.NO_SHOW)) {
-          return apiError(
-            "APT_INVALID_TRANSITION",
-            `Cannot mark NO_SHOW from status ${appointment.status}`,
-            422
-          );
-        }
-        await prisma.appointment.update({
-          where: { id },
-          data: { status: AppointmentStatus.NO_SHOW },
-        });
+      if (!canTransitionAppointment(appointment.status, AppointmentStatus.NO_SHOW)) {
+        return apiError(
+          "APT_INVALID_TRANSITION",
+          `Cannot mark NO_SHOW from status ${appointment.status}`,
+          422
+        );
       }
+      await prisma.appointment.update({
+        where: { id },
+        data: { status: AppointmentStatus.NO_SHOW },
+      });
 
       await logAuditEvent({
         actorId: user.sub,
@@ -231,7 +240,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         entityType: "Appointment",
         entityId: id,
         changes: {
-          before: { status: appointment?.status ?? "UNKNOWN" },
+          before: { status: appointment.status },
           after: { status: "NO_SHOW" },
         },
       });
@@ -258,23 +267,21 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         return apiError("APT_INVALID_SLOT", "Invalid slot dates provided", 400);
       }
 
-      if (appointment && dbAvailable) {
-        if (!canTransitionAppointment(appointment.status, AppointmentStatus.RESCHEDULED)) {
-          return apiError(
-            "APT_INVALID_TRANSITION",
-            `Cannot reschedule an appointment with status ${appointment.status}`,
-            422
-          );
-        }
-        await prisma.appointment.update({
-          where: { id },
-          data: {
-            status: AppointmentStatus.RESCHEDULED,
-            rescheduledToId: null, // new booking ID linked separately when re-booked
-            updatedAt: new Date(),
-          },
-        });
+      if (!canTransitionAppointment(appointment.status, AppointmentStatus.RESCHEDULED)) {
+        return apiError(
+          "APT_INVALID_TRANSITION",
+          `Cannot reschedule an appointment with status ${appointment.status}`,
+          422
+        );
       }
+      await prisma.appointment.update({
+        where: { id },
+        data: {
+          status: AppointmentStatus.RESCHEDULED,
+          rescheduledToId: null, // new booking ID linked separately when re-booked
+          updatedAt: new Date(),
+        },
+      });
 
       await logAuditEvent({
         actorId: user.sub,

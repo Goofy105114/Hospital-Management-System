@@ -177,22 +177,15 @@ export default function AdminRegisterPage() {
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-1">
+              <div className="mb-1">
                 <label className="block text-xs font-bold text-on-surface uppercase tracking-wider">
                   Admin Master Passkey / Secret Key
                 </label>
-                <button
-                  type="button"
-                  onClick={() => setValue("securityKey", "GOINGMERRY-ADMIN-2026")}
-                  className="text-[10px] font-mono text-primary font-bold hover:underline"
-                >
-                  Fill Default Demo Key
-                </button>
               </div>
               <input
                 type="password"
                 {...register("securityKey")}
-                placeholder="GOINGMERRY-ADMIN-2026"
+                placeholder="Enter authorized administrator key"
                 className="w-full h-10 px-3 bg-surface-container-low text-on-surface rounded-xl border border-outline-variant/40 focus:border-slate-800 text-sm font-medium font-mono"
               />
               {errors.securityKey && (

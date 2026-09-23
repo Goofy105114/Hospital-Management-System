@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { apiSuccess } from "@/lib/api-envelope";
+import { apiSuccess, apiError } from "@/lib/api-envelope";
 
 export const dynamic = "force-dynamic";
 
@@ -46,33 +46,8 @@ export async function GET(req: NextRequest) {
     }));
 
     return apiSuccess(formatted);
-  } catch {
-    return apiSuccess([
-      {
-        id: "inv-01",
-        invoiceNumber: "INV-2026-0042",
-        patientId: "pat-01",
-        patientName: "Eleanor Pena",
-        patientMrn: "MRN-2026-001842",
-        totalAmount: 420.0,
-        discountAmount: 0,
-        taxAmount: 0,
-        netAmount: 420.0,
-        paidAmount: 336.0,
-        balanceAmount: 84.0,
-        status: "PENDING",
-        dueDate: "2026-11-24",
-        createdAt: new Date().toISOString(),
-        items: [
-          {
-            id: "it-01",
-            description: "Cardiology Specialist Consultation",
-            quantity: 1,
-            unitPrice: 180.0,
-            totalPrice: 180.0,
-          },
-        ],
-      },
-    ]);
+  } catch (error: any) {
+    console.error("Failed to fetch invoices:", error);
+    return apiError("FETCH_FAILED", "Failed to fetch invoices", 500);
   }
 }

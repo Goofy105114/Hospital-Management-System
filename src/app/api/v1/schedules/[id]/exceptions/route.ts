@@ -42,14 +42,9 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     }
 
     // Fetch session to get the doctorId
-    let session = null;
-    try {
-      session = await prisma.clinicSession.findUnique({ where: { id } });
-    } catch {
-      // DB offline
-    }
+    const session = await prisma.clinicSession.findUnique({ where: { id } });
 
-    if (session === null) {
+    if (!session) {
       return apiError("SCH_SESSION_NOT_FOUND", "Clinic session not found", 404);
     }
 
@@ -59,27 +54,15 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const dayEnd = new Date(exceptionDate);
     dayEnd.setHours(23, 59, 59, 999);
 
-    let leave = null;
-    try {
-      leave = await prisma.doctorLeave.create({
-        data: {
-          doctorId: session.doctorId,
-          startDate: dayStart,
-          endDate: dayEnd,
-          reason: reason || "SCHEDULE_EXCEPTION",
-          status: "APPROVED",
-        },
-      });
-    } catch {
-      // DB offline — return intent confirmation
-      leave = {
-        doctorId: session?.doctorId,
-        startDate: dayStart.toISOString(),
-        endDate: dayEnd.toISOString(),
+    const leave = await prisma.doctorLeave.create({
+      data: {
+        doctorId: session.doctorId,
+        startDate: dayStart,
+        endDate: dayEnd,
         reason: reason || "SCHEDULE_EXCEPTION",
         status: "APPROVED",
-      };
-    }
+      },
+    });
 
     await logAuditEvent({
       actorId: user.sub,

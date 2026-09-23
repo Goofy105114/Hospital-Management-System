@@ -49,62 +49,53 @@ export async function PATCH(
     const confirmStatus = status as PaymentConfirmStatus;
 
     // Fetch the payment
-    let payment = null;
-    try {
-      payment = await prisma.payment.findUnique({ where: { id } });
-    } catch {
-      // DB offline
-    }
+    const payment = await prisma.payment.findUnique({ where: { id } });
 
-    if (payment === null) {
+    if (!payment) {
       return apiError("BIL_PAYMENT_NOT_FOUND", "Payment record not found", 404);
     }
 
     let updatedInvoiceStatus: InvoiceStatus | null = null;
 
-    if (confirmStatus === "SUCCESS" && payment) {
+    if (confirmStatus === "SUCCESS") {
       // Recompute invoice totals from all payments
-      try {
-        const [allPayments, invoice] = await Promise.all([
-          prisma.payment.findMany({
-            where: { invoiceId: payment.invoiceId },
-            select: { amount: true },
-          }),
-          prisma.invoice.findUnique({ where: { id: payment.invoiceId } }),
-        ]);
+      const [allPayments, invoice] = await Promise.all([
+        prisma.payment.findMany({
+          where: { invoiceId: payment.invoiceId },
+          select: { amount: true },
+        }),
+        prisma.invoice.findUnique({ where: { id: payment.invoiceId } }),
+      ]);
 
-        if (invoice) {
-          // Include this payment's amount in the sum
-          // (already persisted — just sum all existing payments)
-          const totalPaid = allPayments.reduce(
-            (sum, p) => sum + Number(p.amount),
-            0
-          );
-          const netAmount = Number(invoice.netAmount);
-          const balanceAmount = Math.max(0, netAmount - totalPaid);
+      if (invoice) {
+        // Include this payment's amount in the sum
+        // (already persisted — just sum all existing payments)
+        const totalPaid = allPayments.reduce(
+          (sum, p) => sum + Number(p.amount),
+          0
+        );
+        const netAmount = Number(invoice.netAmount);
+        const balanceAmount = Math.max(0, netAmount - totalPaid);
 
-          let newStatus: InvoiceStatus;
-          if (totalPaid >= netAmount) {
-            newStatus = InvoiceStatus.PAID;
-          } else if (totalPaid > 0) {
-            newStatus = InvoiceStatus.PARTIALLY_PAID;
-          } else {
-            newStatus = InvoiceStatus.ISSUED;
-          }
-
-          await prisma.invoice.update({
-            where: { id: payment.invoiceId },
-            data: {
-              paidAmount: totalPaid,
-              balanceAmount,
-              status: newStatus,
-            },
-          });
-
-          updatedInvoiceStatus = newStatus;
+        let newStatus: InvoiceStatus;
+        if (totalPaid >= netAmount) {
+          newStatus = InvoiceStatus.PAID;
+        } else if (totalPaid > 0) {
+          newStatus = InvoiceStatus.PARTIALLY_PAID;
+        } else {
+          newStatus = InvoiceStatus.ISSUED;
         }
-      } catch {
-        // DB offline — skip invoice update
+
+        await prisma.invoice.update({
+          where: { id: payment.invoiceId },
+          data: {
+            paidAmount: totalPaid,
+            balanceAmount,
+            status: newStatus,
+          },
+        });
+
+        updatedInvoiceStatus = newStatus;
       }
     }
 

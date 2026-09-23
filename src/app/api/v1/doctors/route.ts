@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { apiSuccess } from "@/lib/api-envelope";
+import { apiSuccess, apiError } from "@/lib/api-envelope";
 
 export const dynamic = "force-dynamic";
 
@@ -47,38 +47,8 @@ export async function GET(req: NextRequest) {
     }));
 
     return apiSuccess(formatted);
-  } catch {
-    return apiSuccess([
-      {
-        id: "doc-001",
-        name: "Dr. Marcus Vance",
-        email: "marcus.vance@goingmerry.org",
-        phone: "+1 555-0192",
-        departmentId: "dept-01",
-        departmentName: "Cardiology & Vascular Medicine",
-        specialization: "Interventional Cardiology",
-        qualifications: "MD, FACC - Chief of Cardiology",
-        consultationFee: 150,
-        roomNumber: "Room 402B",
-        photoUrl: null,
-        bio: "Specialist in preventative cardiology and echocardiography.",
-        isActive: true,
-      },
-      {
-        id: "doc-002",
-        name: "Dr. Sarah Jenkins",
-        email: "sarah.jenkins@goingmerry.org",
-        phone: "+1 555-0193",
-        departmentId: "dept-02",
-        departmentName: "Internal Medicine",
-        specialization: "General Internal Medicine",
-        qualifications: "MD, FACP",
-        consultationFee: 120,
-        roomNumber: "Room 305A",
-        photoUrl: null,
-        bio: "Comprehensive chronic disease management and adult wellness.",
-        isActive: true,
-      },
-    ]);
+  } catch (error: any) {
+    console.error("[DOCTORS_GET_ERROR]", error);
+    return apiError("DOCTORS_FETCH_FAILED", error.message || "Failed to fetch doctors", 500);
   }
 }
