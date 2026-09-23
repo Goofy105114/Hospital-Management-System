@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { AppLayout } from "@/components/shared/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import api from "@/lib/axios";
 
 interface InsuranceClaim {
   id: string;
@@ -22,100 +23,60 @@ interface InsuranceClaim {
   status: "SUBMITTED" | "IN_REVIEW" | "APPROVED" | "REJECTED" | "SETTLED";
 }
 
-const INITIAL_CLAIMS: InsuranceClaim[] = [
-  {
-    id: "clm-01",
-    claimNumber: "CLM-2026-0089",
-    patientName: "Eleanor Pena",
-    mrn: "MRN-2026-001842",
-    payerName: "Blue Cross Blue Shield",
-    policyNumber: "BCBS-8942103",
-    preAuthCode: "AUTH-98412",
-    claimedAmount: 420.0,
-    approvedAmount: 336.0,
-    copayAmount: 84.0,
-    submittedDate: "2026-10-24",
-    status: "APPROVED",
-  },
-  {
-    id: "clm-02",
-    claimNumber: "CLM-2026-0085",
-    patientName: "Sofia Rodriguez",
-    mrn: "MRN-2026-001802",
-    payerName: "Aetna Healthcare",
-    policyNumber: "AET-491028",
-    preAuthCode: "AUTH-87123",
-    claimedAmount: 1250.0,
-    approvedAmount: 1000.0,
-    copayAmount: 250.0,
-    submittedDate: "2026-10-22",
-    status: "SETTLED",
-  },
-  {
-    id: "clm-03",
-    claimNumber: "CLM-2026-0078",
-    patientName: "James Wilson",
-    mrn: "MRN-2026-001850",
-    payerName: "UnitedHealthcare",
-    policyNumber: "UHC-774910",
-    preAuthCode: "AUTH-65412",
-    claimedAmount: 2800.0,
-    approvedAmount: 0.0,
-    copayAmount: 2800.0,
-    submittedDate: "2026-10-20",
-    status: "IN_REVIEW",
-  },
-  {
-    id: "clm-04",
-    claimNumber: "CLM-2026-0062",
-    patientName: "David Chen",
-    mrn: "MRN-2026-001815",
-    payerName: "Cigna Health Life",
-    policyNumber: "CIG-382910",
-    preAuthCode: "AUTH-11928",
-    claimedAmount: 640.0,
-    approvedAmount: 0.0,
-    copayAmount: 640.0,
-    submittedDate: "2026-10-15",
-    status: "REJECTED",
-  },
-];
-
 export default function InsuranceClaimsPage() {
-  const [claims, setClaims] = useState<InsuranceClaim[]>(INITIAL_CLAIMS);
+  const [claims, setClaims] = useState<InsuranceClaim[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [showSubmitModal, setShowSubmitModal] = useState(false);
 
   // New Claim Form State
-  const [newPatient, setNewPatient] = useState("Eleanor Pena (MRN-2026-001842)");
+  const [newPatient, setNewPatient] = useState("");
+  const [newMrn, setNewMrn] = useState("");
   const [newPayer, setNewPayer] = useState("Blue Cross Blue Shield");
-  const [newPolicy, setNewPolicy] = useState("BCBS-8942103");
+  const [newPolicy, setNewPolicy] = useState("");
   const [newPreAuth, setNewPreAuth] = useState("");
   const [newAmount, setNewAmount] = useState("500.00");
 
-  const handleSubmitClaim = (e: React.FormEvent) => {
+  const fetchClaims = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get("/billing/claims");
+      const list = res.data?.data;
+      if (Array.isArray(list)) {
+        setClaims(list);
+      }
+    } catch {
+      setClaims([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchClaims();
+  }, []);
+
+  const handleSubmitClaim = async (e: React.FormEvent) => {
     e.preventDefault();
-    const seq = Math.floor(1000 + Math.random() * 9000);
-    const amt = Number(newAmount);
-    const newClaim: InsuranceClaim = {
-      id: `clm-${Date.now()}`,
-      claimNumber: `CLM-2026-0${seq}`,
-      patientName: newPatient.split(" (")[0],
-      mrn: newPatient.includes("MRN")
-        ? newPatient.split("(")[1].replace(")", "")
-        : "MRN-2026-001842",
-      payerName: newPayer,
-      policyNumber: newPolicy,
-      preAuthCode: newPreAuth || `AUTH-${Math.floor(10000 + Math.random() * 90000)}`,
-      claimedAmount: amt,
-      approvedAmount: amt * 0.8,
-      copayAmount: amt * 0.2,
-      submittedDate: new Date().toISOString().split("T")[0],
-      status: "SUBMITTED",
-    };
-    setClaims([newClaim, ...claims]);
-    setShowSubmitModal(false);
+    try {
+      await api.post("/billing/claims", {
+        patientName: newPatient,
+        mrn: newMrn,
+        payerName: newPayer,
+        policyNumber: newPolicy || "POL-894210",
+        preAuthCode: newPreAuth,
+        claimedAmount: Number(newAmount),
+      });
+      await fetchClaims();
+      setShowSubmitModal(false);
+      setNewPatient("");
+      setNewMrn("");
+      setNewPolicy("");
+      setNewPreAuth("");
+    } catch {
+      // Handled
+    }
   };
 
   const filtered = claims.filter((clm) => {
@@ -170,14 +131,14 @@ export default function InsuranceClaimsPage() {
           </div>
         </div>
 
-        {/* Summary Metrics */}
+        {/* Financial Adjudication Metrics */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-space-4">
           <div className="p-space-4 bg-surface-container-lowest border border-outline-variant/30 rounded-xl">
             <span className="text-label-sm text-outline uppercase font-semibold block">
-              Total Claims
+              Active Claims
             </span>
             <span className="text-headline-sm font-extrabold text-primary font-mono mt-1 block">
-              {claims.length} Claims
+              {claims.length}
             </span>
           </div>
           <div className="p-space-4 bg-surface-container-lowest border border-outline-variant/30 rounded-xl">
@@ -190,7 +151,7 @@ export default function InsuranceClaimsPage() {
           </div>
           <div className="p-space-4 bg-surface-container-lowest border border-outline-variant/30 rounded-xl">
             <span className="text-label-sm text-outline uppercase font-semibold block">
-              Total Approved
+              Insurer Approved
             </span>
             <span className="text-headline-sm font-extrabold text-success font-mono mt-1 block">
               ${claims.reduce((acc, c) => acc + c.approvedAmount, 0).toLocaleString()}
@@ -247,127 +208,124 @@ export default function InsuranceClaimsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="p-0 overflow-x-auto">
-            <table className="w-full text-body-sm text-left border-collapse">
-              <thead className="bg-surface-container text-label-sm font-semibold text-outline uppercase border-y border-outline-variant/30">
-                <tr>
-                  <th className="py-space-3 px-space-4">Claim ID</th>
-                  <th className="py-space-3 px-space-4">Patient / MRN</th>
-                  <th className="py-space-3 px-space-4">Payer / Provider</th>
-                  <th className="py-space-3 px-space-4">Pre-Auth Code</th>
-                  <th className="py-space-3 px-space-4">Claimed</th>
-                  <th className="py-space-3 px-space-4">Approved</th>
-                  <th className="py-space-3 px-space-4">Patient Co-Pay</th>
-                  <th className="py-space-3 px-space-4">Status</th>
-                  <th className="py-space-3 px-space-4 text-right">Adjudication</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-outline-variant/20">
-                {filtered.map((clm) => (
-                  <tr key={clm.id} className="hover:bg-surface-container-high/40">
-                    <td className="py-space-3 px-space-4 font-mono font-bold text-primary">
-                      {clm.claimNumber}
-                    </td>
-                    <td className="py-space-3 px-space-4">
-                      <span className="font-bold text-on-surface block">{clm.patientName}</span>
-                      <span className="font-mono text-label-xs text-outline">{clm.mrn}</span>
-                    </td>
-                    <td className="py-space-3 px-space-4">
-                      <span className="font-semibold text-on-surface block">{clm.payerName}</span>
-                      <span className="font-mono text-label-xs text-outline">
-                        {clm.policyNumber}
-                      </span>
-                    </td>
-                    <td className="py-space-3 px-space-4 font-mono text-outline font-semibold">
-                      {clm.preAuthCode}
-                    </td>
-                    <td className="py-space-3 px-space-4 font-mono font-bold text-on-surface">
-                      ${clm.claimedAmount.toFixed(2)}
-                    </td>
-                    <td className="py-space-3 px-space-4 font-mono font-bold text-success">
-                      ${clm.approvedAmount.toFixed(2)}
-                    </td>
-                    <td className="py-space-3 px-space-4 font-mono font-bold text-secondary">
-                      ${clm.copayAmount.toFixed(2)}
-                    </td>
-                    <td className="py-space-3 px-space-4">
-                      <Badge
-                        variant="outline"
-                        className={
-                          clm.status === "SETTLED" || clm.status === "APPROVED"
-                            ? "bg-success/15 text-success border-success/30 font-semibold"
-                            : clm.status === "REJECTED"
-                              ? "bg-error/15 text-error border-error/30 font-semibold"
-                              : "bg-warning/15 text-warning border-warning/30 font-semibold"
-                        }
-                      >
-                        {clm.status.replace(/_/g, " ")}
-                      </Badge>
-                    </td>
-                    <td className="py-space-3 px-space-4 text-right">
-                      {clm.status === "SUBMITTED" || clm.status === "IN_REVIEW" ? (
-                        <Button
+            {loading ? (
+              <div className="py-12 flex flex-col items-center justify-center text-outline">
+                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-3"></div>
+                <p className="text-body-sm font-medium">Loading insurance claims...</p>
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="py-12 text-center text-outline border-t border-outline-variant/20">
+                <span className="material-symbols-outlined text-[40px] text-outline/50 mb-2">policy</span>
+                <p className="font-semibold text-on-surface">No insurance claims found</p>
+                <p className="text-body-sm text-outline mt-1">
+                  Click &quot;Submit New Claim&quot; to register an insurance pre-authorization or claim request.
+                </p>
+              </div>
+            ) : (
+              <table className="w-full text-body-sm text-left border-collapse">
+                <thead className="bg-surface-container text-label-sm font-semibold text-outline uppercase border-y border-outline-variant/30">
+                  <tr>
+                    <th className="py-space-3 px-space-4">Claim ID</th>
+                    <th className="py-space-3 px-space-4">Patient / MRN</th>
+                    <th className="py-space-3 px-space-4">Payer / Provider</th>
+                    <th className="py-space-3 px-space-4">Pre-Auth Code</th>
+                    <th className="py-space-3 px-space-4">Claimed</th>
+                    <th className="py-space-3 px-space-4">Approved</th>
+                    <th className="py-space-3 px-space-4">Patient Co-Pay</th>
+                    <th className="py-space-3 px-space-4">Status</th>
+                    <th className="py-space-3 px-space-4 text-right">Adjudication</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-outline-variant/20">
+                  {filtered.map((clm) => (
+                    <tr key={clm.id} className="hover:bg-surface-container-high/40">
+                      <td className="py-space-3 px-space-4 font-mono font-bold text-primary">
+                        {clm.claimNumber}
+                      </td>
+                      <td className="py-space-3 px-space-4">
+                        <span className="font-bold text-on-surface block">{clm.patientName}</span>
+                        <span className="font-mono text-label-xs text-outline">{clm.mrn}</span>
+                      </td>
+                      <td className="py-space-3 px-space-4">
+                        <span className="font-semibold text-on-surface block">{clm.payerName}</span>
+                        <span className="font-mono text-label-xs text-outline">
+                          {clm.policyNumber}
+                        </span>
+                      </td>
+                      <td className="py-space-3 px-space-4 font-mono text-outline font-semibold">
+                        {clm.preAuthCode}
+                      </td>
+                      <td className="py-space-3 px-space-4 font-mono font-bold text-on-surface">
+                        ${clm.claimedAmount.toFixed(2)}
+                      </td>
+                      <td className="py-space-3 px-space-4 font-mono font-bold text-success">
+                        ${clm.approvedAmount.toFixed(2)}
+                      </td>
+                      <td className="py-space-3 px-space-4 font-mono font-bold text-secondary">
+                        ${clm.copayAmount.toFixed(2)}
+                      </td>
+                      <td className="py-space-3 px-space-4">
+                        <Badge
                           variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            setClaims(
-                              claims.map((c) =>
-                                c.id === clm.id
-                                  ? {
-                                      ...c,
-                                      status: "APPROVED",
-                                      approvedAmount: c.claimedAmount * 0.8,
-                                    }
-                                  : c
-                              )
-                            )
+                          className={
+                            clm.status === "APPROVED" || clm.status === "SETTLED"
+                              ? "bg-success/15 text-success border-success/30 font-semibold"
+                              : clm.status === "IN_REVIEW" || clm.status === "SUBMITTED"
+                                ? "bg-warning/15 text-warning border-warning/30 font-semibold"
+                                : "bg-error/15 text-error border-error/30 font-semibold"
                           }
                         >
-                          Approve 80%
-                        </Button>
-                      ) : (
-                        <span className="text-label-xs text-outline font-mono">Remitted</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                          {clm.status}
+                        </Badge>
+                      </td>
+                      <td className="py-space-3 px-space-4 text-right">
+                        <span className="text-label-xs font-mono text-outline">
+                          {clm.submittedDate}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </CardContent>
         </Card>
 
-        {/* Modal: Submit Claim (BIL-04) */}
+        {/* Modal: Submit New Claim (BIL-04) */}
         {showSubmitModal && (
           <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-space-4">
             <div className="bg-surface-container-lowest border border-outline-variant/40 rounded-2xl p-space-6 max-w-lg w-full shadow-2xl space-y-space-4">
               <h3 className="font-headline-sm text-headline-sm font-bold text-on-surface">
-                Submit Electronic Insurance Claim (BIL-04)
+                Submit Electronic TPA Claim (BIL-04)
               </h3>
               <form onSubmit={handleSubmitClaim} className="space-y-space-4">
                 <div>
                   <label className="block text-label-md font-semibold text-on-surface mb-space-1">
-                    Patient & MRN
+                    Patient Name / MRN <span className="text-error">*</span>
                   </label>
-                  <select
-                    value={newPatient}
-                    onChange={(e) => setNewPatient(e.target.value)}
-                    className="w-full px-space-3 py-space-2 bg-surface-container-lowest border border-outline-variant/40 rounded-lg text-body-md focus:outline-none focus:border-primary"
-                  >
-                    <option value="Eleanor Pena (MRN-2026-001842)">
-                      Eleanor Pena (MRN-2026-001842)
-                    </option>
-                    <option value="Sofia Rodriguez (MRN-2026-001802)">
-                      Sofia Rodriguez (MRN-2026-001802)
-                    </option>
-                    <option value="James Wilson (MRN-2026-001850)">
-                      James Wilson (MRN-2026-001850)
-                    </option>
-                  </select>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Patient Full Name"
+                      value={newPatient}
+                      onChange={(e) => setNewPatient(e.target.value)}
+                      className="w-full px-space-3 py-space-2 bg-surface-container-lowest border border-outline-variant/40 rounded-lg text-body-md focus:outline-none focus:border-primary"
+                    />
+                    <input
+                      type="text"
+                      placeholder="MRN (optional)"
+                      value={newMrn}
+                      onChange={(e) => setNewMrn(e.target.value)}
+                      className="w-full px-space-3 py-space-2 bg-surface-container-lowest border border-outline-variant/40 rounded-lg text-body-md focus:outline-none focus:border-primary font-mono"
+                    />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-space-4">
                   <div>
                     <label className="block text-label-md font-semibold text-on-surface mb-space-1">
-                      Payer Organization
+                      Payer / TPA
                     </label>
                     <select
                       value={newPayer}
@@ -377,19 +335,20 @@ export default function InsuranceClaimsPage() {
                       <option value="Blue Cross Blue Shield">Blue Cross Blue Shield</option>
                       <option value="Aetna Healthcare">Aetna Healthcare</option>
                       <option value="UnitedHealthcare">UnitedHealthcare</option>
-                      <option value="Cigna Health">Cigna Health</option>
+                      <option value="Cigna Health Life">Cigna Health Life</option>
+                      <option value="Humana Health">Humana Health</option>
                     </select>
                   </div>
                   <div>
                     <label className="block text-label-md font-semibold text-on-surface mb-space-1">
-                      Member Policy ID
+                      Policy / Card #
                     </label>
                     <input
                       type="text"
-                      required
+                      placeholder="e.g. BCBS-8942103"
                       value={newPolicy}
                       onChange={(e) => setNewPolicy(e.target.value)}
-                      className="w-full px-space-3 py-space-2 bg-surface-container-lowest border border-outline-variant/40 rounded-lg text-body-md font-mono focus:outline-none focus:border-primary"
+                      className="w-full px-space-3 py-space-2 bg-surface-container-lowest border border-outline-variant/40 rounded-lg text-body-md focus:outline-none focus:border-primary"
                     />
                   </div>
                 </div>
@@ -397,19 +356,19 @@ export default function InsuranceClaimsPage() {
                 <div className="grid grid-cols-2 gap-space-4">
                   <div>
                     <label className="block text-label-md font-semibold text-on-surface mb-space-1">
-                      Pre-Authorization Number
+                      Pre-Auth Reference
                     </label>
                     <input
                       type="text"
                       placeholder="e.g. AUTH-98412"
                       value={newPreAuth}
                       onChange={(e) => setNewPreAuth(e.target.value)}
-                      className="w-full px-space-3 py-space-2 bg-surface-container-lowest border border-outline-variant/40 rounded-lg text-body-md font-mono focus:outline-none focus:border-primary"
+                      className="w-full px-space-3 py-space-2 bg-surface-container-lowest border border-outline-variant/40 rounded-lg text-body-md focus:outline-none focus:border-primary font-mono"
                     />
                   </div>
                   <div>
                     <label className="block text-label-md font-semibold text-on-surface mb-space-1">
-                      Claim Amount ($)
+                      Claim Total ($)
                     </label>
                     <input
                       type="number"
@@ -423,11 +382,15 @@ export default function InsuranceClaimsPage() {
                 </div>
 
                 <div className="flex items-center justify-end gap-space-2 pt-space-2">
-                  <Button type="button" variant="outline" onClick={() => setShowSubmitModal(false)}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowSubmitModal(false)}
+                  >
                     Cancel
                   </Button>
                   <Button type="submit" variant="primary">
-                    Transmit Claim
+                    Transmit Claim (EDI 837)
                   </Button>
                 </div>
               </form>

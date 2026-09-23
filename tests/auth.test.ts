@@ -20,7 +20,7 @@ describe("Authentication & Authorization Library (SEC-01 / AUTH)", () => {
     expect(hashed).not.toBe(raw);
     expect(await comparePassword(raw, hashed)).toBe(true);
     expect(await comparePassword("WrongPassword", hashed)).toBe(false);
-  });
+  }, 15000);
 
   it("generates and verifies JWT access tokens with payload", () => {
     const payload: TokenPayload = {

@@ -42,41 +42,33 @@ export default function DoctorLoginPage() {
     setErrorMsg("");
 
     try {
-      await signInWithSupabase(values.identifier, values.password);
-
-      let authUser: any = null;
-      let token = `doc-jwt-${Date.now()}`;
-
       try {
-        const res = await api.post("/auth/login", {
-          identifier: values.identifier,
-          password: values.password,
-        });
-        if (res.data?.data) {
-          authUser = res.data.data.user;
-          token = res.data.data.accessToken;
-        }
-      } catch (backendErr) {
-        console.warn("[DOCTOR AUTH NOTICE]", backendErr);
+        await signInWithSupabase(values.identifier, values.password);
+      } catch {
+        // Non-blocking if offline
       }
 
-      if (!authUser) {
-        authUser = {
-          id: "doc-vance-id",
-          name: "Dr. Marcus Vance, MD",
-          email: values.identifier,
-          role: "DOCTOR",
-          doctorId: "doc-vance-id",
-        };
+      const res = await api.post("/auth/login", {
+        identifier: values.identifier,
+        password: values.password,
+      });
+
+      if (!res.data?.success || !res.data?.data?.user) {
+        throw new Error(res.data?.error?.message || "Invalid doctor credentials.");
       }
+
+      const authUser = res.data.data.user;
+      const token = res.data.data.accessToken;
 
       setAuth(authUser, token);
       setActiveRole("DOCTOR");
       router.push("/doctor/dashboard");
     } catch (err: any) {
-      setErrorMsg(
-        err?.message || "Invalid doctor credentials. Please verify your email and password."
-      );
+      const msg =
+        err?.response?.data?.error?.message ||
+        err?.message ||
+        "Invalid doctor credentials. Please verify your email and password.";
+      setErrorMsg(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -151,26 +143,6 @@ export default function DoctorLoginPage() {
               {errors.password && (
                 <p className="text-[11px] text-error mt-1">{errors.password.message}</p>
               )}
-            </div>
-
-            {/* Demo Quickfill */}
-            <div className="p-3 bg-surface-container-low rounded-xl border border-outline-variant/20 flex items-center justify-between">
-              <div>
-                <p className="text-[11px] font-bold text-on-surface">Cardiology Lead Demo</p>
-                <p className="text-[10px] text-outline font-mono">dr.vance@goingmerry.hms</p>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="text-xs h-7 px-2.5 border-sky-300 text-sky-700 hover:bg-sky-50"
-                onClick={() => {
-                  setValue("identifier", "dr.vance@goingmerry.hms");
-                  setValue("password", "Password123!");
-                }}
-              >
-                Autofill
-              </Button>
             </div>
 
             <Button

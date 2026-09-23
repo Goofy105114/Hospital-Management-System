@@ -9,7 +9,7 @@ interface SearchResultItem {
   id: string;
   title: string;
   subtitle: string;
-  category: "Navigation" | "Patients" | "Doctors" | "Pharmacy" | "Actions";
+  category: "Navigation" | "Actions";
   href: string;
   icon: string;
   badge?: string;
@@ -245,138 +245,6 @@ const SEARCH_ITEMS: SearchResultItem[] = [
     icon: "notifications",
   },
 
-  // Patients (Database Records)
-  {
-    id: "pat-eleanor",
-    title: "Eleanor Vance (Patient)",
-    subtitle: "MRN: GM-84920 • DOB: 1992-08-14 • Cardiology Outpatient",
-    category: "Patients",
-    href: "/patients",
-    icon: "person",
-    badge: "MRN: GM-84920",
-  },
-  {
-    id: "pat-robert",
-    title: "Robert Chen (Patient)",
-    subtitle: "MRN: GM-10492 • DOB: 1978-11-23 • Orthopedic Post-Op",
-    category: "Patients",
-    href: "/patients",
-    icon: "person",
-    badge: "MRN: GM-10492",
-  },
-  {
-    id: "pat-sarah-p",
-    title: "Sarah Jenkins (Patient)",
-    subtitle: "MRN: GM-39182 • DOB: 2018-05-30 • Pediatrics",
-    category: "Patients",
-    href: "/patients",
-    icon: "child_care",
-    badge: "MRN: GM-39182",
-  },
-  {
-    id: "pat-james",
-    title: "James Wilson (Patient)",
-    subtitle: "MRN: GM-99120 • DOB: 1965-02-19 • Neurology Consult",
-    category: "Patients",
-    href: "/patients",
-    icon: "person",
-    badge: "MRN: GM-99120",
-  },
-  {
-    id: "pat-emma",
-    title: "Emma Davis (Patient)",
-    subtitle: "MRN: GM-23841 • DOB: 1985-09-04 • General Medicine",
-    category: "Patients",
-    href: "/patients",
-    icon: "person",
-    badge: "MRN: GM-23841",
-  },
-
-  // Doctors & Providers
-  {
-    id: "doc-vance",
-    title: "Dr. Marcus Vance, MD, FACC",
-    subtitle: "Interventional Cardiology • Clinic Room 304 • Ext: 4120",
-    category: "Doctors",
-    href: "/doctor",
-    icon: "stethoscope",
-    badge: "Cardiology Lead",
-  },
-  {
-    id: "doc-patel",
-    title: "Dr. Aisha Patel, MD",
-    subtitle: "Neurology & Stroke Care • Clinic Room 202 • Ext: 4122",
-    category: "Doctors",
-    href: "/appointments",
-    icon: "psychology",
-    badge: "Neurology",
-  },
-  {
-    id: "doc-chen",
-    title: "Dr. David Chen, MD",
-    subtitle: "Pediatric Medicine • Clinic Room 105 • Ext: 4118",
-    category: "Doctors",
-    href: "/appointments",
-    icon: "medical_services",
-    badge: "Pediatrics",
-  },
-  {
-    id: "doc-rostova",
-    title: "Dr. Elena Rostova, MD",
-    subtitle: "Orthopedic Surgery • Clinic Room 401 • Ext: 4135",
-    category: "Doctors",
-    href: "/appointments",
-    icon: "healing",
-    badge: "Orthopedics",
-  },
-
-  // Medicines & Pharmacy
-  {
-    id: "med-amox",
-    title: "Amoxicillin 500mg Capsule",
-    subtitle: "Broad-spectrum beta-lactam antibiotic • Unit: $12.50 / Pack",
-    category: "Pharmacy",
-    href: "/pharmacy/medicines",
-    icon: "pill",
-    badge: "Antibiotic",
-  },
-  {
-    id: "med-atorv",
-    title: "Atorvastatin 20mg Tablet",
-    subtitle: "HMG-CoA reductase inhibitor (Statin) • Unit: $18.00 / 30 Tab",
-    category: "Pharmacy",
-    href: "/pharmacy/medicines",
-    icon: "pill",
-    badge: "Cardiovascular",
-  },
-  {
-    id: "med-metf",
-    title: "Metformin 850mg Tablet",
-    subtitle: "Biguanide antihyperglycemic agent • Unit: $8.50 / 60 Tab",
-    category: "Pharmacy",
-    href: "/pharmacy/medicines",
-    icon: "pill",
-    badge: "Diabetes",
-  },
-  {
-    id: "med-lisin",
-    title: "Lisinopril 10mg Tablet",
-    subtitle: "ACE inhibitor for arterial hypertension • Unit: $9.00 / 30 Tab",
-    category: "Pharmacy",
-    href: "/pharmacy/medicines",
-    icon: "pill",
-    badge: "Antihypertensive",
-  },
-  {
-    id: "med-para",
-    title: "Paracetamol 650mg Tablet",
-    subtitle: "Analgesic and antipyretic • Unit: $4.50 / 10 Tab",
-    category: "Pharmacy",
-    href: "/pharmacy/medicines",
-    icon: "pill",
-    badge: "Analgesic",
-  },
-
   // Quick Actions
   {
     id: "act-portals",
@@ -502,7 +370,7 @@ export function CommandPalette() {
               setSelectedIndex(0);
             }}
             onKeyDown={handleInputKeyDown}
-            placeholder="Type a command, patient MRN, doctor, medicine, or page..."
+            placeholder="Type a command or page name..."
             className="w-full h-14 px-3 bg-transparent text-on-surface placeholder:text-outline text-sm font-medium focus:outline-none"
           />
           {searchQuery && (
@@ -527,7 +395,7 @@ export function CommandPalette() {
               </span>
               <p className="text-sm font-bold text-on-surface">No matching records found</p>
               <p className="text-xs text-outline mt-1 max-w-sm mx-auto">
-                No doctor, patient, medicine, or navigation page matched &ldquo;{searchQuery}
+                No command or navigation page matched &ldquo;{searchQuery}
                 &rdquo;. Try another keyword or check your spelling.
               </p>
             </div>

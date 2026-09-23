@@ -42,40 +42,33 @@ export default function AdminLoginPage() {
     setErrorMsg("");
 
     try {
-      await signInWithSupabase(values.identifier, values.password);
-
-      let authUser: any = null;
-      let token = `admin-jwt-${Date.now()}`;
-
       try {
-        const res = await api.post("/auth/login", {
-          identifier: values.identifier,
-          password: values.password,
-        });
-        if (res.data?.data) {
-          authUser = res.data.data.user;
-          token = res.data.data.accessToken;
-        }
-      } catch (backendErr) {
-        console.warn("[ADMIN AUTH NOTICE]", backendErr);
+        await signInWithSupabase(values.identifier, values.password);
+      } catch {
+        // Non-blocking if offline
       }
 
-      if (!authUser) {
-        authUser = {
-          id: "admin-master-id",
-          name: "Hospital Administrator",
-          email: values.identifier,
-          role: "ADMIN",
-        };
+      const res = await api.post("/auth/login", {
+        identifier: values.identifier,
+        password: values.password,
+      });
+
+      if (!res.data?.success || !res.data?.data?.user) {
+        throw new Error(res.data?.error?.message || "Invalid administrator credentials.");
       }
+
+      const authUser = res.data.data.user;
+      const token = res.data.data.accessToken;
 
       setAuth(authUser, token);
       setActiveRole("ADMIN");
       router.push("/admin");
     } catch (err: any) {
-      setErrorMsg(
-        err?.message || "Invalid administrator credentials. Please check your credentials."
-      );
+      const msg =
+        err?.response?.data?.error?.message ||
+        err?.message ||
+        "Invalid administrator credentials. Please check your credentials.";
+      setErrorMsg(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -150,26 +143,6 @@ export default function AdminLoginPage() {
               {errors.password && (
                 <p className="text-[11px] text-error mt-1">{errors.password.message}</p>
               )}
-            </div>
-
-            {/* Demo Quickfill */}
-            <div className="p-3 bg-surface-container-low rounded-xl border border-outline-variant/20 flex items-center justify-between">
-              <div>
-                <p className="text-[11px] font-bold text-on-surface">Default Admin Account</p>
-                <p className="text-[10px] text-outline font-mono">admin@goingmerry.hms</p>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="text-xs h-7 px-2.5 border-slate-400 text-slate-800 hover:bg-slate-100"
-                onClick={() => {
-                  setValue("identifier", "admin@goingmerry.hms");
-                  setValue("password", "Password123!");
-                }}
-              >
-                Autofill
-              </Button>
             </div>
 
             <Button

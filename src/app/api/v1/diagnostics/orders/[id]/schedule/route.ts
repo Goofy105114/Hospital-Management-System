@@ -43,34 +43,25 @@ export async function POST(
       return apiError("DIA_INVALID_SLOT", "slotStart must be a valid ISO8601 datetime", 400);
     }
 
-    let order = null;
-    try {
-      order = await prisma.diagnosticOrder.findUnique({ where: { id } });
-    } catch {
-      // DB offline
-    }
+    const order = await prisma.diagnosticOrder.findUnique({ where: { id } });
 
-    if (order === null) {
+    if (!order) {
       return apiError("DIA_ORDER_NOT_FOUND", "Diagnostic order not found", 404);
     }
 
-    if (order && order.status === DiagnosticOrderStatus.CANCELLED) {
+    if (order.status === DiagnosticOrderStatus.CANCELLED) {
       return apiError("DIA_ORDER_CANCELLED", "Cannot schedule a cancelled order", 422);
     }
 
     // Encode slotStart into notes: "scheduled:ISO|<prev notes>"
-    const existingNotes = order?.notes ?? "";
+    const existingNotes = order.notes ?? "";
     const cleanNotes = existingNotes.replace(/^scheduled:[^|]*\|?/, "");
     const updatedNotes = `scheduled:${slotDate.toISOString()}|${cleanNotes}`.replace(/\|$/, "");
 
-    try {
-      await prisma.diagnosticOrder.update({
-        where: { id },
-        data: { notes: updatedNotes },
-      });
-    } catch {
-      // DB offline — still return response
-    }
+    await prisma.diagnosticOrder.update({
+      where: { id },
+      data: { notes: updatedNotes },
+    });
 
     await logAuditEvent({
       actorId: user.sub,

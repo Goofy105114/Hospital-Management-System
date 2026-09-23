@@ -31,84 +31,69 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   try {
     const { id } = params;
 
-    let session = null;
-    try {
-      session = await prisma.clinicSession.findUnique({ where: { id } });
-    } catch {
-      // DB offline — skip conflict check, still respond
-    }
+    const session = await prisma.clinicSession.findUnique({ where: { id } });
 
-    if (session === null) {
+    if (!session) {
       return apiError("SCH_SESSION_NOT_FOUND", "Clinic session not found", 404);
     }
 
     const conflicts: string[] = [];
 
-    if (session) {
-      // --- Conflict check 1: room double-booking ---
-      if (session.roomNumber) {
-        try {
-          const roomConflict = await prisma.clinicSession.findFirst({
-            where: {
-              id: { not: id },
-              roomNumber: session.roomNumber,
-              dayOfWeek: session.dayOfWeek,
-              isActive: true,
-              startTime: { lte: session.endTime },
-              endTime: { gte: session.startTime },
-            },
-          });
-          if (roomConflict) {
-            conflicts.push(
-              `SCH_ROOM_CONFLICT: room ${session.roomNumber} is double-booked on day ${session.dayOfWeek}`
-            );
-          }
-        } catch {
-          // DB offline — skip
-        }
+    // --- Conflict check 1: room double-booking ---
+    if (session.roomNumber) {
+      const roomConflict = await prisma.clinicSession.findFirst({
+        where: {
+          id: { not: id },
+          roomNumber: session.roomNumber,
+          dayOfWeek: session.dayOfWeek,
+          isActive: true,
+          startTime: { lte: session.endTime },
+          endTime: { gte: session.startTime },
+        },
+      });
+      if (roomConflict) {
+        conflicts.push(
+          `SCH_ROOM_CONFLICT: room ${session.roomNumber} is double-booked on day ${session.dayOfWeek}`
+        );
       }
+    }
 
-      // --- Conflict check 2: orphaned confirmed appointments ---
-      // Find upcoming appointments for this doctor that start before the session
-      // startTime or end after the session endTime on the matching dayOfWeek.
-      try {
-        const [startH, startM] = session.startTime.split(":").map(Number);
-        const [endH, endM] = session.endTime.split(":").map(Number);
-        const sessionStartMinutes = startH * 60 + startM;
-        const sessionEndMinutes = endH * 60 + endM;
+    // --- Conflict check 2: orphaned confirmed appointments ---
+    // Find upcoming appointments for this doctor that start before the session
+    // startTime or end after the session endTime on the matching dayOfWeek.
+    const [startH, startM] = session.startTime.split(":").map(Number);
+    const [endH, endM] = session.endTime.split(":").map(Number);
+    const sessionStartMinutes = startH * 60 + startM;
+    const sessionEndMinutes = endH * 60 + endM;
 
-        const futureAppts = await prisma.appointment.findMany({
-          where: {
-            doctorId: session.doctorId,
-            status: {
-              in: [AppointmentStatus.CONFIRMED, AppointmentStatus.CHECKED_IN],
-            },
-            slotStart: { gte: new Date() },
-          },
-          select: { id: true, slotStart: true, slotEnd: true, appointmentNumber: true },
-        });
+    const futureAppts = await prisma.appointment.findMany({
+      where: {
+        doctorId: session.doctorId,
+        status: {
+          in: [AppointmentStatus.CONFIRMED, AppointmentStatus.CHECKED_IN],
+        },
+        slotStart: { gte: new Date() },
+      },
+      select: { id: true, slotStart: true, slotEnd: true, appointmentNumber: true },
+    });
 
-        const orphaned = futureAppts.filter((appt) => {
-          // Only check appointments on the same day-of-week as this session
-          if (appt.slotStart.getDay() !== session!.dayOfWeek) return false;
+    const orphaned = futureAppts.filter((appt) => {
+      // Only check appointments on the same day-of-week as this session
+      if (appt.slotStart.getDay() !== session.dayOfWeek) return false;
 
-          const apptStartMinutes = appt.slotStart.getHours() * 60 + appt.slotStart.getMinutes();
-          const apptEndMinutes = appt.slotEnd.getHours() * 60 + appt.slotEnd.getMinutes();
+      const apptStartMinutes = appt.slotStart.getHours() * 60 + appt.slotStart.getMinutes();
+      const apptEndMinutes = appt.slotEnd.getHours() * 60 + appt.slotEnd.getMinutes();
 
-          // Outside the session window
-          return apptStartMinutes < sessionStartMinutes || apptEndMinutes > sessionEndMinutes;
-        });
+      // Outside the session window
+      return apptStartMinutes < sessionStartMinutes || apptEndMinutes > sessionEndMinutes;
+    });
 
-        if (orphaned.length > 0) {
-          conflicts.push(
-            `SCH_ORPHANED_APPOINTMENTS: ${orphaned.length} confirmed appointment(s) fall outside ` +
-              `the session window (${session.startTime}–${session.endTime}): ` +
-              orphaned.map((a) => a.appointmentNumber).join(", ")
-          );
-        }
-      } catch {
-        // DB offline — skip
-      }
+    if (orphaned.length > 0) {
+      conflicts.push(
+        `SCH_ORPHANED_APPOINTMENTS: ${orphaned.length} confirmed appointment(s) fall outside ` +
+          `the session window (${session.startTime}–${session.endTime}): ` +
+          orphaned.map((a) => a.appointmentNumber).join(", ")
+      );
     }
 
     // Block publish if any conflicts found
@@ -122,15 +107,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     }
 
     // All clear — publish by setting isActive = true
-    let updated = null;
-    try {
-      updated = await prisma.clinicSession.update({
-        where: { id },
-        data: { isActive: true },
-      });
-    } catch {
-      updated = { id, isActive: true };
-    }
+    const updated = await prisma.clinicSession.update({
+      where: { id },
+      data: { isActive: true },
+    });
 
     await logAuditEvent({
       actorId: user.sub,

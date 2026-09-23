@@ -94,11 +94,24 @@ async function main() {
 
   const receptionistUser = await prisma.user.upsert({
     where: { email: "reception@goingmerry.org" },
-    update: {},
+    update: { passwordHash },
     create: {
       name: "Sarah Connor",
       email: "reception@goingmerry.org",
       phone: "+1-800-555-4300",
+      passwordHash,
+      role: UserRole.RECEPTIONIST,
+      status: UserStatus.ACTIVE,
+    },
+  });
+
+  await prisma.user.upsert({
+    where: { email: "receptionist@goingmerry.hms" },
+    update: { passwordHash },
+    create: {
+      name: "Sarah Connor",
+      email: "receptionist@goingmerry.hms",
+      phone: "+1-800-555-4301",
       passwordHash,
       role: UserRole.RECEPTIONIST,
       status: UserStatus.ACTIVE,
@@ -216,6 +229,29 @@ async function main() {
       bio: "Specializing in headache disorders, cerebrovascular evaluation, and neuro-rehabilitation.",
     },
   });
+
+  // Seed Clinic Sessions for doctors (Mon-Fri 09:00 - 17:00)
+  for (const doc of [drVance, drRamos, drMiller]) {
+    for (let day = 1; day <= 5; day++) {
+      const existing = await prisma.clinicSession.findFirst({
+        where: { doctorId: doc.id, dayOfWeek: day },
+      });
+      if (!existing) {
+        await prisma.clinicSession.create({
+          data: {
+            doctorId: doc.id,
+            dayOfWeek: day,
+            startTime: "09:00",
+            endTime: "17:00",
+            slotDurationMinutes: 15,
+            maxCapacity: 32,
+            roomNumber: doc.roomNumber,
+            isActive: true,
+          },
+        });
+      }
+    }
+  }
 
   // 4. Seed Patients Master Index
   const patientUsersData = [

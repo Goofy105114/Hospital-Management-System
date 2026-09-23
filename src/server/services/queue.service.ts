@@ -446,8 +446,14 @@ export class QueueService {
     let doctorId = params.doctorId;
 
     if (params.appointmentId) {
-      appt = await prisma.appointment.findUnique({
-        where: { id: params.appointmentId },
+      appt = await prisma.appointment.findFirst({
+        where: {
+          OR: [
+            { id: params.appointmentId },
+            { appointmentNumber: params.appointmentId },
+            { patient: { mrn: params.appointmentId } },
+          ],
+        },
         include: { queueToken: true },
       });
 

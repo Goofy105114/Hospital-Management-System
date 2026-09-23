@@ -57,42 +57,33 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     }
 
     // Fetch the existing session
-    let session = null;
-    try {
-      session = await prisma.clinicSession.findUnique({ where: { id } });
-    } catch {
-      // DB offline — fall through; we'll still return a structured response
-    }
+    const session = await prisma.clinicSession.findUnique({ where: { id } });
 
-    if (session === null) {
+    if (!session) {
       return apiError("SCH_SESSION_NOT_FOUND", "Clinic session not found", 404);
     }
 
     // Room conflict check — if roomNumber is being set, ensure no other
     // active session for a different doctor uses that room on the same dayOfWeek
-    if (roomNumber && session) {
-      try {
-        const conflict = await prisma.clinicSession.findFirst({
-          where: {
-            id: { not: id }, // exclude this session
-            roomNumber, // same room
-            dayOfWeek: session.dayOfWeek, // same day of week
-            isActive: true,
-            // Overlapping time window
-            startTime: { lte: session.endTime },
-            endTime: { gte: session.startTime },
-          },
-        });
+    if (roomNumber) {
+      const conflict = await prisma.clinicSession.findFirst({
+        where: {
+          id: { not: id }, // exclude this session
+          roomNumber, // same room
+          dayOfWeek: session.dayOfWeek, // same day of week
+          isActive: true,
+          // Overlapping time window
+          startTime: { lte: session.endTime },
+          endTime: { gte: session.startTime },
+        },
+      });
 
-        if (conflict) {
-          return apiError(
-            "SCH_ROOM_CONFLICT",
-            `Room ${roomNumber} is already assigned to another session on the same day and time`,
-            409
-          );
-        }
-      } catch {
-        // DB offline — skip room conflict check
+      if (conflict) {
+        return apiError(
+          "SCH_ROOM_CONFLICT",
+          `Room ${roomNumber} is already assigned to another session on the same day and time`,
+          409
+        );
       }
     }
 
@@ -108,17 +99,11 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     if (maxCapacity !== undefined) updateData.maxCapacity = Number(maxCapacity);
     if (roomNumber !== undefined) updateData.roomNumber = String(roomNumber);
 
-    let updated = null;
-    try {
-      updated = await prisma.clinicSession.update({
-        where: { id },
-        data: updateData,
-        include: { doctor: { select: { id: true, user: { select: { name: true } } } } },
-      });
-    } catch {
-      // DB offline — return the intended values as confirmation
-      updated = { id, ...updateData };
-    }
+    const updated = await prisma.clinicSession.update({
+      where: { id },
+      data: updateData,
+      include: { doctor: { select: { id: true, user: { select: { name: true } } } } },
+    });
 
     await logAuditEvent({
       actorId: user.sub,

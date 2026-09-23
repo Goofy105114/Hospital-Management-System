@@ -37,19 +37,14 @@ export async function GET(
 
     // Patients may only view their own history
     if (user.role === UserRole.PATIENT) {
-      let patient = null;
-      try {
-        patient = await prisma.patient.findUnique({
-          where: { id },
-          select: { userId: true },
-        });
-      } catch {
-        // DB offline
-      }
-      if (patient === null) {
+      const patient = await prisma.patient.findUnique({
+        where: { id },
+        select: { userId: true },
+      });
+      if (!patient) {
         return apiError("PATIENT_NOT_FOUND", "Patient not found", 404);
       }
-      if (patient && patient.userId !== user.sub) {
+      if (patient.userId !== user.sub) {
         return apiError(
           "PHA_HISTORY_SCOPE_DENIED",
           "Patients may only view their own dispensing history",
@@ -58,50 +53,45 @@ export async function GET(
       }
     }
 
-    let history: unknown[] = [];
-    try {
-      const dispensations = await prisma.dispensation.findMany({
-        where: { patientId: id },
-        include: {
-          prescription: {
-            select: {
-              prescriptionNumber: true,
-              doctor: { select: { user: { select: { name: true } } } },
-            },
-          },
-          items: {
-            include: {
-              medicine: { select: { name: true, genericName: true, form: true, strength: true } },
-              prescriptionItem: { select: { dosage: true, frequency: true, durationDays: true, instructions: true } },
-            },
+    const dispensations = await prisma.dispensation.findMany({
+      where: { patientId: id },
+      include: {
+        prescription: {
+          select: {
+            prescriptionNumber: true,
+            doctor: { select: { user: { select: { name: true } } } },
           },
         },
-        orderBy: { dispensedAt: "desc" },
-      });
+        items: {
+          include: {
+            medicine: { select: { name: true, genericName: true, form: true, strength: true } },
+            prescriptionItem: { select: { dosage: true, frequency: true, durationDays: true, instructions: true } },
+          },
+        },
+      },
+      orderBy: { dispensedAt: "desc" },
+    });
 
-      history = dispensations.map((d) => ({
-        dispensationId: d.id,
-        prescriptionNumber: d.prescription.prescriptionNumber,
-        prescribingDoctor: d.prescription.doctor.user.name,
-        dispensedAt: d.dispensedAt.toISOString(),
-        totalAmount: Number(d.totalAmount),
-        status: d.status,
-        items: d.items.map((item) => ({
-          medicineName: item.medicine.name,
-          genericName: item.medicine.genericName,
-          form: item.medicine.form,
-          strength: item.medicine.strength,
-          quantityDispensed: item.quantityDispensed,
-          unitPrice: Number(item.unitPrice),
-          dosage: item.prescriptionItem.dosage,
-          frequency: item.prescriptionItem.frequency,
-          durationDays: item.prescriptionItem.durationDays,
-          instructions: item.prescriptionItem.instructions,
-        })),
-      }));
-    } catch {
-      // DB offline — return empty
-    }
+    const history = dispensations.map((d) => ({
+      dispensationId: d.id,
+      prescriptionNumber: d.prescription.prescriptionNumber,
+      prescribingDoctor: d.prescription.doctor.user.name,
+      dispensedAt: d.dispensedAt.toISOString(),
+      totalAmount: Number(d.totalAmount),
+      status: d.status,
+      items: d.items.map((item) => ({
+        medicineName: item.medicine.name,
+        genericName: item.medicine.genericName,
+        form: item.medicine.form,
+        strength: item.medicine.strength,
+        quantityDispensed: item.quantityDispensed,
+        unitPrice: Number(item.unitPrice),
+        dosage: item.prescriptionItem.dosage,
+        frequency: item.prescriptionItem.frequency,
+        durationDays: item.prescriptionItem.durationDays,
+        instructions: item.prescriptionItem.instructions,
+      })),
+    }));
 
     return apiSuccess(history);
   } catch (err: any) {

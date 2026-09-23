@@ -1,13 +1,39 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { AppLayout } from "@/components/shared/AppLayout";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import api from "@/lib/axios";
+import { useAuthStore } from "@/stores/authStore";
 
 export default function PatientQueuePassPage() {
+  const { user } = useAuthStore();
   const [chimePlayed, setChimePlayed] = useState(false);
+  const [queueData, setQueueData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    api
+      .get("/dashboard/patient")
+      .then((res) => {
+        if (!isMounted) return;
+        setQueueData(res.data?.data);
+      })
+      .catch((err) => {
+        console.error("Failed to load queue data:", err);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const token = queueData?.activeQueueToken;
+  const patient = queueData?.patient;
 
   const playTurnChime = () => {
     try {
@@ -53,7 +79,9 @@ export default function PatientQueuePassPage() {
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
                 Patient Self-Service Queue
               </span>
-              <span className="text-xs text-outline">• Eleanor Vance (MRN: GM-84920)</span>
+              <span className="text-xs text-outline">
+                • {patient?.name || user?.name || "Patient"} (MRN: {patient?.mrn || user?.mrn || "Pending"})
+              </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-on-surface tracking-tight mt-1">
               Live OPD Queue Pass
@@ -76,19 +104,22 @@ export default function PatientQueuePassPage() {
         <div className="rounded-3xl bg-gradient-to-br from-primary/5 via-surface-container-lowest to-primary/10 border-2 border-primary/40 p-8 shadow-xl text-center relative overflow-hidden">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/15 text-primary text-xs font-bold uppercase tracking-wider mb-4">
             <span className="w-2 h-2 rounded-full bg-primary animate-ping"></span>
-            <span>Station 4 Active • Cardiology OPD</span>
+            <span>{token?.stationName || "Outpatient Clinic Service"}</span>
           </div>
 
           <p className="text-xs font-bold text-outline uppercase tracking-wider">
             Your Assigned Token Pass
           </p>
           <div className="font-mono text-6xl sm:text-7xl font-black text-primary my-2 tracking-tight">
-            #A-24
+            {token?.tokenNumber || (isLoading ? "..." : "No Active Token")}
           </div>
           <p className="text-sm font-semibold text-on-surface">
-            Consultation with <strong className="text-primary">Dr. Marcus Vance, MD</strong>
+            Consultation with{" "}
+            <strong className="text-primary">{token?.doctorName || "Assigned Duty Clinician"}</strong>
           </p>
-          <p className="text-xs text-outline mt-0.5 font-medium">Room 304, East Wing (3rd Floor)</p>
+          <p className="text-xs text-outline mt-0.5 font-medium">
+            {token?.roomNumber ? `Room ${token.roomNumber}` : "General Consultation Area"}
+          </p>
 
           {/* Turn Progress Status */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 my-8 max-w-xl mx-auto">
@@ -97,7 +128,7 @@ export default function PatientQueuePassPage() {
                 Currently Serving
               </span>
               <span className="font-mono text-2xl font-black text-on-surface block mt-1">
-                #A-21
+                {token?.nowServing || "--"}
               </span>
               <span className="text-[10px] text-primary font-semibold">In Consultation</span>
             </div>
@@ -106,7 +137,9 @@ export default function PatientQueuePassPage() {
               <span className="text-[10px] text-outline uppercase font-bold block">
                 Patients Ahead
               </span>
-              <span className="font-mono text-2xl font-black text-warning block mt-1">3</span>
+              <span className="font-mono text-2xl font-black text-warning block mt-1">
+                {token?.positionAhead ?? (token ? 0 : "--")}
+              </span>
               <span className="text-[10px] text-outline font-semibold">Tokens before you</span>
             </div>
 
@@ -114,8 +147,10 @@ export default function PatientQueuePassPage() {
               <span className="text-[10px] text-outline uppercase font-bold block">
                 Est. Wait Time
               </span>
-              <span className="font-mono text-2xl font-black text-success block mt-1">~18 min</span>
-              <span className="text-[10px] text-outline font-semibold">Based on AI prediction</span>
+              <span className="font-mono text-2xl font-black text-success block mt-1">
+                {token?.estimatedWaitMinutes != null ? `~${token.estimatedWaitMinutes} min` : "--"}
+              </span>
+              <span className="text-[10px] text-outline font-semibold">Based on queue velocity</span>
             </div>
           </div>
 
@@ -148,9 +183,9 @@ export default function PatientQueuePassPage() {
           </span>
           <div className="text-xs text-outline leading-relaxed">
             <strong className="text-on-surface block mb-0.5">Turn Calling Instructions:</strong>
-            When your token <strong className="text-primary font-mono">#A-24</strong> is called, a
+            When your token <strong className="text-primary font-mono">{token?.tokenNumber || "assigned token"}</strong> is called, a
             two-tone chime will sound and the hallway display will illuminate with your room number.
-            Please make your way directly to Room 304.
+            Please make your way directly to {token?.roomNumber ? `Room ${token.roomNumber}` : "the designated consultation room"}.
           </div>
         </div>
       </div>

@@ -1,8 +1,9 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { apiSuccess, apiError } from "@/lib/api-envelope";
-import { getAuthUser } from "@/lib/auth";
+import { getAuthUser, hashPassword } from "@/lib/auth";
 import { hasPiiAccess, maskPhone, maskEmail } from "@/lib/pii";
+import { UserRole, UserStatus, Gender } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -84,5 +85,102 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error("[PATIENTS_GET_ERROR]", error);
     return apiError("PATIENTS_FETCH_FAILED", "Failed to retrieve patients from database", 500);
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const {
+      firstName,
+      lastName,
+      name,
+      dob,
+      gender,
+      bloodGroup,
+      phone,
+      email,
+      address,
+      allergies,
+      preferredLanguage,
+    } = body;
+
+    const fullName = name || `${firstName || ""} ${lastName || ""}`.trim() || "Walk-in Patient";
+    const patientEmail = email?.trim() || `patient.${Date.now()}@goingmerry.org`;
+    const patientPhone = phone?.trim() || "+1-555-000-0000";
+
+    const currentYear = new Date().getFullYear();
+    const randomSeq = Math.floor(100000 + Math.random() * 900000);
+    const mrn = `MRN-${currentYear}-${randomSeq}`;
+
+    const parsedGender =
+      gender?.toUpperCase() === "FEMALE"
+        ? Gender.FEMALE
+        : gender?.toUpperCase() === "MALE"
+        ? Gender.MALE
+        : Gender.OTHER;
+
+    const parsedDob = dob ? new Date(dob) : new Date("1990-01-01");
+    const passwordHash = await hashPassword("Password123!");
+
+    const result = await prisma.$transaction(async (tx) => {
+      const newUser = await tx.user.create({
+        data: {
+          name: fullName,
+          email: patientEmail,
+          phone: patientPhone,
+          role: UserRole.PATIENT,
+          status: UserStatus.ACTIVE,
+          passwordHash,
+        },
+      });
+
+      const newPatient = await tx.patient.create({
+        data: {
+          userId: newUser.id,
+          mrn,
+          dob: parsedDob,
+          gender: parsedGender,
+          bloodGroup: bloodGroup || "O+",
+          address: address || "",
+          preferredLanguage: preferredLanguage || "en",
+        },
+        include: {
+          user: true,
+        },
+      });
+
+      if (allergies && typeof allergies === "string" && allergies.trim()) {
+        await tx.patientAlert.create({
+          data: {
+            patientId: newPatient.id,
+            type: "ALLERGY_ON_FILE",
+            note: allergies,
+            isActive: true,
+          },
+        });
+      }
+
+      return newPatient;
+    });
+
+    return apiSuccess(
+      {
+        id: result.id,
+        userId: result.userId,
+        mrn: result.mrn,
+        name: result.user.name,
+        email: result.user.email,
+        phone: result.user.phone,
+        dob: result.dob.toISOString().split("T")[0],
+        gender: result.gender,
+        bloodGroup: result.bloodGroup,
+      },
+      undefined,
+      201
+    );
+  } catch (error: any) {
+    console.error("[PATIENT_CREATE_ERROR]", error);
+    return apiError("PATIENT_CREATE_FAILED", error.message || "Failed to create patient", 500);
   }
 }

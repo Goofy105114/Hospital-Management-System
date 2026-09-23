@@ -1,27 +1,10 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { apiSuccess } from "@/lib/api-envelope";
+import { apiSuccess, apiError } from "@/lib/api-envelope";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const monthlyRevenue = [
-    { month: "May", revenue: 42000, appointments: 380 },
-    { month: "Jun", revenue: 48500, appointments: 410 },
-    { month: "Jul", revenue: 53200, appointments: 460 },
-    { month: "Aug", revenue: 59800, appointments: 520 },
-    { month: "Sep", revenue: 64100, appointments: 580 },
-    { month: "Oct", revenue: 71400, appointments: 630 },
-  ];
-
-  const departmentLoad = [
-    { department: "Cardiology", patients: 142, load: 85 },
-    { department: "General Medicine", patients: 210, load: 92 },
-    { department: "Pediatrics", patients: 95, load: 68 },
-    { department: "Orthopedics", patients: 88, load: 74 },
-    { department: "Dermatology", patients: 64, load: 55 },
-  ];
-
   try {
     const [
       totalPatients,
@@ -32,6 +15,8 @@ export async function GET() {
       totalBeds,
       totalInvoices,
       lowStockItems,
+      departments,
+      paidInvoices,
     ] = await Promise.all([
       prisma.patient.count({ where: { deletedAt: null } }),
       prisma.appointment.count({
@@ -56,9 +41,51 @@ export async function GET() {
           currentStockOnHand: { lte: 50 },
         },
       }),
+      prisma.department.findMany({
+        select: {
+          name: true,
+          _count: {
+            select: {
+              appointments: true,
+            },
+          },
+        },
+        take: 10,
+      }),
+      prisma.invoice.findMany({
+        where: { status: "PAID" },
+        select: {
+          totalAmount: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: "desc" },
+        take: 100,
+      }),
     ]);
 
     const bedOccupancyRate = totalBeds > 0 ? Math.round((occupiedBeds / totalBeds) * 100) : 0;
+
+    const departmentLoad = departments.map((d) => ({
+      department: d.name,
+      patients: d._count.appointments,
+      load: Math.min(100, Math.round((d._count.appointments / 20) * 100)),
+    }));
+
+    // Group paid revenue by month
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const monthlyMap: Record<string, { revenue: number; appointments: number }> = {};
+    for (const inv of paidInvoices) {
+      const m = months[new Date(inv.createdAt).getMonth()];
+      if (!monthlyMap[m]) monthlyMap[m] = { revenue: 0, appointments: 0 };
+      monthlyMap[m].revenue += Number(inv.totalAmount || 0);
+      monthlyMap[m].appointments += 1;
+    }
+
+    const monthlyRevenue = Object.entries(monthlyMap).map(([month, data]) => ({
+      month,
+      revenue: Math.round(data.revenue),
+      appointments: data.appointments,
+    }));
 
     return apiSuccess({
       metrics: {
@@ -74,20 +101,7 @@ export async function GET() {
       monthlyRevenue,
       departmentLoad,
     });
-  } catch {
-    return apiSuccess({
-      metrics: {
-        totalPatients: 1420,
-        todayAppointments: 48,
-        activeQueueTokens: 14,
-        bedOccupancyRate: 83,
-        occupiedBeds: 24,
-        totalBeds: 29,
-        totalInvoices: 182,
-        lowStockItems: 3,
-      },
-      monthlyRevenue,
-      departmentLoad,
-    });
+  } catch (err: any) {
+    return apiError("INTERNAL_ERROR", err?.message || "Failed to retrieve hospital report overview", 500);
   }
 }

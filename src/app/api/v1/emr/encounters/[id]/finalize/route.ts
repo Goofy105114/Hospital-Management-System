@@ -33,17 +33,12 @@ export async function POST(
     const followUp = body?.followUp as { date?: string; instructions?: string } | undefined;
 
     // Fetch encounter
-    let encounter = null;
-    try {
-      encounter = await prisma.encounter.findUnique({
-        where: { id },
-        include: { queueToken: { select: { id: true, status: true } } },
-      });
-    } catch {
-      // DB offline
-    }
+    const encounter = await prisma.encounter.findUnique({
+      where: { id },
+      include: { queueToken: { select: { id: true, status: true } } },
+    });
 
-    if (encounter === null) {
+    if (!encounter) {
       return apiError("EMR_ENCOUNTER_NOT_FOUND", "Encounter not found", 404);
     }
 

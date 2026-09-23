@@ -11,25 +11,68 @@ export async function POST(request: NextRequest) {
       body;
 
     if (action === "SIGN") {
-      try {
-        if (encounterId) {
-          const res = await EmrService.signEncounter(
-            encounterId,
-            doctorId || "doc-001",
-            "Dr. Marcus Vance"
-          );
-          return apiSuccess(res);
+      let targetEncounterId = encounterId;
+      if (!targetEncounterId) {
+        let resolvedDoctorId = doctorId;
+        if (!resolvedDoctorId) {
+          const doc = await prisma.doctor.findFirst({ where: { isActive: true } });
+          resolvedDoctorId = doc?.id;
         }
-      } catch {
-        // Fallback
+        let resolvedPatientId = patientId;
+        if (!resolvedPatientId) {
+          const pat = await prisma.patient.findFirst({ where: { deletedAt: null } });
+          resolvedPatientId = pat?.id;
+        }
+
+        if (resolvedPatientId && resolvedDoctorId) {
+          const existing = await prisma.encounter.findFirst({
+            where: { patientId: resolvedPatientId, status: "IN_PROGRESS" },
+            orderBy: { createdAt: "desc" },
+          });
+          if (existing) {
+            targetEncounterId = existing.id;
+          } else {
+            const started = await EmrService.startEncounter({
+              patientId: resolvedPatientId,
+              doctorId: resolvedDoctorId,
+              chiefComplaint: notes?.subjective || "Clinical consultation",
+            });
+            targetEncounterId = started.id;
+          }
+        }
       }
-      return apiSuccess({
-        encounterId: encounterId || "ENC-2026-0091",
-        status: "SIGNED",
-        signedAt: new Date().toISOString(),
-        signedBy: doctorId || "Dr. Marcus Vance",
-        message: "Encounter signed and locked successfully",
-      });
+
+      if (!targetEncounterId) {
+        return apiError("EMR_MISSING_ENCOUNTER_ID", "encounterId or patientId is required to sign encounter", 400);
+      }
+      try {
+        if (notes) {
+          await EmrService.updateNotes(targetEncounterId, notes);
+        }
+        let effectiveDoctorId = doctorId;
+        if (!effectiveDoctorId) {
+          const enc = await prisma.encounter.findUnique({
+            where: { id: targetEncounterId },
+            select: { doctorId: true },
+          });
+          effectiveDoctorId = enc?.doctorId;
+        }
+        if (!effectiveDoctorId) {
+          const doc = await prisma.doctor.findFirst({ where: { isActive: true } });
+          effectiveDoctorId = doc?.id;
+        }
+        if (!effectiveDoctorId) {
+          return apiError("EMR_DOCTOR_REQUIRED", "Doctor ID is required to sign encounter", 400);
+        }
+        const res = await EmrService.signEncounter(
+          targetEncounterId,
+          effectiveDoctorId,
+          "Attending Physician"
+        );
+        return apiSuccess(res);
+      } catch (e: any) {
+        return apiError("EMR_SIGN_FAILED", e?.message || "Failed to sign encounter", 500);
+      }
     }
 
     if (action === "SAVE_DRAFT") {
@@ -59,7 +102,7 @@ export async function POST(request: NextRequest) {
         }
       }
       return apiSuccess({
-        encounterId: encounterId || "ENC-2026-0091",
+        encounterId,
         status: "IN_PROGRESS",
         updatedAt: new Date().toISOString(),
         message: "Clinical encounter draft saved",
@@ -78,23 +121,13 @@ export async function POST(request: NextRequest) {
 
     try {
       const enc = await EmrService.startEncounter({
-        patientId: patientId || "pat-001",
-        doctorId: doctorId || "doc-001",
-        chiefComplaint: notes?.subjective || "Cardiovascular evaluation",
+        patientId,
+        doctorId,
+        chiefComplaint: notes?.subjective || "Clinical evaluation",
       });
       return apiSuccess(enc, undefined, 201);
-    } catch {
-      return apiSuccess(
-        {
-          id: "enc-mock-01",
-          encounterNumber: "ENC-2026-0091",
-          patientId: patientId || "pat-001",
-          doctorId: doctorId || "doc-001",
-          status: "IN_PROGRESS",
-        },
-        undefined,
-        201
-      );
+    } catch (e: any) {
+      return apiError("EMR_START_FAILED", e?.message || "Failed to start clinical encounter", 500);
     }
   } catch (err: any) {
     return apiError("INTERNAL_ERROR", err.message || "Failed to process encounter", 500);
@@ -112,20 +145,33 @@ export async function GET(request: NextRequest) {
       if (context) {
         return apiSuccess(context);
       }
-      return apiSuccess({
-        patientId,
-        demographics: { name: "Eleanor Vance", gender: "FEMALE", age: 48 },
-        allergies: [{ allergen: "Penicillin", severity: "HIGH" }],
-        recentHistory: [],
-      });
+      return apiError("PATIENT_NOT_FOUND", "Patient medical record not found", 404);
     }
 
     if (encounterId) {
-      const enc = await prisma.encounter.findUnique({
-        where: { id: encounterId },
+      const enc = await prisma.encounter.findFirst({
+        where: {
+          OR: [{ id: encounterId }, { encounterNumber: encounterId }],
+        },
         include: {
-          patient: { select: { mrn: true, user: { select: { name: true } } } },
-          doctor: { select: { specialization: true, user: { select: { name: true } } } },
+          patient: {
+            select: {
+              mrn: true,
+              user: { select: { name: true } },
+              dob: true,
+              gender: true,
+            },
+          },
+          doctor: {
+            select: {
+              specialization: true,
+              user: { select: { name: true } },
+              department: { select: { name: true } },
+            },
+          },
+          vitalSigns: { take: 1, orderBy: { recordedAt: "desc" } },
+          diagnoses: true,
+          prescriptions: { include: { items: { include: { medicine: true } } } },
         },
       });
       if (enc) return apiSuccess(enc);
