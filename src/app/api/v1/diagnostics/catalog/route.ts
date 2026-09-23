@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { apiSuccess, apiError } from "@/lib/api-envelope";
-import { DiagnosticCategory } from "@prisma/client";
+import { getAuthUser, requireRole } from "@/lib/auth";
+import { DiagnosticCategory, UserRole } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,12 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const user = getAuthUser(req);
+  if (!user) return apiError("UNAUTHENTICATED", "Authentication required", 401);
+  if (!requireRole(user, [UserRole.LAB_TECH, UserRole.RADIOLOGIST, UserRole.ADMIN, UserRole.SUPER_ADMIN])) {
+    return apiError("UNAUTHORIZED_ROLE", "Diagnostic or admin role required to add catalog tests", 403);
+  }
+
   try {
     const body = await req.json();
     const { name, code, category, sampleType, referenceRange, price } = body;

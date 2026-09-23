@@ -1,8 +1,8 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { apiSuccess, apiError } from "@/lib/api-envelope";
-import { getAuthUser } from "@/lib/auth";
-import { AdmissionStatus, BedStatus } from "@prisma/client";
+import { getAuthUser, requireRole } from "@/lib/auth";
+import { AdmissionStatus, BedStatus, UserRole } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +10,9 @@ export async function GET(request: NextRequest) {
   try {
     const user = getAuthUser(request);
     if (!user) return apiError("UNAUTHENTICATED", "Authentication required", 401);
+    if (!requireRole(user, [UserRole.DOCTOR, UserRole.NURSE, UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.RECEPTIONIST, UserRole.MANAGEMENT])) {
+      return apiError("UNAUTHORIZED_ROLE", "Staff or clinical role required to view inpatient admissions", 403);
+    }
 
     const admissions = await prisma.admission.findMany({
       include: {
@@ -44,6 +47,9 @@ export async function PATCH(request: NextRequest) {
   try {
     const user = getAuthUser(request);
     if (!user) return apiError("UNAUTHENTICATED", "Authentication required", 401);
+    if (!requireRole(user, [UserRole.DOCTOR, UserRole.NURSE, UserRole.ADMIN, UserRole.SUPER_ADMIN])) {
+      return apiError("UNAUTHORIZED_ROLE", "Clinical or admin role required to update admissions", 403);
+    }
 
     const body = await request.json();
     const { admissionId, status, dischargeSummary } = body;

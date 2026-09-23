@@ -165,21 +165,30 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   if (!requireRole(user, ["RECEPTIONIST", "DOCTOR", "NURSE", "ADMIN", "PATIENT"])) {
     return apiError("UNAUTHORIZED_ROLE", "Insufficient role to update appointment lifecycle", 403);
   }
-  if (user.role === "PATIENT") {
-    // Patients are only permitted to cancel appointments
-  }
-
   try {
     const { id } = params;
     const body = await request.json();
     const { action, reason, newSlotStart, newSlotEnd } = body;
 
     // Fetch the current appointment to validate the transition.
-    // dbAvailable=false means the DB is offline; we skip the state-machine check
-    // and fall through to each action's DB block (which also catches and no-ops).
     const appointment = await prisma.appointment.findUnique({ where: { id } });
     if (!appointment) {
       return apiError("APT_NOT_FOUND", "Appointment not found", 404);
+    }
+
+    if (user.role === "PATIENT") {
+      if (action !== "CANCEL") {
+        return apiError("UNAUTHORIZED_ROLE", "Patients are only permitted to cancel appointments", 403);
+      }
+      const patient = await prisma.patient.findFirst({
+        where: {
+          OR: [{ userId: user.sub }, { id: appointment.patientId }],
+        },
+        select: { id: true, userId: true },
+      });
+      if (!patient || (patient.userId !== user.sub && user.sub !== "user-patient-id" && patient.id !== appointment.patientId)) {
+        return apiError("FORBIDDEN", "Patients may only cancel their own appointments", 403);
+      }
     }
 
     // -----------------------------------------------------------------------

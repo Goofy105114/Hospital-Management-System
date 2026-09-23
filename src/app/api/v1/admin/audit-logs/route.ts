@@ -1,10 +1,18 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { apiSuccess } from "@/lib/api-envelope";
+import { apiSuccess, apiError } from "@/lib/api-envelope";
+import { getAuthUser, requireRole } from "@/lib/auth";
+import { UserRole } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
+  const user = getAuthUser(req);
+  if (!user) return apiError("UNAUTHENTICATED", "Authentication required", 401);
+  if (!requireRole(user, [UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.MANAGEMENT])) {
+    return apiError("UNAUTHORIZED_ROLE", "Admin or Management role required to access audit logs", 403);
+  }
+
   try {
     const { searchParams } = new URL(req.url);
     const entityType = searchParams.get("entityType");
@@ -34,20 +42,7 @@ export async function GET(req: NextRequest) {
     }));
 
     return apiSuccess(formatted);
-  } catch {
-    return apiSuccess([
-      {
-        id: "aud-01",
-        actorId: "usr-pharma-01",
-        actorName: "Sarah Lin (Pharmacist)",
-        actorRole: "PHARMACIST",
-        action: "DISPENSE",
-        entityType: "Prescription",
-        entityId: "RX-2026-0042",
-        changes: { items: ["Metoprolol", "Lisinopril"] },
-        ipAddress: "192.168.1.45",
-        createdAt: new Date().toISOString(),
-      },
-    ]);
+  } catch (err: any) {
+    return apiError("AUDIT_FETCH_FAILED", err?.message || "Failed to retrieve audit logs", 500);
   }
 }

@@ -68,6 +68,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       localStorage.setItem("authUser", JSON.stringify(user));
       localStorage.setItem("mockRole", user.role);
       localStorage.setItem("mockUserId", user.id);
+      document.cookie = `accessToken=${token}; path=/; max-age=604800; SameSite=Lax`;
+      document.cookie = `activeRole=${user.role}; path=/; max-age=604800; SameSite=Lax`;
     }
     set({
       user,
@@ -85,6 +87,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }));
     if (typeof window !== "undefined") {
       localStorage.setItem("mockRole", role);
+      document.cookie = `activeRole=${role}; path=/; max-age=604800; SameSite=Lax`;
     }
   },
 
@@ -95,6 +98,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       localStorage.removeItem("mockRole");
       localStorage.removeItem("mockUserId");
       localStorage.setItem("isLoggedOut", "true");
+      document.cookie = "accessToken=; path=/; max-age=0";
+      document.cookie = "activeRole=; path=/; max-age=0";
     }
     set({
       user: null,

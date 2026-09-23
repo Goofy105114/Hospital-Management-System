@@ -1,6 +1,8 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { apiSuccess, apiError } from "@/lib/api-envelope";
+import { getAuthUser, requireRole } from "@/lib/auth";
+import { UserRole } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -32,11 +34,17 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const user = getAuthUser(req);
+  if (!user) return apiError("UNAUTHENTICATED", "Authentication required", 401);
+  if (!requireRole(user, [UserRole.ADMIN, UserRole.SUPER_ADMIN])) {
+    return apiError("UNAUTHORIZED_ROLE", "Admin role required to manage departments", 403);
+  }
+
   try {
     const body = await req.json();
     const { name, code, description } = body;
     if (!name || !code) {
-      return apiSuccess({ error: "Name and code are required" }, undefined, 400);
+      return apiError("INVALID_INPUT", "Name and code are required", 400);
     }
     const dept = await prisma.department.upsert({
       where: { code: code.toUpperCase() },
@@ -45,6 +53,6 @@ export async function POST(req: NextRequest) {
     });
     return apiSuccess(dept, undefined, 201);
   } catch (error: any) {
-    return apiSuccess({ error: error.message }, undefined, 500);
+    return apiError("DEPARTMENT_SAVE_FAILED", error?.message || "Failed to save department", 500);
   }
 }

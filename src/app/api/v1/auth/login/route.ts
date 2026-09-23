@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
 
     const result = await AuthService.login(identifier, password, ip, requestId);
 
-    if (!result.success) {
+    if (!result.success || !result.data) {
       return apiError(
         result.code || "AUTH_FAILED",
         "Authentication failed",
@@ -25,7 +25,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    return apiSuccess(result.data, undefined, 200);
+    const response = apiSuccess(result.data, undefined, 200);
+    response.cookies.set("accessToken", result.data.accessToken, {
+      path: "/",
+      maxAge: 7 * 24 * 60 * 60,
+      sameSite: "lax",
+    });
+    response.cookies.set("activeRole", result.data.user.role, {
+      path: "/",
+      maxAge: 7 * 24 * 60 * 60,
+      sameSite: "lax",
+    });
+    return response;
   } catch (err) {
     console.error("[LOGIN ROUTE ERROR]", err);
     return apiError("INTERNAL_SERVER_ERROR", "An unexpected error occurred", 500);
