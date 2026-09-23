@@ -48,49 +48,8 @@ export async function GET(req: NextRequest) {
     }));
 
     return apiSuccess(formatted);
-  } catch {
-    return apiSuccess([
-      {
-        id: "item-01",
-        name: "Lisinopril 10mg Tablets",
-        category: "PHARMACEUTICAL",
-        unit: "TABLET",
-        reorderThreshold: 100,
-        currentStockOnHand: 185,
-        isLowStock: false,
-        batchesCount: 1,
-        batches: [
-          {
-            id: "b-01",
-            lotNumber: "LIS-2026-A4",
-            expiryDate: "2027-09-15",
-            quantityAvailable: 185,
-            unitCost: 0.18,
-            status: "ACTIVE",
-          },
-        ],
-      },
-      {
-        id: "item-02",
-        name: "Metoprolol Succinate 25mg",
-        category: "PHARMACEUTICAL",
-        unit: "TABLET",
-        reorderThreshold: 150,
-        currentStockOnHand: 340,
-        isLowStock: false,
-        batchesCount: 1,
-        batches: [
-          {
-            id: "b-02",
-            lotNumber: "MET-2026-B8",
-            expiryDate: "2027-11-30",
-            quantityAvailable: 340,
-            unitCost: 0.32,
-            status: "ACTIVE",
-          },
-        ],
-      },
-    ]);
+  } catch (err: any) {
+    return apiError("INV_FETCH_FAILED", err?.message || "Failed to retrieve inventory items", 500);
   }
 }
 
@@ -109,41 +68,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    try {
-      const created = await prisma.inventoryItem.create({
-        data: {
-          name: body.name.trim(),
-          category: body.category,
-          unit: body.unit,
-          reorderThreshold: Number(body.reorderThreshold) || 0,
-          currentStockOnHand: 0,
-          medicineId: body.medicineId || null,
-          isActive: true,
-        },
-      });
-
-      await logAuditEvent({
-        actorId: authResult.user?.sub,
-        actorRole: authResult.user?.role,
-        action: AuditAction.CREATE,
-        entityType: "InventoryItem",
-        entityId: created.id,
-        changes: { after: created },
-      });
-
-      return apiSuccess(created, undefined, 201);
-    } catch {
-      const fallbackItem = {
-        id: `item-${Date.now()}`,
+    const created = await prisma.inventoryItem.create({
+      data: {
         name: body.name.trim(),
         category: body.category,
         unit: body.unit,
         reorderThreshold: Number(body.reorderThreshold) || 0,
         currentStockOnHand: 0,
+        medicineId: body.medicineId || null,
         isActive: true,
-      };
-      return apiSuccess(fallbackItem, undefined, 201);
-    }
+      },
+    });
+
+    await logAuditEvent({
+      actorId: authResult.user?.sub,
+      actorRole: authResult.user?.role,
+      action: AuditAction.CREATE,
+      entityType: "InventoryItem",
+      entityId: created.id,
+      changes: { after: created },
+    });
+
+    return apiSuccess(created, undefined, 201);
   } catch (err: any) {
     return apiError("INV_CREATE_FAILED", err.message || "Failed to create inventory item", 500);
   }

@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 
+import api from "@/lib/axios";
+
 interface InventoryItem {
   id: string;
   itemCode: string;
@@ -31,132 +33,75 @@ interface StockLedgerEntry {
   notes: string;
 }
 
-const INITIAL_ITEMS: InventoryItem[] = [
-  {
-    id: "item-01",
-    itemCode: "MED-LIS-10",
-    name: "Lisinopril 10mg Tablets",
-    category: "Cardiovascular",
-    stockOnHand: 185,
-    reorderLevel: 100,
-    unitCost: 0.18,
-    location: "Shelf A-04",
-    status: "ADEQUATE",
-    activeBatches: 2,
-  },
-  {
-    id: "item-02",
-    itemCode: "MED-MET-25",
-    name: "Metoprolol Succinate 25mg",
-    category: "Cardiovascular",
-    stockOnHand: 340,
-    reorderLevel: 150,
-    unitCost: 0.32,
-    location: "Shelf A-05",
-    status: "ADEQUATE",
-    activeBatches: 3,
-  },
-  {
-    id: "item-03",
-    itemCode: "MED-AMX-500",
-    name: "Amoxicillin 500mg Capsules",
-    category: "Antibiotics",
-    stockOnHand: 42,
-    reorderLevel: 80,
-    unitCost: 0.45,
-    location: "Shelf B-02",
-    status: "LOW_STOCK",
-    activeBatches: 1,
-  },
-  {
-    id: "item-04",
-    itemCode: "MED-WAR-5",
-    name: "Warfarin Sodium 5mg",
-    category: "Anticoagulants",
-    stockOnHand: 65,
-    reorderLevel: 50,
-    unitCost: 0.55,
-    location: "Shelf A-08",
-    status: "ADEQUATE",
-    activeBatches: 1,
-  },
-  {
-    id: "item-05",
-    itemCode: "MED-INS-GLA",
-    name: "Insulin Glargine 100u/mL Pen",
-    category: "Endocrinology",
-    stockOnHand: 8,
-    reorderLevel: 25,
-    unitCost: 32.5,
-    location: "Refrigerated Unit 1",
-    status: "CRITICAL",
-    activeBatches: 1,
-  },
-  {
-    id: "item-06",
-    itemCode: "MED-ATV-20",
-    name: "Atorvastatin Calcium 20mg",
-    category: "Lipid Lowering",
-    stockOnHand: 410,
-    reorderLevel: 120,
-    unitCost: 0.22,
-    location: "Shelf A-12",
-    status: "ADEQUATE",
-    activeBatches: 2,
-  },
-];
-
-const INITIAL_LEDGER: StockLedgerEntry[] = [
-  {
-    id: "led-01",
-    timestamp: "Today • 10:45 AM",
-    itemName: "Metoprolol Succinate 25mg",
-    transactionType: "DISPENSE",
-    quantity: -30,
-    batchNumber: "MET-2026-B8",
-    actor: "Pharmacist Sarah Lin",
-    notes: "Dispensed for RX-2026-0042 (Eleanor Pena)",
-  },
-  {
-    id: "led-02",
-    timestamp: "Today • 10:45 AM",
-    itemName: "Lisinopril 10mg Tablets",
-    transactionType: "DISPENSE",
-    quantity: -30,
-    batchNumber: "LIS-2026-A4",
-    actor: "Pharmacist Sarah Lin",
-    notes: "Dispensed for RX-2026-0042 (Eleanor Pena)",
-  },
-  {
-    id: "led-03",
-    timestamp: "Yesterday • 04:30 PM",
-    itemName: "Insulin Glargine 100u/mL Pen",
-    transactionType: "RECEIPT",
-    quantity: +10,
-    batchNumber: "INS-2026-09",
-    actor: "Logistics Clerk Mark Miller",
-    notes: "Purchase Order PO-2026-088 Delivery",
-  },
-  {
-    id: "led-04",
-    timestamp: "Yesterday • 02:15 PM",
-    itemName: "Amoxicillin 500mg Capsules",
-    transactionType: "DISPENSE",
-    quantity: -21,
-    batchNumber: "AMX-2025-X1",
-    actor: "Pharmacist Sarah Lin",
-    notes: "Outpatient Pediatric Rx",
-  },
-];
-
 export default function InventoryCommandPage() {
-  const [items, setItems] = useState<InventoryItem[]>(INITIAL_ITEMS);
-  const [ledger, setLedger] = useState<StockLedgerEntry[]>(INITIAL_LEDGER);
+  const [items, setItems] = useState<InventoryItem[]>([]);
+  const [ledger, setLedger] = useState<StockLedgerEntry[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"STOCK" | "LEDGER">("STOCK");
   const [receiveModal, setReceiveModal] = useState(false);
-  const [selectedItemCode, setSelectedItemCode] = useState(items[0].itemCode);
+  const [selectedItemCode, setSelectedItemCode] = useState("");
   const [receiptQty, setReceiptQty] = useState(100);
   const [receiptBatch, setReceiptBatch] = useState("NEW-2026-BAT");
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [itemsRes, ledgerRes] = await Promise.all([
+        api.get("/inventory/items"),
+        api.get("/inventory/ledger"),
+      ]);
+
+      if (itemsRes.data?.success && Array.isArray(itemsRes.data.data)) {
+        const formattedItems: InventoryItem[] = itemsRes.data.data.map((i: any) => ({
+          id: i.id,
+          itemCode: i.itemCode || i.id.slice(0, 8).toUpperCase(),
+          name: i.name,
+          category: i.category,
+          stockOnHand: i.currentStockOnHand,
+          reorderLevel: i.reorderThreshold,
+          unitCost: i.batches?.[0]?.unitCost ? Number(i.batches[0].unitCost) : 10,
+          location: "Central Pharmacy",
+          status: i.isLowStock
+            ? i.currentStockOnHand === 0
+              ? "CRITICAL"
+              : "LOW_STOCK"
+            : "ADEQUATE",
+          activeBatches: i.batchesCount || i.batches?.length || 0,
+        }));
+        setItems(formattedItems);
+        if (formattedItems.length > 0) {
+          setSelectedItemCode(formattedItems[0].itemCode);
+        }
+      }
+
+      if (ledgerRes.data?.success && Array.isArray(ledgerRes.data.data)) {
+        const formattedLedger: StockLedgerEntry[] = ledgerRes.data.data.map((l: any) => ({
+          id: l.id,
+          timestamp: new Date(l.createdAt).toLocaleDateString([], {
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          itemName: l.itemName,
+          transactionType: l.refType === "PRESCRIPTION" ? "DISPENSE" : "RECEIPT",
+          quantity: l.quantityDelta,
+          batchNumber: l.id.slice(0, 8).toUpperCase(),
+          actor: l.createdBy || "Staff",
+          notes: l.reason || "Stock transaction",
+        }));
+        setLedger(formattedLedger);
+      }
+    } catch (err) {
+      console.error("Failed to load inventory data", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    loadData();
+  }, []);
 
   const totalInventoryValuation = items.reduce(
     (acc, curr) => acc + curr.stockOnHand * curr.unitCost,

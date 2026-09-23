@@ -1,16 +1,36 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import api from "@/lib/axios";
+
+interface Department {
+  id: string;
+  name: string;
+  code: string;
+}
+
+interface Doctor {
+  id: string;
+  name: string;
+  departmentId: string;
+  departmentName: string;
+  roomNumber: string;
+}
 
 export default function QueueKioskPage() {
   const [lookupType, setLookupType] = useState<"appointment" | "walkin">("appointment");
   const [searchQuery, setSearchQuery] = useState("");
-  const [walkinDept, setWalkinDept] = useState("General Medicine");
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [selectedDeptId, setSelectedDeptId] = useState("");
+  const [selectedDoctorId, setSelectedDoctorId] = useState("");
+  const [walkinName, setWalkinName] = useState("");
   const [walkinUrgency, setWalkinUrgency] = useState<"NORMAL" | "PRIORITY" | "EMERGENCY">("NORMAL");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Generated Slip State
   const [generatedSlip, setGeneratedSlip] = useState<{
@@ -24,51 +44,168 @@ export default function QueueKioskPage() {
     source: string;
   } | null>(null);
 
-  const handleAppointmentCheckIn = (e: React.FormEvent) => {
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const [deptRes, docRes] = await Promise.all([
+          api.get("/departments"),
+          api.get("/doctors"),
+        ]);
+        if (deptRes.data?.success && Array.isArray(deptRes.data.data)) {
+          setDepartments(deptRes.data.data);
+          if (deptRes.data.data.length > 0) {
+            setSelectedDeptId(deptRes.data.data[0].id);
+          }
+        }
+        if (docRes.data?.success && Array.isArray(docRes.data.data)) {
+          setDoctors(docRes.data.data);
+          if (docRes.data.data.length > 0) {
+            setSelectedDoctorId(docRes.data.data[0].id);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load departments or doctors", err);
+      }
+    }
+    loadData();
+  }, []);
+
+  // Update selected doctor when department changes
+  useEffect(() => {
+    if (!selectedDeptId) return;
+    const deptDoctors = doctors.filter((d) => d.departmentId === selectedDeptId);
+    if (deptDoctors.length > 0) {
+      setSelectedDoctorId(deptDoctors[0].id);
+    }
+  }, [selectedDeptId, doctors]);
+
+  const handleAppointmentCheckIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
     setIsProcessing(true);
+    setErrorMessage(null);
 
-    setTimeout(() => {
-      setIsProcessing(false);
-      const randomSeq = Math.floor(10 + Math.random() * 89);
-      setGeneratedSlip({
-        tokenNumber: `DR01-0${randomSeq}`,
-        patientName: "Eleanor Pena",
-        doctorName: "Dr. Marcus Vance",
-        roomNumber: "Room 104 (Echo Suite)",
-        estimatedWaitMinutes: 14,
-        checkInTime: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        priorityTier: "NORMAL",
-        source: "APPOINTMENT",
+    try {
+      const res = await api.post("/queue/check-in", {
+        appointmentId: searchQuery.trim(),
+        allowOverride: true,
       });
-    }, 700);
+
+      if (res.data?.success && res.data.data) {
+        const token = res.data.data;
+        setGeneratedSlip({
+          tokenNumber: token.tokenNumber,
+          patientName: token.patient?.user?.name || "Patient",
+          doctorName: token.doctor?.user?.name || "Attending Physician",
+          roomNumber: token.doctor?.roomNumber || "OPD Suite",
+          estimatedWaitMinutes: token.estimatedWaitMinutes || 15,
+          checkInTime: new Date(token.checkedInAt).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          priorityTier: token.priorityTier || "NORMAL",
+          source: token.source || "APPOINTMENT",
+        });
+      } else {
+        setErrorMessage("Check-in failed. Please verify your appointment number or MRN.");
+      }
+    } catch (err: any) {
+      const msg =
+        err.response?.data?.error?.message ||
+        err.response?.data?.message ||
+        "No matching appointment found or already checked in. Please see reception.";
+      setErrorMessage(msg);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
-  const handleWalkinCheckIn = (e: React.FormEvent) => {
+  const handleWalkinCheckIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsProcessing(true);
+    setErrorMessage(null);
 
-    setTimeout(() => {
-      setIsProcessing(false);
-      const randomSeq = Math.floor(50 + Math.random() * 49);
-      setGeneratedSlip({
-        tokenNumber: `WK-0${randomSeq}`,
-        patientName: "Walk-in Patient",
-        doctorName: "Dr. Sarah Jenkins",
-        roomNumber: "Room 202 (OPD)",
-        estimatedWaitMinutes: 28,
-        checkInTime: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    try {
+      // Find or create patient for walk-in
+      let patientId: string | undefined;
+
+      try {
+        const patientsRes = await api.get("/patients?query=walk-in");
+        if (patientsRes.data?.data && patientsRes.data.data.length > 0) {
+          patientId = patientsRes.data.data[0].id;
+        }
+      } catch {
+        // Fallback to new patient
+      }
+
+      if (!patientId) {
+        const newPatientRes = await api.post("/patients", {
+          name: walkinName.trim() || "Walk-in Patient",
+          gender: "OTHER",
+          phone: "+1-555-0100",
+          email: `walkin.${Date.now()}@goingmerry.org`,
+        });
+        if (newPatientRes.data?.data?.id) {
+          patientId = newPatientRes.data.data.id;
+        }
+      }
+
+      // Resolve a doctor
+      const targetDoctorId =
+        selectedDoctorId || (doctors.length > 0 ? doctors[0].id : undefined);
+
+      if (!targetDoctorId || !patientId) {
+        setErrorMessage("Could not assign a physician. Please see OPD Counter #1.");
+        setIsProcessing(false);
+        return;
+      }
+
+      const res = await api.post("/queue/check-in", {
+        doctorId: targetDoctorId,
+        patientId,
+        isWalkIn: true,
         priorityTier: walkinUrgency,
-        source: "WALK_IN",
+        allowOverride: true,
       });
-    }, 700);
+
+      if (res.data?.success && res.data.data) {
+        const token = res.data.data;
+        setGeneratedSlip({
+          tokenNumber: token.tokenNumber,
+          patientName: token.patient?.user?.name || walkinName || "Walk-in Patient",
+          doctorName: token.doctor?.user?.name || "Attending Physician",
+          roomNumber: token.doctor?.roomNumber || "OPD Suite",
+          estimatedWaitMinutes: token.estimatedWaitMinutes || 20,
+          checkInTime: new Date(token.checkedInAt).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          priorityTier: walkinUrgency,
+          source: "WALK_IN",
+        });
+      } else {
+        setErrorMessage("Failed to issue queue token. Please contact the front desk.");
+      }
+    } catch (err: any) {
+      setErrorMessage(
+        err.response?.data?.error?.message ||
+          "Could not generate walk-in token. Please see reception."
+      );
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handleReset = () => {
     setGeneratedSlip(null);
     setSearchQuery("");
+    setWalkinName("");
+    setErrorMessage(null);
   };
+
+  const availableDoctors = selectedDeptId
+    ? doctors.filter((d) => d.departmentId === selectedDeptId)
+    : doctors;
 
   return (
     <div className="min-h-screen bg-surface-container-lowest flex flex-col justify-between p-space-6 sm:p-space-12 select-none">
@@ -83,7 +220,7 @@ export default function QueueKioskPage() {
               Going Merry Hospital
             </h1>
             <span className="font-title-sm text-outline font-semibold uppercase tracking-widest text-label-sm">
-              Self-Service Check-In Kiosk (QUE-01, QUE-02)
+              Self-Service Check-In Kiosk
             </span>
           </div>
         </div>
@@ -112,19 +249,25 @@ export default function QueueKioskPage() {
             <div className="grid grid-cols-2 gap-space-4 p-space-2 bg-surface-container rounded-2xl border border-outline-variant/30">
               <button
                 type="button"
-                onClick={() => setLookupType("appointment")}
+                onClick={() => {
+                  setLookupType("appointment");
+                  setErrorMessage(null);
+                }}
                 className={`py-space-4 px-space-6 rounded-xl font-headline-sm font-bold transition-all flex items-center justify-center gap-space-3 ${
                   lookupType === "appointment"
                     ? "bg-primary text-on-primary shadow-lg scale-[1.01]"
                     : "text-outline hover:text-on-surface hover:bg-surface-container-high"
                 }`}
               >
-                <span className="material-symbols-outlined text-[28px]">event_available</span>I Have
-                an Appointment
+                <span className="material-symbols-outlined text-[28px]">event_available</span>
+                I Have an Appointment
               </button>
               <button
                 type="button"
-                onClick={() => setLookupType("walkin")}
+                onClick={() => {
+                  setLookupType("walkin");
+                  setErrorMessage(null);
+                }}
                 className={`py-space-4 px-space-6 rounded-xl font-headline-sm font-bold transition-all flex items-center justify-center gap-space-3 ${
                   lookupType === "walkin"
                     ? "bg-primary text-on-primary shadow-lg scale-[1.01]"
@@ -136,6 +279,21 @@ export default function QueueKioskPage() {
               </button>
             </div>
 
+            {/* Error Notification */}
+            {errorMessage && (
+              <div className="p-space-4 rounded-2xl bg-error/10 border border-error/30 text-error flex items-center gap-3">
+                <span className="material-symbols-outlined text-[24px]">error</span>
+                <span className="font-semibold text-body-md flex-1">{errorMessage}</span>
+                <button
+                  type="button"
+                  onClick={() => setErrorMessage(null)}
+                  className="hover:opacity-75"
+                >
+                  <span className="material-symbols-outlined text-[18px]">close</span>
+                </button>
+              </div>
+            )}
+
             {/* FORM A: Appointment Lookup */}
             {lookupType === "appointment" && (
               <form onSubmit={handleAppointmentCheckIn} className="space-y-space-6">
@@ -145,7 +303,7 @@ export default function QueueKioskPage() {
                       Welcome! Please Check In
                     </h2>
                     <p className="text-body-lg text-outline">
-                      Enter your Appointment Number (e.g. APT-20261024-0012), MRN, or Mobile Phone.
+                      Enter your Appointment Number (e.g. APT-2026...), Patient MRN, or ID.
                     </p>
                   </div>
 
@@ -154,7 +312,7 @@ export default function QueueKioskPage() {
                       type="text"
                       autoFocus
                       required
-                      placeholder="e.g. MRN-2026-001842 or (555) 234-5678"
+                      placeholder="e.g. APT-2026... or MRN-2026..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="w-full text-center text-headline-sm font-semibold tracking-wide py-space-5 px-space-6 bg-surface-container rounded-2xl border-2 border-outline-variant/50 focus:border-primary focus:outline-none transition-colors"
@@ -177,7 +335,7 @@ export default function QueueKioskPage() {
                     ) : (
                       <>
                         <span className="material-symbols-outlined text-[28px]">how_to_reg</span>
-                        Check In & Print Token
+                        Check In &amp; Print Token
                       </>
                     )}
                   </Button>
@@ -201,18 +359,52 @@ export default function QueueKioskPage() {
                   <div className="space-y-space-4">
                     <div>
                       <label className="block text-title-sm font-bold text-on-surface mb-space-2">
+                        Patient Name (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Enter your full name"
+                        value={walkinName}
+                        onChange={(e) => setWalkinName(e.target.value)}
+                        className="w-full py-space-3 px-space-4 bg-surface-container rounded-xl border border-outline-variant/50 text-body-md font-semibold focus:border-primary focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-title-sm font-bold text-on-surface mb-space-2">
                         Target Department / Clinic
                       </label>
                       <select
-                        value={walkinDept}
-                        onChange={(e) => setWalkinDept(e.target.value)}
-                        className="w-full py-space-4 px-space-4 bg-surface-container rounded-xl border border-outline-variant/50 text-title-md font-semibold focus:border-primary focus:outline-none"
+                        value={selectedDeptId}
+                        onChange={(e) => setSelectedDeptId(e.target.value)}
+                        className="w-full py-space-3 px-space-4 bg-surface-container rounded-xl border border-outline-variant/50 text-title-md font-semibold focus:border-primary focus:outline-none"
                       >
-                        <option value="General Medicine">General Medicine & Triage</option>
-                        <option value="Cardiology">Cardiology OPD</option>
-                        <option value="Pediatrics">Pediatrics & Child Care</option>
-                        <option value="Orthopedics">Orthopedics & Joint Clinic</option>
-                        <option value="Dermatology">Dermatology Clinic</option>
+                        {departments.map((dept) => (
+                          <option key={dept.id} value={dept.id}>
+                            {dept.name} ({dept.code})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-title-sm font-bold text-on-surface mb-space-2">
+                        Assigned Physician
+                      </label>
+                      <select
+                        value={selectedDoctorId}
+                        onChange={(e) => setSelectedDoctorId(e.target.value)}
+                        className="w-full py-space-3 px-space-4 bg-surface-container rounded-xl border border-outline-variant/50 text-body-md font-semibold focus:border-primary focus:outline-none"
+                      >
+                        {availableDoctors.length > 0 ? (
+                          availableDoctors.map((doc) => (
+                            <option key={doc.id} value={doc.id}>
+                              {doc.name} • {doc.roomNumber || "OPD"}
+                            </option>
+                          ))
+                        ) : (
+                          <option value="">Any Available Physician</option>
+                        )}
                       </select>
                     </div>
 
@@ -285,9 +477,8 @@ export default function QueueKioskPage() {
             )}
           </div>
         ) : (
-          /* Thermal Token Slip Preview (QUE-02) */
+          /* Thermal Token Slip Preview */
           <div className="w-full max-w-md space-y-space-6 animate-in fade-in zoom-in-95 duration-200">
-            {/* The Slip */}
             <div className="bg-surface-container-lowest border-2 border-outline-variant/40 rounded-3xl p-space-8 shadow-2xl space-y-space-6 text-center font-mono">
               <div className="border-b border-dashed border-outline-variant/60 pb-space-4 space-y-space-1">
                 <span className="font-extrabold text-title-md font-sans text-primary uppercase tracking-widest block">
@@ -337,7 +528,7 @@ export default function QueueKioskPage() {
                 </div>
               </div>
 
-              {/* Simulated Barcode */}
+              {/* Barcode representation */}
               <div className="space-y-space-1 pt-space-2">
                 <div className="text-label-md font-mono tracking-widest text-outline">
                   ||||| ||| || |||| ||| |||||

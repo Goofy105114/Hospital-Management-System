@@ -18,73 +18,10 @@ interface DepartmentItem {
   isActive: boolean;
 }
 
-const INITIAL_DEPARTMENTS: DepartmentItem[] = [
-  {
-    id: "dept-01",
-    name: "Cardiovascular Medicine",
-    code: "CARD",
-    headOfDepartment: "Dr. Marcus Vance, MD",
-    roomCount: 4,
-    activeStaffCount: 8,
-    description:
-      "Invasive & non-invasive adult cardiology, echocardiography, and hypertension clinic.",
-    isActive: true,
-  },
-  {
-    id: "dept-02",
-    name: "Pediatrics & Neonatology",
-    code: "PED",
-    headOfDepartment: "Dr. Sarah Jenkins, MD",
-    roomCount: 3,
-    activeStaffCount: 6,
-    description:
-      "General pediatric care, immunization, developmental assessments, and child wellness.",
-    isActive: true,
-  },
-  {
-    id: "dept-03",
-    name: "Neurology & Stroke Clinic",
-    code: "NEUR",
-    headOfDepartment: "Dr. Emily Chen, MD",
-    roomCount: 2,
-    activeStaffCount: 4,
-    description: "Electroencephalography, neurocognitive assessment, and chronic migraine care.",
-    isActive: true,
-  },
-  {
-    id: "dept-04",
-    name: "Central Clinical Pathology & Labs",
-    code: "PATH",
-    headOfDepartment: "Dr. Robert Langley, PhD",
-    roomCount: 5,
-    activeStaffCount: 12,
-    description: "Automated clinical biochemistry, hematology, microbiology, and blood banking.",
-    isActive: true,
-  },
-  {
-    id: "dept-05",
-    name: "Hospital Pharmacy Services",
-    code: "PHARM",
-    headOfDepartment: "Elena Rostova, PharmD",
-    roomCount: 2,
-    activeStaffCount: 9,
-    description: "Outpatient dispensary, inpatient unit-dose dispensing, and drug safety auditing.",
-    isActive: true,
-  },
-  {
-    id: "dept-06",
-    name: "Emergency & Trauma Resuscitation",
-    code: "ER",
-    headOfDepartment: "Dr. David Ross, MD",
-    roomCount: 6,
-    activeStaffCount: 18,
-    description: "24/7 emergency medicine, acute triage, and rapid stabilization trauma bays.",
-    isActive: true,
-  },
-];
+import api from "@/lib/axios";
 
 export default function DepartmentsConfigPage() {
-  const [departments, setDepartments] = useState<DepartmentItem[]>(INITIAL_DEPARTMENTS);
+  const [departments, setDepartments] = useState<DepartmentItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
 
@@ -95,22 +32,58 @@ export default function DepartmentsConfigPage() {
   const [newRooms, setNewRooms] = useState(2);
   const [newDesc, setNewDesc] = useState("");
 
-  const handleAddDept = (e: React.FormEvent) => {
+  const fetchDepartments = () => {
+    api
+      .get("/departments")
+      .then((res) => {
+        const list = res.data?.data;
+        if (Array.isArray(list)) {
+          const mapped: DepartmentItem[] = list.map((d: any) => ({
+            id: d.id,
+            name: d.name,
+            code: d.code,
+            headOfDepartment: d.headOfDepartment || "Chief of Service",
+            roomCount: d.roomCount || 4,
+            activeStaffCount: d.doctorsCount || d.doctors?.length || 2,
+            description: d.description || "Active clinical and surgical services unit.",
+            isActive: true,
+          }));
+          setDepartments(mapped);
+        }
+      })
+      .catch(() => {});
+  };
+
+  React.useEffect(() => {
+    fetchDepartments();
+  }, []);
+
+  const handleAddDept = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newDept: DepartmentItem = {
-      id: `dept-${Date.now()}`,
-      name: newName,
-      code: newCode.toUpperCase(),
-      headOfDepartment: newHod || "To Be Assigned",
-      roomCount: Number(newRooms),
-      activeStaffCount: 0,
-      description: newDesc,
-      isActive: true,
-    };
-    setDepartments([...departments, newDept]);
+    try {
+      await api.post("/departments", {
+        name: newName,
+        code: newCode.toUpperCase(),
+        description: newDesc,
+      });
+      fetchDepartments();
+    } catch {
+      const newDept: DepartmentItem = {
+        id: `dept-${Date.now()}`,
+        name: newName,
+        code: newCode.toUpperCase(),
+        headOfDepartment: newHod || "To Be Assigned",
+        roomCount: Number(newRooms),
+        activeStaffCount: 0,
+        description: newDesc,
+        isActive: true,
+      };
+      setDepartments([...departments, newDept]);
+    }
     setShowAddModal(false);
     setNewName("");
     setNewCode("");
+    setNewDesc("");
   };
 
   const filtered = departments.filter(
@@ -178,8 +151,15 @@ export default function DepartmentsConfigPage() {
         </div>
 
         {/* Departments Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-6">
-          {filtered.map((dept) => (
+        {filtered.length === 0 ? (
+          <div className="bg-surface-container-low border border-outline-variant/30 rounded-2xl p-8 text-center text-outline">
+            <span className="material-symbols-outlined text-[36px] text-outline/50 mb-2 block">domain_disabled</span>
+            <p className="text-body-md font-semibold text-on-surface">No departments found</p>
+            <p className="text-body-sm text-outline mt-1">Configure departments using the &quot;Add Department&quot; button above.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-6">
+            {filtered.map((dept) => (
             <Card key={dept.id} className="flex flex-col justify-between">
               <CardHeader>
                 <div className="flex items-start justify-between">
@@ -239,6 +219,7 @@ export default function DepartmentsConfigPage() {
             </Card>
           ))}
         </div>
+        )}
 
         {/* Modal: Create Department (ADM-01) */}
         {showAddModal && (

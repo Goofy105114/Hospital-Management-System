@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { AppLayout } from "@/components/shared/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import api from "@/lib/axios";
 
 interface MedicineItem {
   id: string;
@@ -21,89 +22,9 @@ interface MedicineItem {
   isActive: boolean;
 }
 
-const INITIAL_MEDICINES: MedicineItem[] = [
-  {
-    id: "med-01",
-    name: "Amlodipine Besylate",
-    genericName: "Amlodipine",
-    form: "TABLET",
-    strength: "5 mg",
-    unit: "Tablet",
-    category: "Cardiovascular / Antihypertensive",
-    atcCode: "C08CA01",
-    unitPrice: 12.5,
-    stockOnHand: 420,
-    isActive: true,
-  },
-  {
-    id: "med-02",
-    name: "Metformin Hydrochloride",
-    genericName: "Metformin",
-    form: "TABLET",
-    strength: "500 mg",
-    unit: "Tablet",
-    category: "Endocrinology / Antidiabetic",
-    atcCode: "A10BA02",
-    unitPrice: 8.0,
-    stockOnHand: 680,
-    isActive: true,
-  },
-  {
-    id: "med-03",
-    name: "Atorvastatin Calcium",
-    genericName: "Atorvastatin",
-    form: "TABLET",
-    strength: "20 mg",
-    unit: "Tablet",
-    category: "Cardiovascular / Statin",
-    atcCode: "C10AA05",
-    unitPrice: 18.0,
-    stockOnHand: 310,
-    isActive: true,
-  },
-  {
-    id: "med-04",
-    name: "Amoxicillin / Clavulanate",
-    genericName: "Amoxicillin-Clavulanic Acid",
-    form: "TABLET",
-    strength: "625 mg",
-    unit: "Tablet",
-    category: "Anti-infective / Penicillin",
-    atcCode: "J01CR02",
-    unitPrice: 24.5,
-    stockOnHand: 180,
-    isActive: true,
-  },
-  {
-    id: "med-05",
-    name: "Omeprazole Delayed-Release",
-    genericName: "Omeprazole",
-    form: "CAPSULE",
-    strength: "20 mg",
-    unit: "Capsule",
-    category: "Gastroenterology / PPI",
-    atcCode: "A02BC01",
-    unitPrice: 14.0,
-    stockOnHand: 550,
-    isActive: true,
-  },
-  {
-    id: "med-06",
-    name: "Paracetamol Infusion",
-    genericName: "Acetaminophen",
-    form: "INJECTION",
-    strength: "1000 mg / 100 mL",
-    unit: "Vial",
-    category: "Analgesic / Antipyretic",
-    atcCode: "N02BE01",
-    unitPrice: 45.0,
-    stockOnHand: 95,
-    isActive: true,
-  },
-];
-
 export default function MedicinesFormularyPage() {
-  const [medicines, setMedicines] = useState<MedicineItem[]>(INITIAL_MEDICINES);
+  const [medicines, setMedicines] = useState<MedicineItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedForm, setSelectedForm] = useState("ALL");
   const [showAddModal, setShowAddModal] = useState(false);
@@ -117,22 +38,39 @@ export default function MedicinesFormularyPage() {
   const [newPrice, setNewPrice] = useState("15.00");
   const [newAtc, setNewAtc] = useState("A01AA01");
 
-  const handleAddMedicine = (e: React.FormEvent) => {
+  const loadMedicines = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get("/medicines");
+      if (res.data?.success && Array.isArray(res.data.data)) {
+        setMedicines(res.data.data);
+      }
+    } catch (err) {
+      console.error("Failed to load medicines", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadMedicines();
+  }, []);
+
+  const handleAddMedicine = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newMed: MedicineItem = {
-      id: `med-${Date.now()}`,
-      name: newName,
-      genericName: newGeneric,
-      form: newForm,
-      strength: newStrength || "Standard",
-      unit: newForm === "INJECTION" ? "Vial" : "Unit",
-      category: newCategory,
-      atcCode: newAtc,
-      unitPrice: Number(newPrice),
-      stockOnHand: 100,
-      isActive: true,
-    };
-    setMedicines([...medicines, newMed]);
+    try {
+      await api.post("/medicines", {
+        name: newName,
+        genericName: newGeneric,
+        form: newForm,
+        strength: newStrength || "Standard",
+        unit: newForm === "INJECTION" ? "Vial" : "Tablet",
+        unitPrice: Number(newPrice) || 10,
+      });
+      await loadMedicines();
+    } catch (err) {
+      console.error("Failed to add medicine", err);
+    }
     setShowAddModal(false);
     setNewName("");
     setNewGeneric("");

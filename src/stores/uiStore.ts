@@ -7,6 +7,7 @@ interface UiState {
   facilityName: string;
   facilityLocation: string;
   toggleSidebar: () => void;
+  setSidebarOpen: (open: boolean) => void;
   setSearchModalOpen: (open: boolean) => void;
   setActiveDepartment: (dept: string) => void;
 }
@@ -18,6 +19,7 @@ export const useUiStore = create<UiState>((set) => ({
   facilityName: "Going Merry Central Hospital",
   facilityLocation: "Main Clinic - Bldg B",
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
+  setSidebarOpen: (open: boolean) => set({ sidebarOpen: open }),
   setSearchModalOpen: (open) => set({ searchModalOpen: open }),
   setActiveDepartment: (dept) => set({ activeDepartment: dept }),
 }));

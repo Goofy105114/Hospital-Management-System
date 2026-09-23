@@ -8,92 +8,89 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 
+import api from "@/lib/axios";
+
 export default function DetailedInvoicePage() {
   const params = useParams();
-  const invoiceId = (params?.id as string) || "inv-01";
+  const invoiceId = (params?.id as string) || "";
 
-  const [invoice, setInvoice] = useState({
-    id: invoiceId,
-    invoiceNumber: "INV-2026-0042",
-    date: "2026-10-24",
-    dueDate: "2026-11-07",
-    status: "PENDING" as "PAID" | "PENDING" | "OVERDUE",
-    patientName: "Eleanor Pena",
-    patientMrn: "MRN-2026-001842",
-    address: "742 Evergreen Terrace, Springfield, OR 97477",
-    phone: "+1 (555) 234-5678",
-    insuranceProvider: "Blue Cross Blue Shield",
-    policyNumber: "BCBS-8942103",
-    items: [
-      {
-        description: "Specialist Outpatient Consultation (Dr. Marcus Vance)",
-        department: "Cardiology Suite",
-        quantity: 1,
-        unitPrice: 180.0,
-        total: 180.0,
-      },
-      {
-        description: "12-Lead Resting Electrocardiogram (ECG)",
-        department: "Diagnostics Lab",
-        quantity: 1,
-        unitPrice: 120.0,
-        total: 120.0,
-      },
-      {
-        description: "Comprehensive Metabolic Panel (CMP)",
-        department: "Biochemistry",
-        quantity: 1,
-        unitPrice: 85.0,
-        total: 85.0,
-      },
-      {
-        description: "Prescription Dispensing (Amlodipine 5mg - 30 Tabs)",
-        department: "Central Pharmacy",
-        quantity: 1,
-        unitPrice: 35.0,
-        total: 35.0,
-      },
-    ],
-    subtotal: 420.0,
-    taxAmount: 21.0, // 5% GST
-    insuranceCovered: 336.0,
-    patientOwing: 105.0,
-    payments: [
-      {
-        id: "pmt-01",
-        date: "2026-10-24 11:30 AM",
-        mode: "INSURANCE_TPA",
-        ref: "BCBS-EFT-9941",
-        amount: 336.0,
-        status: "SETTLED",
-      },
-    ],
-  });
-
+  const [invoice, setInvoice] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentMode, setPaymentMode] = useState<"CASH" | "CARD" | "UPI">("CARD");
-  const [paymentAmount, setPaymentAmount] = useState(invoice.patientOwing.toString());
+  const [paymentAmount, setPaymentAmount] = useState("0");
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const handleRecordPayment = (e: React.FormEvent) => {
+  const fetchInvoice = () => {
+    if (!invoiceId) return;
+    setLoading(true);
+    api
+      .get(`/billing/invoices/${invoiceId}`)
+      .then((res) => {
+        const inv = res.data?.data;
+        if (inv) {
+          setInvoice(inv);
+          setPaymentAmount(inv.patientOwing.toString());
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load invoice:", err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  };
+
+  React.useEffect(() => {
+    fetchInvoice();
+  }, [invoiceId]);
+
+  const handleRecordPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     const amt = Number(paymentAmount);
-    const newPayment = {
-      id: `pmt-${Date.now()}`,
-      date: new Date().toLocaleString(),
-      mode: paymentMode,
-      ref: `POS-${Math.floor(10000 + Math.random() * 90000)}`,
-      amount: amt,
-      status: "SETTLED",
-    };
-
-    setInvoice({
-      ...invoice,
-      status: "PAID",
-      patientOwing: Math.max(0, invoice.patientOwing - amt),
-      payments: [...invoice.payments, newPayment],
-    });
-    setShowPaymentModal(false);
+    setErrorMsg(null);
+    try {
+      await api.post(`/billing/invoices/${invoiceId}/payments`, {
+        amount: amt,
+        mode: paymentMode,
+        externalRef: `POS-${Math.floor(10000 + Math.random() * 90000)}`,
+      });
+      fetchInvoice();
+      setShowPaymentModal(false);
+    } catch (err: any) {
+      setErrorMsg(err?.response?.data?.message || err?.message || "Payment processing failed. Please verify payment details.");
+    }
   };
+
+  if (loading) {
+    return (
+      <AppLayout>
+        <div className="max-w-4xl mx-auto py-16 text-center space-y-3">
+          <div className="w-8 h-8 border-3 border-teal-700 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-xs text-slate-500 font-medium">Retrieving tax invoice details...</p>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (!invoice) {
+    return (
+      <AppLayout>
+        <div className="max-w-4xl mx-auto py-16 text-center space-y-4">
+          <span className="material-symbols-outlined text-[48px] text-outline">receipt_long</span>
+          <h2 className="text-base font-bold text-slate-800">Invoice Not Found</h2>
+          <p className="text-xs text-slate-500 max-w-sm mx-auto">
+            The requested invoice record could not be found or has been archived.
+          </p>
+          <Link href="/billing">
+            <Button variant="outline" size="sm">
+              Return to Billing Overview
+            </Button>
+          </Link>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
@@ -220,7 +217,7 @@ export default function DetailedInvoicePage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-outline-variant/20">
-                {invoice.items.map((item, idx) => (
+                {invoice.items.map((item: any, idx: number) => (
                   <tr key={idx} className="hover:bg-surface-container-high/30">
                     <td className="py-space-3 px-space-4 font-semibold text-on-surface">
                       {item.description}
@@ -278,7 +275,7 @@ export default function DetailedInvoicePage() {
               Payment & Settlement History
             </span>
             <div className="space-y-space-2">
-              {invoice.payments.map((pmt) => (
+              {invoice.payments.map((pmt: any) => (
                 <div
                   key={pmt.id}
                   className="flex items-center justify-between p-space-3 bg-surface-container rounded-lg border border-outline-variant/30 text-body-sm"
@@ -310,6 +307,11 @@ export default function DetailedInvoicePage() {
               <h3 className="font-headline-sm text-headline-sm font-bold text-on-surface">
                 Collect Payment for {invoice.invoiceNumber}
               </h3>
+              {errorMsg && (
+                <div className="p-3 rounded-xl bg-error/10 border border-error/30 text-error text-xs font-medium">
+                  {errorMsg}
+                </div>
+              )}
               <form onSubmit={handleRecordPayment} className="space-y-space-4">
                 <div>
                   <label className="block text-label-md font-semibold text-on-surface mb-space-1">

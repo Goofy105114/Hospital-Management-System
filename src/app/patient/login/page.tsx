@@ -42,41 +42,33 @@ export default function PatientLoginPage() {
     setErrorMsg("");
 
     try {
-      // 1. Supabase Auth
-      await signInWithSupabase(values.identifier, values.password);
-
-      // 2. Prisma Database Auth
-      let authUser: any = null;
-      let token = `pat-jwt-${Date.now()}`;
-
       try {
-        const res = await api.post("/auth/login", {
-          identifier: values.identifier,
-          password: values.password,
-        });
-        if (res.data?.data) {
-          authUser = res.data.data.user;
-          token = res.data.data.accessToken;
-        }
-      } catch (backendErr) {
-        console.warn("[PATIENT AUTH NOTICE]", backendErr);
+        await signInWithSupabase(values.identifier, values.password);
+      } catch {
+        // Non-blocking if offline
       }
 
-      if (!authUser) {
-        authUser = {
-          id: "patient-eleanor-vance-id",
-          name: "Eleanor Vance",
-          email: values.identifier,
-          role: "PATIENT",
-          mrn: "GM-84920",
-        };
+      const res = await api.post("/auth/login", {
+        identifier: values.identifier,
+        password: values.password,
+      });
+
+      if (!res.data?.success || !res.data?.data?.user) {
+        throw new Error(res.data?.error?.message || "Invalid email or password.");
       }
+
+      const authUser = res.data.data.user;
+      const token = res.data.data.accessToken;
 
       setAuth(authUser, token);
       setActiveRole("PATIENT");
       router.push("/");
     } catch (err: any) {
-      setErrorMsg(err?.message || "Invalid credentials. Please verify your email and password.");
+      const msg =
+        err?.response?.data?.error?.message ||
+        err?.message ||
+        "Invalid credentials. Please verify your email and password.";
+      setErrorMsg(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -121,7 +113,7 @@ export default function PatientLoginPage() {
               <input
                 type="text"
                 {...register("identifier")}
-                placeholder="eleanor.vance@example.com or GM-84920"
+                placeholder="patient@example.com or MRN-12345"
                 className="w-full h-11 px-3.5 bg-surface-container-low text-on-surface rounded-xl border border-outline-variant/40 focus:border-primary focus:ring-1 focus:ring-primary text-sm font-medium"
               />
               {errors.identifier && (
@@ -149,26 +141,6 @@ export default function PatientLoginPage() {
               {errors.password && (
                 <p className="text-[11px] text-error mt-1">{errors.password.message}</p>
               )}
-            </div>
-
-            {/* Demo Quickfill */}
-            <div className="p-3 bg-surface-container-low rounded-xl border border-outline-variant/20 flex items-center justify-between">
-              <div>
-                <p className="text-[11px] font-bold text-on-surface">Demo Patient Record</p>
-                <p className="text-[10px] text-outline font-mono">eleanor.vance@example.com</p>
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="text-xs h-7 px-2.5"
-                onClick={() => {
-                  setValue("identifier", "eleanor.vance@example.com");
-                  setValue("password", "Password123!");
-                }}
-              >
-                Autofill
-              </Button>
             </div>
 
             <Button

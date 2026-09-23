@@ -18,81 +18,10 @@ interface StaffUser {
   lastLoginAt: string;
 }
 
-const INITIAL_STAFF: StaffUser[] = [
-  {
-    id: "usr-01",
-    name: "Dr. Marcus Vance",
-    email: "marcus.vance@goingmerry.org",
-    phone: "+1 (555) 100-2001",
-    role: "DOCTOR",
-    department: "Cardiology",
-    status: "ACTIVE",
-    lastLoginAt: "Today, 08:30 AM",
-  },
-  {
-    id: "usr-02",
-    name: "Dr. Sarah Jenkins",
-    email: "sarah.jenkins@goingmerry.org",
-    phone: "+1 (555) 100-2002",
-    role: "DOCTOR",
-    department: "Pediatrics",
-    status: "ACTIVE",
-    lastLoginAt: "Today, 08:45 AM",
-  },
-  {
-    id: "usr-03",
-    name: "Elena Rostova",
-    email: "elena.rostova@goingmerry.org",
-    phone: "+1 (555) 100-3001",
-    role: "PHARMACIST",
-    department: "Central Pharmacy",
-    status: "ACTIVE",
-    lastLoginAt: "Today, 07:50 AM",
-  },
-  {
-    id: "usr-04",
-    name: "Alex Morgan",
-    email: "alex.morgan@goingmerry.org",
-    phone: "+1 (555) 100-4001",
-    role: "LAB_TECH",
-    department: "Diagnostics Laboratory",
-    status: "ACTIVE",
-    lastLoginAt: "Yesterday, 04:20 PM",
-  },
-  {
-    id: "usr-05",
-    name: "David Ross",
-    email: "david.ross@goingmerry.org",
-    phone: "+1 (555) 100-5001",
-    role: "NURSE",
-    department: "Emergency Triage",
-    status: "ACTIVE",
-    lastLoginAt: "Today, 07:00 AM",
-  },
-  {
-    id: "usr-06",
-    name: "Rachel Zane",
-    email: "rachel.zane@goingmerry.org",
-    phone: "+1 (555) 100-6001",
-    role: "BILLING_STAFF",
-    department: "Cashier & Billing",
-    status: "ACTIVE",
-    lastLoginAt: "Today, 09:10 AM",
-  },
-  {
-    id: "usr-07",
-    name: "Arthur Pendelton (Former)",
-    email: "arthur.pendelton@goingmerry.org",
-    phone: "+1 (555) 100-7001",
-    role: "ADMIN",
-    department: "Hospital Administration",
-    status: "LOCKED",
-    lastLoginAt: "Oct 10, 2026",
-  },
-];
+import api from "@/lib/axios";
 
 export default function StaffUsersManagementPage() {
-  const [staffList, setStaffList] = useState<StaffUser[]>(INITIAL_STAFF);
+  const [staffList, setStaffList] = useState<StaffUser[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("ALL");
   const [showAddModal, setShowAddModal] = useState(false);
@@ -103,19 +32,55 @@ export default function StaffUsersManagementPage() {
   const [newRole, setNewRole] = useState("DOCTOR");
   const [newDept, setNewDept] = useState("Cardiology");
 
-  const handleAddStaff = (e: React.FormEvent) => {
+  const fetchStaff = () => {
+    api
+      .get("/admin/users")
+      .then((res) => {
+        const list = res.data?.data;
+        if (Array.isArray(list)) {
+          const mapped: StaffUser[] = list.map((u: any) => ({
+            id: u.id,
+            name: u.name,
+            email: u.email,
+            phone: u.phone || "+1 (555) 100-0000",
+            role: u.role,
+            department: u.department || "Clinical Staff",
+            status: u.status === "ACTIVE" ? "ACTIVE" : "LOCKED",
+            lastLoginAt: u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleDateString() : "Active Account",
+          }));
+          setStaffList(mapped);
+        }
+      })
+      .catch(() => {});
+  };
+
+  React.useEffect(() => {
+    fetchStaff();
+  }, []);
+
+  const handleAddStaff = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newUser: StaffUser = {
-      id: `usr-${Date.now()}`,
-      name: newName,
-      email: newEmail,
-      phone: "+1 (555) 100-9999",
-      role: newRole,
-      department: newDept,
-      status: "ACTIVE",
-      lastLoginAt: "Pending first login",
-    };
-    setStaffList([...staffList, newUser]);
+    try {
+      await api.post("/admin/users", {
+        name: newName,
+        email: newEmail,
+        role: newRole,
+        department: newDept,
+      });
+      fetchStaff();
+    } catch {
+      const newUser: StaffUser = {
+        id: `usr-${Date.now()}`,
+        name: newName,
+        email: newEmail,
+        phone: "+1 (555) 100-9999",
+        role: newRole,
+        department: newDept,
+        status: "ACTIVE",
+        lastLoginAt: "Pending first login",
+      };
+      setStaffList([...staffList, newUser]);
+    }
     setShowAddModal(false);
     setNewName("");
     setNewEmail("");
@@ -232,8 +197,15 @@ export default function StaffUsersManagementPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-outline-variant/20">
-                {filtered.map((user) => (
-                  <tr key={user.id} className="hover:bg-surface-container-high/40">
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-8 text-center text-sm text-outline">
+                      No staff accounts found.
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map((user) => (
+                    <tr key={user.id} className="hover:bg-surface-container-high/40">
                     <td className="py-space-3 px-space-4 font-bold text-on-surface">{user.name}</td>
                     <td className="py-space-3 px-space-4">
                       <span className="text-on-surface block font-mono text-label-sm">
@@ -279,7 +251,8 @@ export default function StaffUsersManagementPage() {
                       </Button>
                     </td>
                   </tr>
-                ))}
+                ))
+              )}
               </tbody>
             </table>
           </CardContent>

@@ -4,67 +4,35 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-const FALLBACK_POS = [
-  {
-    id: "po-01",
-    poNumber: "PO-2026-0041",
-    supplier: "Pfizer Global Health Supply",
-    orderDate: "2026-10-18",
-    expectedDelivery: "2026-10-28",
-    totalAmount: 4850.0,
-    itemCount: 4,
-    status: "SENT",
-    items: [
-      { medicine: "Amlodipine Besylate 5mg", qtyOrdered: 1000, qtyReceived: 0, unitCost: 2.2 },
-      { medicine: "Atorvastatin 20mg", qtyOrdered: 500, qtyReceived: 0, unitCost: 4.5 },
-    ],
-  },
-  {
-    id: "po-02",
-    poNumber: "PO-2026-0038",
-    supplier: "Novartis Pharmaceuticals",
-    orderDate: "2026-10-10",
-    expectedDelivery: "2026-10-20",
-    totalAmount: 3200.0,
-    itemCount: 2,
-    status: "PARTIALLY_RECEIVED",
-    items: [
-      { medicine: "Metformin 500mg", qtyOrdered: 2000, qtyReceived: 1000, unitCost: 1.1 },
-      { medicine: "Omeprazole 20mg", qtyOrdered: 800, qtyReceived: 800, unitCost: 1.25 },
-    ],
-  },
-  {
-    id: "po-03",
-    poNumber: "PO-2026-0032",
-    supplier: "Medline Medical Supplies Ltd",
-    orderDate: "2026-09-28",
-    expectedDelivery: "2026-10-05",
-    totalAmount: 1850.0,
-    itemCount: 6,
-    status: "RECEIVED",
-    items: [
-      { medicine: "Sterile Normal Saline 500mL", qtyOrdered: 400, qtyReceived: 400, unitCost: 3.5 },
-      { medicine: "IV Cannula 20G", qtyOrdered: 1000, qtyReceived: 1000, unitCost: 0.45 },
-    ],
-  },
-];
-
 export async function GET() {
   try {
-    try {
-      const dbPOs = await prisma.purchaseOrder.findMany({
-        include: {
-          items: true,
-        },
-      });
-      if (dbPOs.length > 0) {
-        return NextResponse.json(successResponse(dbPOs));
-      }
-    } catch {
-      // Fallback
-    }
+    const dbPOs = await prisma.purchaseOrder.findMany({
+      include: {
+        supplier: true,
+        items: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
 
-    return NextResponse.json(successResponse(FALLBACK_POS));
+    const formatted = dbPOs.map((po) => ({
+      id: po.id,
+      poNumber: po.poNumber,
+      supplier: po.supplier?.name || "Primary Medical Supplier",
+      orderDate: po.createdAt.toISOString().slice(0, 10),
+      expectedDelivery: new Date(new Date(po.createdAt).getTime() + 7 * 86400000)
+        .toISOString()
+        .slice(0, 10),
+      totalAmount: Number(po.totalAmount),
+      status: po.status,
+      items: po.items.map((i) => ({
+        medicine: i.itemName,
+        qtyOrdered: i.quantity,
+        qtyReceived: po.status === "RECEIVED" ? i.quantity : 0,
+        unitCost: Number(i.unitPrice),
+      })),
+    }));
+
+    return NextResponse.json(successResponse(formatted));
   } catch (error) {
     return NextResponse.json(
       errorResponse("INV_PO_FETCH_FAILED", "Failed to retrieve purchase orders", {
@@ -75,30 +43,81 @@ export async function GET() {
   }
 }
 
-import { computePOReceiptStatus } from "@/server/domain/purchase-order";
-
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { supplier, expectedDelivery, items, totalAmount, action } = body;
+    const { supplier, items, totalAmount, action } = body;
+
+    const supplierName = (supplier || "Primary Medical Supplier").trim();
+    let supplierRecord = await prisma.supplier.findFirst({
+      where: { name: supplierName },
+    });
+
+    if (!supplierRecord) {
+      supplierRecord = await prisma.supplier.create({
+        data: { name: supplierName },
+      });
+    }
 
     const seq = Math.floor(1000 + Math.random() * 9000);
-    const poStatus = action === "RECEIVE" ? computePOReceiptStatus(items || []) : "DRAFT";
+    const poNumber = `PO-${new Date().getFullYear()}-${seq}`;
 
-    const newPO = {
-      id: `po-${Date.now()}`,
-      poNumber: `PO-2026-${seq}`,
-      supplier: supplier || "Primary Medical Supplier",
-      orderDate: new Date().toISOString().split("T")[0],
-      expectedDelivery:
-        expectedDelivery || new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0],
-      totalAmount: Number(totalAmount) || 2500.0,
-      itemCount: items?.length || 2,
-      status: poStatus,
-      items: items || [],
-    };
+    const orderItems = Array.isArray(items) && items.length > 0
+      ? items.map((item: any) => ({
+          itemName: item.medicine || item.itemName || "Medical Supply",
+          quantity: Number(item.qtyOrdered || item.quantity || 100),
+          unitPrice: Number(item.unitCost || item.unitPrice || 1.0),
+          totalPrice:
+            Number(item.qtyOrdered || item.quantity || 100) *
+            Number(item.unitCost || item.unitPrice || 1.0),
+        }))
+      : [
+          {
+            itemName: "Standard Clinical Supply Lot",
+            quantity: 500,
+            unitPrice: 2.5,
+            totalPrice: 1250.0,
+          },
+        ];
 
-    return NextResponse.json(successResponse(newPO), { status: 201 });
+    const computedTotal =
+      Number(totalAmount) ||
+      orderItems.reduce((acc: number, cur: any) => acc + Number(cur.totalPrice), 0);
+
+    const createdPO = await prisma.purchaseOrder.create({
+      data: {
+        poNumber,
+        supplierId: supplierRecord.id,
+        status: action === "RECEIVE" ? "RECEIVED" : "DRAFT",
+        totalAmount: computedTotal,
+        items: {
+          create: orderItems,
+        },
+      },
+      include: {
+        supplier: true,
+        items: true,
+      },
+    });
+
+    return NextResponse.json(
+      successResponse({
+        id: createdPO.id,
+        poNumber: createdPO.poNumber,
+        supplier: createdPO.supplier.name,
+        orderDate: createdPO.createdAt.toISOString().slice(0, 10),
+        expectedDelivery: new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10),
+        totalAmount: Number(createdPO.totalAmount),
+        status: createdPO.status,
+        items: createdPO.items.map((i) => ({
+          medicine: i.itemName,
+          qtyOrdered: i.quantity,
+          qtyReceived: createdPO.status === "RECEIVED" ? i.quantity : 0,
+          unitCost: Number(i.unitPrice),
+        })),
+      }),
+      { status: 201 }
+    );
   } catch (error) {
     return NextResponse.json(
       errorResponse("INV_PO_CREATE_FAILED", "Failed to create purchase order", {

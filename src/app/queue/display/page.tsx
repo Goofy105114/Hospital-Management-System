@@ -20,47 +20,72 @@ interface WaitingToken {
   position: number;
 }
 
-const INITIAL_CALLS: LiveCallToken[] = [
-  {
-    tokenNumber: "DR01-014",
-    doctorName: "Dr. Marcus Vance",
-    roomNumber: "Room 104",
-    department: "Cardiology Suite",
-    calledAt: "10:42 AM",
-    priorityTier: "NORMAL",
-  },
-  {
-    tokenNumber: "DR02-008",
-    doctorName: "Dr. Sarah Jenkins",
-    roomNumber: "Room 202",
-    department: "Pediatrics OPD",
-    calledAt: "10:40 AM",
-    priorityTier: "PRIORITY",
-  },
-  {
-    tokenNumber: "EMR-003",
-    doctorName: "Dr. David Ross",
-    roomNumber: "ER Bay 01",
-    department: "Emergency Triage",
-    calledAt: "10:44 AM",
-    priorityTier: "EMERGENCY",
-  },
-];
-
-const INITIAL_WAITING: WaitingToken[] = [
-  { tokenNumber: "DR01-015", roomNumber: "Room 104", position: 1 },
-  { tokenNumber: "DR01-016", roomNumber: "Room 104", position: 2 },
-  { tokenNumber: "DR02-009", roomNumber: "Room 202", position: 1 },
-  { tokenNumber: "DR02-010", roomNumber: "Room 202", position: 2 },
-  { tokenNumber: "DR03-004", roomNumber: "Room 305", position: 1 },
-  { tokenNumber: "DR03-005", roomNumber: "Room 305", position: 2 },
-];
+import api from "@/lib/axios";
 
 export default function WaitingRoomDisplayPage() {
-  const [activeCalls, setActiveCalls] = useState<LiveCallToken[]>(INITIAL_CALLS);
-  const [waitingList] = useState<WaitingToken[]>(INITIAL_WAITING);
+  const [activeCalls, setActiveCalls] = useState<LiveCallToken[]>([]);
+  const [waitingList, setWaitingList] = useState<WaitingToken[]>([]);
   const [currentTime, setCurrentTime] = useState("");
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
+
+  useEffect(() => {
+    const fetchTokens = () => {
+      api
+        .get("/queue/tokens")
+        .then((res) => {
+          const list = res.data?.data;
+          if (Array.isArray(list)) {
+            const called: LiveCallToken[] = list
+              .filter(
+                (t: any) =>
+                  t.status === "CALLED" ||
+                  t.status === "IN_PROGRESS" ||
+                  t.status === "IN_CONSULTATION"
+              )
+              .map((t: any) => ({
+                tokenNumber: t.tokenNumber,
+                doctorName: t.doctorName || "Attending Physician",
+                roomNumber: t.roomNumber || "Consultation Room",
+                department: t.department || "Outpatient Clinic",
+                calledAt: t.calledAt
+                  ? new Date(t.calledAt).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })
+                  : "Now Serving",
+                priorityTier:
+                  t.priorityTier === "EMERGENCY"
+                    ? "EMERGENCY"
+                    : t.priorityTier === "PRIORITY"
+                      ? "PRIORITY"
+                      : "NORMAL",
+              }));
+
+            const waiting: WaitingToken[] = list
+              .filter((t: any) => t.status === "WAITING")
+              .map((t: any, idx: number) => ({
+                tokenNumber: t.tokenNumber,
+                roomNumber: t.roomNumber || "Consultation Room",
+                position: idx + 1,
+              }));
+
+            setActiveCalls(called);
+            setWaitingList(waiting);
+          } else {
+            setActiveCalls([]);
+            setWaitingList([]);
+          }
+        })
+        .catch(() => {
+          setActiveCalls([]);
+          setWaitingList([]);
+        });
+    };
+
+    fetchTokens();
+    const tokenInterval = setInterval(fetchTokens, 5000);
+    return () => clearInterval(tokenInterval);
+  }, []);
 
   // Audio Context Ref for Web Audio API Chime
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -115,21 +140,6 @@ export default function WaitingRoomDisplayPage() {
     }
   };
 
-  // Simulate Turn Announcement
-  const triggerDemoCall = () => {
-    if (isAudioEnabled) playTurnChime();
-    const randomSeq = Math.floor(10 + Math.random() * 89);
-    const newCall: LiveCallToken = {
-      tokenNumber: `DR01-0${randomSeq}`,
-      doctorName: "Dr. Marcus Vance",
-      roomNumber: "Room 104",
-      department: "Cardiology Suite",
-      calledAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      priorityTier: "NORMAL",
-    };
-    setActiveCalls([newCall, ...activeCalls.slice(0, 2)]);
-  };
-
   return (
     <div className="min-h-screen bg-slate-950 text-white flex flex-col justify-between p-space-6 sm:p-space-8 overflow-hidden select-none">
       {/* Top Banner & TV Header */}
@@ -164,7 +174,7 @@ export default function WaitingRoomDisplayPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={triggerDemoCall}
+              onClick={() => playTurnChime()}
               className="bg-slate-900 border-slate-700 text-slate-200 hover:bg-slate-800 gap-1 text-xs"
             >
               <span className="material-symbols-outlined text-[16px]">volume_up</span>
@@ -198,7 +208,16 @@ export default function WaitingRoomDisplayPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-space-4">
-            {activeCalls.map((call, idx) => (
+            {activeCalls.length === 0 ? (
+              <div className="p-12 rounded-2xl border-2 border-dashed border-slate-800 bg-slate-900/40 text-center py-16">
+                <span className="material-symbols-outlined text-[48px] text-slate-600 mb-2">hourglass_empty</span>
+                <h3 className="text-lg font-bold text-slate-300">Consultation Rooms Preparing</h3>
+                <p className="text-sm text-slate-500 mt-1">
+                  Please remain seated in the waiting lounge. Tokens will appear here as doctors call patients.
+                </p>
+              </div>
+            ) : (
+              activeCalls.map((call, idx) => (
               <div
                 key={idx}
                 className={`p-space-6 rounded-2xl border-2 transition-all flex flex-col sm:flex-row items-center justify-between gap-space-6 ${
@@ -242,7 +261,7 @@ export default function WaitingRoomDisplayPage() {
                   )}
                 </div>
               </div>
-            ))}
+            )))}
           </div>
         </div>
 
@@ -255,7 +274,14 @@ export default function WaitingRoomDisplayPage() {
             </h3>
 
             <div className="space-y-space-3">
-              {waitingList.map((token, idx) => (
+              {waitingList.length === 0 ? (
+                <div className="p-6 rounded-xl border border-dashed border-slate-800 bg-slate-900/30 text-center text-slate-500">
+                  <span className="material-symbols-outlined text-3xl text-slate-600 mb-1">done_all</span>
+                  <p className="text-xs font-semibold text-slate-400">Queue is Clear</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">No patients currently waiting in line</p>
+                </div>
+              ) : (
+                waitingList.map((token, idx) => (
                 <div
                   key={idx}
                   className="flex items-center justify-between p-space-3 bg-slate-900/80 rounded-xl border border-slate-800 font-mono"
@@ -268,7 +294,7 @@ export default function WaitingRoomDisplayPage() {
                   </div>
                   <span className="text-sm font-semibold text-slate-400">{token.roomNumber}</span>
                 </div>
-              ))}
+              )))}
             </div>
           </div>
 

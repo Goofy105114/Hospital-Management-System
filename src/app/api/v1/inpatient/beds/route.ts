@@ -39,31 +39,26 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    let beds: unknown[] = [];
-    try {
-      const results = await prisma.bed.findMany({
-        where: {
-          ...(wardId ? { wardId } : {}),
-          ...(status ? { status } : {}),
-        },
-        include: {
-          ward: { select: { id: true, name: true, type: true } },
-        },
-        orderBy: [{ wardId: "asc" }, { bedNumber: "asc" }],
-      });
+    const results = await prisma.bed.findMany({
+      where: {
+        ...(wardId ? { wardId } : {}),
+        ...(status ? { status } : {}),
+      },
+      include: {
+        ward: { select: { id: true, name: true, type: true } },
+      },
+      orderBy: [{ wardId: "asc" }, { bedNumber: "asc" }],
+    });
 
-      beds = results.map((b) => ({
-        id: b.id,
-        bedNumber: b.bedNumber,
-        status: b.status,
-        dailyRate: Number(b.dailyRate),
-        wardId: b.wardId,
-        wardName: b.ward.name,
-        wardType: b.ward.type,
-      }));
-    } catch {
-      beds = [];
-    }
+    const beds = results.map((b) => ({
+      id: b.id,
+      bedNumber: b.bedNumber,
+      status: b.status,
+      dailyRate: Number(b.dailyRate),
+      wardId: b.wardId,
+      wardName: b.ward.name,
+      wardType: b.ward.type,
+    }));
 
     return apiSuccess(beds);
   } catch (err: any) {
@@ -92,15 +87,14 @@ export async function POST(request: NextRequest) {
       return apiError("IPD_BED_FIELDS_REQUIRED", "wardId and bedNumber are required", 400);
     }
 
-    let bed = null;
-    try {
-      // Verify ward exists
-      const ward = await prisma.ward.findUnique({ where: { id: wardId } });
-      if (!ward) {
-        return apiError("IPD_WARD_NOT_FOUND", "Ward not found", 404);
-      }
+    // Verify ward exists
+    const ward = await prisma.ward.findUnique({ where: { id: wardId } });
+    if (!ward) {
+      return apiError("IPD_WARD_NOT_FOUND", "Ward not found", 404);
+    }
 
-      bed = await prisma.bed.create({
+    try {
+      const bed = await prisma.bed.create({
         data: {
           wardId,
           bedNumber: bedNumber.trim(),
@@ -109,6 +103,7 @@ export async function POST(request: NextRequest) {
         },
         include: { ward: { select: { name: true, type: true } } },
       });
+      return apiSuccess(bed, undefined, 201);
     } catch (dbErr: any) {
       if (dbErr?.code === "P2002") {
         return apiError(
@@ -117,18 +112,38 @@ export async function POST(request: NextRequest) {
           409
         );
       }
-      // DB offline
-      bed = {
-        id: `bed-${Date.now()}`,
-        wardId,
-        bedNumber: bedNumber.trim(),
-        status: "AVAILABLE",
-        dailyRate: Number(dailyRate) || 250.0,
-      };
+      throw dbErr;
     }
-
-    return apiSuccess(bed, undefined, 201);
   } catch (err: any) {
     return apiError("INTERNAL_ERROR", err.message || "Failed to create bed", 500);
   }
 }
+
+/**
+ * IPD-03 — PATCH /api/v1/inpatient/beds
+ *
+ * Updates bed status (OCCUPIED, CLEANING, AVAILABLE, MAINTENANCE).
+ */
+export async function PATCH(request: NextRequest) {
+  const user = getAuthUser(request);
+  if (!user) return apiError("UNAUTHENTICATED", "Authentication required", 401);
+
+  try {
+    const body = await request.json();
+    const { bedId, status } = body;
+    if (!bedId) return apiError("BAD_REQUEST", "bedId is required", 400);
+
+    const updated = await prisma.bed.update({
+      where: { id: bedId },
+      data: {
+        ...(status ? { status: status as BedStatus } : {}),
+      },
+      include: { ward: true },
+    });
+
+    return apiSuccess(updated);
+  } catch (err: any) {
+    return apiError("INTERNAL_ERROR", err.message || "Failed to update bed", 500);
+  }
+}
+

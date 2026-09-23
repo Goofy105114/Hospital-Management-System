@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { AppLayout } from "@/components/shared/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import api from "@/lib/axios";
 
 interface InpatientAdmission {
   id: string;
@@ -21,67 +22,52 @@ interface InpatientAdmission {
   status: "ADMITTED" | "DISCHARGE_PENDING" | "DISCHARGED";
 }
 
-const INITIAL_ADMISSIONS: InpatientAdmission[] = [
-  {
-    id: "adm-01",
-    admissionNumber: "IPD-2026-0012",
-    patientName: "James Wilson",
-    mrn: "MRN-2026-001850",
-    wardName: "Coronary Care Unit (CCU)",
-    bedNumber: "Bed CCU-01",
-    attendingDoctor: "Dr. Marcus Vance",
-    admittedAt: "2026-10-23 04:15 PM",
-    diagnosis: "Acute Coronary Syndrome / NSTEMI",
-    dischargeReady: false,
-    status: "ADMITTED",
-  },
-  {
-    id: "adm-02",
-    admissionNumber: "IPD-2026-0011",
-    patientName: "Arthur Pendelton",
-    mrn: "MRN-2026-001789",
-    wardName: "Intensive Care Unit (ICU)",
-    bedNumber: "Bed ICU-02",
-    attendingDoctor: "Dr. David Ross",
-    admittedAt: "2026-10-22 11:30 AM",
-    diagnosis: "Severe Exacerbation of COPD",
-    dischargeReady: false,
-    status: "ADMITTED",
-  },
-  {
-    id: "adm-03",
-    admissionNumber: "IPD-2026-0009",
-    patientName: "David Chen",
-    mrn: "MRN-2026-001815",
-    wardName: "General Medical Ward 3A",
-    bedNumber: "Bed G3-04",
-    attendingDoctor: "Dr. Sarah Jenkins",
-    admittedAt: "2026-10-20 09:00 AM",
-    diagnosis: "Community Acquired Lobar Pneumonia",
-    dischargeReady: true,
-    status: "DISCHARGE_PENDING",
-  },
-];
-
 export default function InpatientAdmissionsPage() {
-  const [admissions, setAdmissions] = useState<InpatientAdmission[]>(INITIAL_ADMISSIONS);
+  const [admissions, setAdmissions] = useState<InpatientAdmission[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedAdmission, setSelectedAdmission] = useState<InpatientAdmission | null>(null);
   const [showDischargeModal, setShowDischargeModal] = useState(false);
   const [dischargeSummary, setDischargeSummary] = useState("");
 
-  const handleDischarge = (e: React.FormEvent) => {
+  const fetchAdmissions = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get("/inpatient/admissions");
+      const list = res.data?.data;
+      if (Array.isArray(list)) {
+        setAdmissions(list);
+      } else {
+        setAdmissions([]);
+      }
+    } catch {
+      setAdmissions([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAdmissions();
+  }, []);
+
+  const handleDischarge = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedAdmission) return;
 
-    setAdmissions(
-      admissions.map((adm) =>
-        adm.id === selectedAdmission.id
-          ? { ...adm, status: "DISCHARGED", dischargeReady: true }
-          : adm
-      )
-    );
-    setShowDischargeModal(false);
-    setSelectedAdmission(null);
+    try {
+      await api.patch("/inpatient/admissions", {
+        admissionId: selectedAdmission.id,
+        status: "DISCHARGED",
+        dischargeSummary,
+      });
+      await fetchAdmissions();
+    } catch {
+      // Handled
+    } finally {
+      setShowDischargeModal(false);
+      setSelectedAdmission(null);
+      setDischargeSummary("");
+    }
   };
 
   return (
@@ -130,15 +116,7 @@ export default function InpatientAdmissionsPage() {
           </div>
           <div className="p-space-4 bg-surface-container-lowest border border-outline-variant/30 rounded-xl">
             <span className="text-label-sm text-outline uppercase font-semibold block">
-              Critical Beds (CCU/ICU)
-            </span>
-            <span className="text-headline-sm font-extrabold text-error font-mono mt-1 block">
-              2 Occupied
-            </span>
-          </div>
-          <div className="p-space-4 bg-surface-container-lowest border border-outline-variant/30 rounded-xl">
-            <span className="text-label-sm text-outline uppercase font-semibold block">
-              Pending Discharge
+              Discharges Pending
             </span>
             <span className="text-headline-sm font-extrabold text-warning font-mono mt-1 block">
               {admissions.filter((a) => a.status === "DISCHARGE_PENDING").length}
@@ -146,10 +124,18 @@ export default function InpatientAdmissionsPage() {
           </div>
           <div className="p-space-4 bg-surface-container-lowest border border-outline-variant/30 rounded-xl">
             <span className="text-label-sm text-outline uppercase font-semibold block">
-              Discharged Today
+              Completed Discharges
             </span>
             <span className="text-headline-sm font-extrabold text-success font-mono mt-1 block">
               {admissions.filter((a) => a.status === "DISCHARGED").length}
+            </span>
+          </div>
+          <div className="p-space-4 bg-surface-container-lowest border border-outline-variant/30 rounded-xl">
+            <span className="text-label-sm text-outline uppercase font-semibold block">
+              Total Recorded
+            </span>
+            <span className="text-headline-sm font-extrabold text-on-surface font-mono mt-1 block">
+              {admissions.length}
             </span>
           </div>
         </div>
@@ -157,84 +143,101 @@ export default function InpatientAdmissionsPage() {
         {/* Admissions Register Table */}
         <Card>
           <CardHeader>
-            <CardTitle>Inpatient Occupancy Register</CardTitle>
+            <CardTitle>Inpatient Cohort</CardTitle>
             <CardDescription>
-              Bed releases automatically trigger final billing consolidation (BIL-02).
+              All current and past inpatient hospitalizations recorded in database.
             </CardDescription>
           </CardHeader>
-          <CardContent className="p-0 overflow-x-auto">
-            <table className="w-full text-body-sm text-left border-collapse">
-              <thead className="bg-surface-container text-label-sm font-semibold text-outline uppercase border-y border-outline-variant/30">
-                <tr>
-                  <th className="py-space-3 px-space-4">Admission ID</th>
-                  <th className="py-space-3 px-space-4">Patient / MRN</th>
-                  <th className="py-space-3 px-space-4">Assigned Ward & Bed</th>
-                  <th className="py-space-3 px-space-4">Admitting Diagnosis</th>
-                  <th className="py-space-3 px-space-4">Attending Clinician</th>
-                  <th className="py-space-3 px-space-4">Admission Date</th>
-                  <th className="py-space-3 px-space-4">Status</th>
-                  <th className="py-space-3 px-space-4 text-right">Discharge Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-outline-variant/20">
-                {admissions.map((adm) => (
-                  <tr key={adm.id} className="hover:bg-surface-container-high/40">
-                    <td className="py-space-3 px-space-4 font-mono font-bold text-primary">
-                      {adm.admissionNumber}
-                    </td>
-                    <td className="py-space-3 px-space-4">
-                      <span className="font-bold text-on-surface block">{adm.patientName}</span>
-                      <span className="font-mono text-label-xs text-outline">{adm.mrn}</span>
-                    </td>
-                    <td className="py-space-3 px-space-4">
-                      <span className="font-semibold text-on-surface block">{adm.wardName}</span>
-                      <span className="font-mono text-label-xs text-primary">{adm.bedNumber}</span>
-                    </td>
-                    <td className="py-space-3 px-space-4 text-on-surface-variant font-medium">
-                      {adm.diagnosis}
-                    </td>
-                    <td className="py-space-3 px-space-4 font-medium text-on-surface">
-                      {adm.attendingDoctor}
-                    </td>
-                    <td className="py-space-3 px-space-4 font-mono text-outline">
-                      {adm.admittedAt}
-                    </td>
-                    <td className="py-space-3 px-space-4">
-                      <Badge
-                        variant="outline"
-                        className={
-                          adm.status === "ADMITTED"
-                            ? "bg-secondary/15 text-secondary border-secondary/30 font-semibold"
-                            : adm.status === "DISCHARGE_PENDING"
-                              ? "bg-warning/15 text-warning border-warning/30 font-semibold"
-                              : "bg-success/15 text-success border-success/30 font-semibold"
-                        }
-                      >
-                        {adm.status.replace(/_/g, " ")}
-                      </Badge>
-                    </td>
-                    <td className="py-space-3 px-space-4 text-right">
-                      {adm.status !== "DISCHARGED" ? (
-                        <Button
-                          variant={adm.dischargeReady ? "primary" : "outline"}
-                          size="sm"
-                          onClick={() => {
-                            setSelectedAdmission(adm);
-                            setShowDischargeModal(true);
-                          }}
-                        >
-                          {adm.dischargeReady ? "Execute Discharge" : "Prepare Discharge"}
-                        </Button>
-                      ) : (
-                        <span className="text-label-xs text-success font-semibold">
-                          Discharged & Billed
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <CardContent>
+            {loading ? (
+              <div className="py-12 flex flex-col items-center justify-center text-outline">
+                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-3"></div>
+                <p className="text-body-sm font-medium">Loading admission records...</p>
+              </div>
+            ) : admissions.length === 0 ? (
+              <div className="py-12 text-center text-outline border border-dashed border-outline-variant/30 rounded-xl">
+                <span className="material-symbols-outlined text-[40px] text-outline/50 mb-2">hotel</span>
+                <p className="font-semibold text-on-surface">No inpatient admissions recorded</p>
+                <p className="text-body-sm text-outline mt-1">
+                  Admissions will appear here when patients are admitted to ward beds.
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-body-sm">
+                  <thead className="border-b border-outline-variant/30 text-label-sm font-semibold text-outline uppercase bg-surface-container/30">
+                    <tr>
+                      <th className="py-space-3 px-space-4">Admission #</th>
+                      <th className="py-space-3 px-space-4">Patient / MRN</th>
+                      <th className="py-space-3 px-space-4">Ward / Bed</th>
+                      <th className="py-space-3 px-space-4">Attending Doctor</th>
+                      <th className="py-space-3 px-space-4">Diagnosis</th>
+                      <th className="py-space-3 px-space-4">Admitted At</th>
+                      <th className="py-space-3 px-space-4">Status</th>
+                      <th className="py-space-3 px-space-4 text-right">Discharge Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-outline-variant/20">
+                    {admissions.map((adm) => (
+                      <tr key={adm.id} className="hover:bg-surface-container-high/40">
+                        <td className="py-space-3 px-space-4 font-mono font-bold text-primary">
+                          {adm.admissionNumber}
+                        </td>
+                        <td className="py-space-3 px-space-4">
+                          <span className="font-bold text-on-surface block">{adm.patientName}</span>
+                          <span className="font-mono text-label-xs text-outline">{adm.mrn}</span>
+                        </td>
+                        <td className="py-space-3 px-space-4">
+                          <span className="font-semibold text-on-surface block">{adm.wardName}</span>
+                          <span className="text-label-xs text-outline font-mono">{adm.bedNumber}</span>
+                        </td>
+                        <td className="py-space-3 px-space-4 text-on-surface font-medium">
+                          {adm.attendingDoctor}
+                        </td>
+                        <td className="py-space-3 px-space-4 text-outline max-w-xs truncate">
+                          {adm.diagnosis}
+                        </td>
+                        <td className="py-space-3 px-space-4 font-mono text-outline">
+                          {adm.admittedAt}
+                        </td>
+                        <td className="py-space-3 px-space-4">
+                          <Badge
+                            variant="outline"
+                            className={
+                              adm.status === "ADMITTED"
+                                ? "bg-secondary/15 text-secondary border-secondary/30 font-semibold"
+                                : adm.status === "DISCHARGE_PENDING"
+                                  ? "bg-warning/15 text-warning border-warning/30 font-semibold"
+                                  : "bg-success/15 text-success border-success/30 font-semibold"
+                            }
+                          >
+                            {adm.status.replace(/_/g, " ")}
+                          </Badge>
+                        </td>
+                        <td className="py-space-3 px-space-4 text-right">
+                          {adm.status !== "DISCHARGED" ? (
+                            <Button
+                              variant={adm.dischargeReady ? "primary" : "outline"}
+                              size="sm"
+                              onClick={() => {
+                                setSelectedAdmission(adm);
+                                setShowDischargeModal(true);
+                              }}
+                            >
+                              {adm.dischargeReady ? "Execute Discharge" : "Prepare Discharge"}
+                            </Button>
+                          ) : (
+                            <span className="text-label-xs text-success font-semibold">
+                              Discharged & Billed
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </CardContent>
         </Card>
 

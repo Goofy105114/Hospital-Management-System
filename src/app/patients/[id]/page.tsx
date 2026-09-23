@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { AppLayout } from "@/components/shared/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import api from "@/lib/axios";
 
 interface EmergencyContact {
   id: string;
@@ -62,93 +63,78 @@ export default function PatientChartPage() {
   const [mergeReason, setMergeReason] = useState("");
   const [mergeSuccess, setMergeSuccess] = useState(false);
 
-  // Patient Sample Data (PAT-01, PAT-02)
-  const [patient] = useState({
+  // Patient Real Data (PAT-01, PAT-02)
+  const [patient, setPatient] = useState({
     id: patientId,
-    mrn: "MRN-2026-001842",
-    firstName: "Eleanor",
-    lastName: "Pena",
-    dob: "1988-04-15",
-    age: 38,
-    gender: "Female",
-    bloodGroup: "A+",
-    phone: "+1 (555) 234-5678",
-    secondaryPhone: "+1 (555) 987-6543",
-    email: "eleanor.pena@example.com",
-    address: "742 Evergreen Terrace, Springfield, OR 97477",
+    mrn: "MRN-PENDING",
+    firstName: "Patient",
+    lastName: "Record",
+    dob: "1990-01-01",
+    age: 35,
+    gender: "Other",
+    bloodGroup: "O+",
+    phone: "",
+    secondaryPhone: "",
+    email: "",
+    address: "Medical Record on File",
     preferredLanguage: "English",
-    insuranceProvider: "Aetna Healthcare Premier",
-    policyNumber: "AET-8492019",
+    insuranceProvider: "—",
+    policyNumber: "—",
     status: "ACTIVE",
-    registeredAt: "Jan 14, 2026",
+    registeredAt: "Recent",
   });
 
-  const [emergencyContacts, setEmergencyContacts] = useState<EmergencyContact[]>([
-    {
-      id: "ec-1",
-      name: "Marcus Pena",
-      relationship: "Spouse",
-      phone: "+1 (555) 234-9988",
-    },
-    {
-      id: "ec-2",
-      name: "Sarah Jenkins",
-      relationship: "Sister",
-      phone: "+1 (555) 789-0123",
-    },
-  ]);
+  const [emergencyContacts, setEmergencyContacts] = useState<EmergencyContact[]>([]);
+  const [alerts, setAlerts] = useState<ClinicalAlert[]>([]);
+  const [documents, setDocuments] = useState<DocumentItem[]>([]);
+  const [encounters, setEncounters] = useState<any[]>([]);
 
-  const [alerts, setAlerts] = useState<ClinicalAlert[]>([
-    {
-      id: "alt-1",
-      type: "ALLERGY_ON_FILE",
-      note: "Severe Anaphylaxis to Penicillin and Cephalosporin derivatives.",
-      createdAt: "Jan 14, 2026",
-      createdBy: "Dr. Marcus Vance",
-    },
-    {
-      id: "alt-2",
-      type: "HIGH_RISK",
-      note: "Hypertensive crisis history in Q3 2025. Monitor baseline BP closely.",
-      createdAt: "Feb 02, 2026",
-      createdBy: "Nurse Sarah Jenkins",
-    },
-  ]);
-
-  const [documents, setDocuments] = useState<DocumentItem[]>([
-    {
-      id: "doc-1",
-      title: "Comprehensive Metabolic Panel (CMP) - Lab Results",
-      type: "LAB_REPORT",
-      uploadedAt: "Oct 24, 2026",
-      uploadedBy: "Lab Tech Alex Morgan",
-      fileSize: "1.4 MB",
-    },
-    {
-      id: "doc-2",
-      title: "12-Lead Electrocardiogram (ECG) Tracing",
-      type: "LAB_REPORT",
-      uploadedAt: "Oct 20, 2026",
-      uploadedBy: "Nurse David Ross",
-      fileSize: "3.2 MB",
-    },
-    {
-      id: "doc-3",
-      title: "External Specialist Referral Prescription Scan",
-      type: "PRESCRIPTION_SCAN",
-      uploadedAt: "Sep 12, 2026",
-      uploadedBy: "Reception Desk",
-      fileSize: "840 KB",
-    },
-    {
-      id: "doc-4",
-      title: "State Driver License Photo ID Copy",
-      type: "ID_PROOF",
-      uploadedAt: "Jan 14, 2026",
-      uploadedBy: "Reception Desk",
-      fileSize: "512 KB",
-    },
-  ]);
+  useEffect(() => {
+    let isMounted = true;
+    api
+      .get(`/patients/${patientId}`)
+      .then((res) => {
+        if (!isMounted) return;
+        const data = res.data?.data;
+        if (data) {
+          setPatient({
+            id: data.id,
+            mrn: data.mrn,
+            firstName: data.firstName,
+            lastName: data.lastName,
+            dob: data.dob,
+            age: data.age,
+            gender: data.gender,
+            bloodGroup: data.bloodGroup,
+            phone: data.phone,
+            secondaryPhone: data.secondaryPhone,
+            email: data.email,
+            address: data.address,
+            preferredLanguage: data.preferredLanguage,
+            insuranceProvider: data.insuranceProvider || data.insurance?.provider || "—",
+            policyNumber: data.insurancePolicyNumber || data.policyNumber || data.insurance?.policyNumber || "—",
+            status: data.status,
+            registeredAt: data.registeredAt,
+          });
+          if (Array.isArray(data.emergencyContacts) && data.emergencyContacts.length > 0) {
+            setEmergencyContacts(data.emergencyContacts);
+          }
+          if (Array.isArray(data.alerts) && data.alerts.length > 0) {
+            setAlerts(data.alerts);
+          }
+          if (Array.isArray(data.documents) && data.documents.length > 0) {
+            setDocuments(data.documents);
+          }
+          if (Array.isArray(data.encounters)) {
+            setEncounters(data.encounters);
+          }
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, [patientId]);
 
   const [newAlertNote, setNewAlertNote] = useState("");
   const [newAlertType, setNewAlertType] = useState<
@@ -737,51 +723,68 @@ export default function PatientChartPage() {
         {activeTab === "history" && (
           <div className="space-y-space-4">
             <h3 className="font-headline-sm text-headline-sm font-bold text-on-surface">
-              Encounter Timeline & Diagnostic Records
+              Encounter Timeline &amp; Diagnostic Records
             </h3>
-            <div className="p-space-4 bg-surface-container-lowest border border-outline-variant/40 rounded-xl shadow-sm space-y-space-4">
-              <div className="flex items-center justify-between border-b border-outline-variant/20 pb-space-3">
-                <div className="flex items-center gap-space-3">
-                  <span className="material-symbols-outlined text-primary text-[28px]">
-                    verified
-                  </span>
-                  <div>
-                    <span className="font-title-md font-bold text-on-surface block">
-                      Encounter #ENC-2026-0089 — Signed Outpatient Consultation
-                    </span>
-                    <span className="text-label-sm text-outline">
-                      Oct 24, 2026 • Attending: Dr. Marcus Vance, MD (Cardiology)
-                    </span>
+            {encounters.length === 0 ? (
+              <div className="p-8 text-center bg-surface-container-low rounded-2xl border border-outline-variant/30">
+                <span className="material-symbols-outlined text-4xl text-outline mb-2">history_edu</span>
+                <h4 className="font-bold text-on-surface">No Clinical Encounters Recorded</h4>
+                <p className="text-xs text-on-surface-variant mt-1">
+                  Signed consultation notes, vitals, and diagnoses will appear here once clinical encounters are recorded.
+                </p>
+              </div>
+            ) : (
+              encounters.map((enc) => (
+                <div
+                  key={enc.id}
+                  className="p-space-4 bg-surface-container-lowest border border-outline-variant/40 rounded-xl shadow-sm space-y-space-4"
+                >
+                  <div className="flex items-center justify-between border-b border-outline-variant/20 pb-space-3">
+                    <div className="flex items-center gap-space-3">
+                      <span className="material-symbols-outlined text-primary text-[28px]">
+                        verified
+                      </span>
+                      <div>
+                        <span className="font-title-md font-bold text-on-surface block">
+                          Encounter #{enc.encounterNumber} — {enc.status}
+                        </span>
+                        <span className="text-label-sm text-outline">
+                          {enc.createdAt} • Attending: {enc.doctorName} ({enc.departmentName})
+                        </span>
+                      </div>
+                    </div>
+                    <Link href={`/doctor/encounters/${enc.id}`}>
+                      <Button variant="outline" size="sm" className="gap-space-1">
+                        <span className="material-symbols-outlined text-[16px]">visibility</span>
+                        View Summary
+                      </Button>
+                    </Link>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-space-3 text-body-sm">
+                    <div>
+                      <span className="text-label-sm text-outline block">Chief Complaint / Reason</span>
+                      <span className="font-semibold text-on-surface">
+                        {enc.chiefComplaint || "Clinical Consultation"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-label-sm text-outline block">Vital Signs</span>
+                      <span className="font-semibold text-on-surface">
+                        {enc.vitals ? `BP: ${enc.vitals.bp} • HR: ${enc.vitals.hr} • SpO2: ${enc.vitals.spo2}` : "No vitals recorded"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-label-sm text-outline block">Diagnoses (ICD-10)</span>
+                      <span className="font-semibold text-primary">
+                        {enc.diagnoses && enc.diagnoses.length > 0
+                          ? enc.diagnoses.map((d: any) => `${d.code} - ${d.description}`).join("; ")
+                          : "None recorded"}
+                      </span>
+                    </div>
                   </div>
                 </div>
-                <Link href="/doctor/encounters/ENC-2026-0089">
-                  <Button variant="outline" size="sm" className="gap-space-1">
-                    <span className="material-symbols-outlined text-[16px]">visibility</span>
-                    View Signed Summary (EMR-06)
-                  </Button>
-                </Link>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-space-3 text-body-sm">
-                <div>
-                  <span className="text-label-sm text-outline block">Diagnosis (ICD-10)</span>
-                  <span className="font-semibold text-on-surface">
-                    I10 — Essential Primary Hypertension
-                  </span>
-                </div>
-                <div>
-                  <span className="text-label-sm text-outline block">Vital Signs</span>
-                  <span className="font-semibold text-on-surface">
-                    BP: 138/86 mmHg • HR: 74 bpm • SpO2: 98%
-                  </span>
-                </div>
-                <div>
-                  <span className="text-label-sm text-outline block">Discharge Action</span>
-                  <span className="font-semibold text-success">
-                    Prescription Finalized & Released
-                  </span>
-                </div>
-              </div>
-            </div>
+              ))
+            )}
           </div>
         )}
 

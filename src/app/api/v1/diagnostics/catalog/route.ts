@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { apiSuccess } from "@/lib/api-envelope";
+import { apiSuccess, apiError } from "@/lib/api-envelope";
+import { DiagnosticCategory } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -19,38 +20,43 @@ export async function GET() {
       sampleType: c.sampleType,
       referenceRange: c.referenceRange,
       price: Number(c.price),
+      isActive: c.isActive,
     }));
 
     return apiSuccess(formatted);
-  } catch {
-    return apiSuccess([
-      {
-        id: "cat-01",
-        name: "12-Lead Resting Electrocardiogram (ECG)",
-        code: "ECG-REST",
-        category: "CARDIOLOGY",
-        sampleType: "PHYSIOLOGICAL",
-        referenceRange: "Normal sinus rhythm",
-        price: 120,
+  } catch (error: any) {
+    return apiError("CATALOG_FETCH_FAILED", error.message || "Failed to retrieve catalog", 500);
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { name, code, category, sampleType, referenceRange, price } = body;
+
+    if (!name || !code) {
+      return apiError("INVALID_INPUT", "Test name and code are required", 400);
+    }
+
+    const catKey = (category || "LABORATORY").toUpperCase();
+    const validCategory = Object.values(DiagnosticCategory).includes(catKey as DiagnosticCategory)
+      ? (catKey as DiagnosticCategory)
+      : DiagnosticCategory.LABORATORY;
+
+    const created = await prisma.diagnosticCatalog.create({
+      data: {
+        name,
+        code,
+        category: validCategory,
+        sampleType: sampleType || "Serum",
+        referenceRange: referenceRange || "Normal adult reference range",
+        price: Number(price) || 50.0,
+        isActive: true,
       },
-      {
-        id: "cat-02",
-        name: "Comprehensive Metabolic Panel (CMP)",
-        code: "CMP-14",
-        category: "BIOCHEMISTRY",
-        sampleType: "SERUM",
-        referenceRange: "Standard reference values",
-        price: 85,
-      },
-      {
-        id: "cat-03",
-        name: "Lipid Panel (Fasting)",
-        code: "LIPID-FAST",
-        category: "BIOCHEMISTRY",
-        sampleType: "SERUM",
-        referenceRange: "Total < 200, LDL < 100",
-        price: 75,
-      },
-    ]);
+    });
+
+    return apiSuccess(created, undefined, 201);
+  } catch (error: any) {
+    return apiError("CATALOG_CREATE_FAILED", error.message || "Failed to create catalog test", 500);
   }
 }

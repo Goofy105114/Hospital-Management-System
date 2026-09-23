@@ -34,32 +34,26 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const wardId = searchParams.get("wardId");
 
-    let available: unknown[] = [];
-    try {
-      const beds = await prisma.bed.findMany({
-        where: {
-          status: BedStatus.AVAILABLE,
-          ...(wardId ? { wardId } : {}),
-        },
-        include: {
-          ward: { select: { id: true, name: true, type: true } },
-        },
-        orderBy: [{ wardId: "asc" }, { bedNumber: "asc" }],
-      });
+    const beds = await prisma.bed.findMany({
+      where: {
+        status: BedStatus.AVAILABLE,
+        ...(wardId ? { wardId } : {}),
+      },
+      include: {
+        ward: { select: { id: true, name: true, type: true } },
+      },
+      orderBy: [{ wardId: "asc" }, { bedNumber: "asc" }],
+    });
 
-      available = beds.map((b) => ({
-        bedId: b.id,
-        bedNumber: b.bedNumber,
-        status: b.status,
-        dailyRate: Number(b.dailyRate),
-        wardId: b.wardId,
-        wardName: b.ward.name,
-        wardType: b.ward.type,
-      }));
-    } catch {
-      // DB offline — return empty; caller must retry
-      available = [];
-    }
+    const available = beds.map((b) => ({
+      bedId: b.id,
+      bedNumber: b.bedNumber,
+      status: b.status,
+      dailyRate: Number(b.dailyRate),
+      wardId: b.wardId,
+      wardName: b.ward.name,
+      wardType: b.ward.type,
+    }));
 
     return apiSuccess({
       wardId: wardId ?? null,

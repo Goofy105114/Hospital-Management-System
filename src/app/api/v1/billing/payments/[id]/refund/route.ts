@@ -1,4 +1,6 @@
 import { NextRequest } from "next/server";
+import { randomUUID } from "crypto";
+import { prisma } from "@/lib/prisma";
 import { apiSuccess, apiError } from "@/lib/api-envelope";
 import { authorizeBillingStaff } from "../../../route-auth";
 import { validateRefundRequest } from "@/server/domain/refund-reversal";
@@ -19,7 +21,14 @@ export async function POST(
     const body = await req.json();
     const { amount, reason, originalPaymentAmount } = body;
 
-    const paymentAmount = Number(originalPaymentAmount) || 500.0;
+    const payment = await prisma.payment.findUnique({
+      where: { id: paymentId },
+    });
+
+    const paymentAmount = payment ? Number(payment.amount) : Number(originalPaymentAmount);
+    if (!payment && !originalPaymentAmount) {
+      return apiError("BIL_PAYMENT_NOT_FOUND", "Payment record not found", 404);
+    }
     const refundAmount = Number(amount);
 
     const validation = validateRefundRequest({
@@ -37,7 +46,7 @@ export async function POST(
     }
 
     const refund = {
-      refundId: `ref-${Date.now()}`,
+      refundId: randomUUID(),
       paymentId,
       amount: refundAmount,
       status: "PROCESSED",

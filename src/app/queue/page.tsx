@@ -21,88 +21,47 @@ interface QueueToken {
   roomNumber: string;
   doctorName: string;
   checkedInAt: string;
+  position?: number;
 }
 
-const INITIAL_TOKENS: QueueToken[] = [
-  {
-    id: "tok-21",
-    tokenNumber: "#A-21",
-    patientName: "Arthur Pendelton",
-    mrn: "MRN-2026-001789",
-    status: "IN_CONSULTATION",
-    priorityTier: "NORMAL",
-    source: "APPOINTMENT",
-    estimatedWaitMinutes: 0,
-    roomNumber: "Room 402B",
-    doctorName: "Dr. Marcus Vance",
-    checkedInAt: "09:45 AM",
-  },
-  {
-    id: "tok-22",
-    tokenNumber: "#A-22",
-    patientName: "Sofia Rodriguez",
-    mrn: "MRN-2026-001802",
-    status: "CALLED",
-    priorityTier: "PRIORITY",
-    source: "APPOINTMENT",
-    estimatedWaitMinutes: 3,
-    roomNumber: "Room 402B",
-    doctorName: "Dr. Marcus Vance",
-    checkedInAt: "10:00 AM",
-  },
-  {
-    id: "tok-23",
-    tokenNumber: "#A-23",
-    patientName: "David Chen",
-    mrn: "MRN-2026-001815",
-    status: "WAITING",
-    priorityTier: "NORMAL",
-    source: "APPOINTMENT",
-    estimatedWaitMinutes: 10,
-    roomNumber: "Room 402B",
-    doctorName: "Dr. Marcus Vance",
-    checkedInAt: "10:10 AM",
-  },
-  {
-    id: "tok-24",
-    tokenNumber: "#A-24",
-    patientName: "Eleanor Pena",
-    mrn: "MRN-2026-001842",
-    status: "WAITING",
-    priorityTier: "NORMAL",
-    source: "APPOINTMENT",
-    estimatedWaitMinutes: 18,
-    roomNumber: "Room 402B",
-    doctorName: "Dr. Marcus Vance",
-    checkedInAt: "10:15 AM",
-  },
-  {
-    id: "tok-25",
-    tokenNumber: "#EMG-04",
-    patientName: "James Wilson (Triage Chest Pain)",
-    mrn: "MRN-2026-001850",
-    status: "WAITING",
-    priorityTier: "EMERGENCY",
-    source: "WALK_IN",
-    estimatedWaitMinutes: 1,
-    roomNumber: "Room 402B",
-    doctorName: "Dr. Marcus Vance",
-    checkedInAt: "10:22 AM",
-  },
-];
-
 export default function QueueBoardPage() {
-  const { activeRole } = useAuthStore();
-  const [tokens, setTokens] = useState<QueueToken[]>(INITIAL_TOKENS);
+  const { activeRole, user } = useAuthStore();
+  const [tokens, setTokens] = useState<QueueToken[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"ALL" | "WAITING" | "SERVING" | "COMPLETED">("ALL");
   const [displayMode, setDisplayMode] = useState<"PATIENT" | "STAFF" | "KIOSK_DISPLAY">(
     activeRole === "PATIENT" ? "PATIENT" : "STAFF"
   );
+
+  const myToken = tokens.find(
+    (t) =>
+      (user?.name && t.patientName.toLowerCase().includes(user.name.toLowerCase())) ||
+      (user?.mrn && t.mrn === user.mrn)
+  ) || tokens[0];
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [checkInModal, setCheckInModal] = useState(false);
   const [walkInName, setWalkInName] = useState("");
   const [walkInReason, setWalkInReason] = useState("");
   const [isEmergency, setIsEmergency] = useState(false);
+
+  const fetchTokens = async () => {
+    try {
+      const res = await api.get("/queue/tokens");
+      if (res.data?.success && Array.isArray(res.data.data)) {
+        setTokens(res.data.data);
+      }
+    } catch (err) {
+      console.error("Failed to load queue tokens", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchTokens();
+    const interval = setInterval(fetchTokens, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Play a realistic medical chime using native Web Audio API
   const playChime = () => {
@@ -142,74 +101,79 @@ export default function QueueBoardPage() {
     }
   };
 
-  const handleCallToken = (id: string) => {
+  const handleCallToken = async (id: string) => {
     playChime();
-    setTokens((prev) =>
-      prev.map((tok) => {
-        if (tok.id === id) {
-          return { ...tok, status: "CALLED" };
-        }
-        return tok;
-      })
-    );
+    try {
+      await api.post(`/queue/tokens/${id}/recall`);
+      await fetchTokens();
+    } catch (err) {
+      console.error("Failed to call token", err);
+    }
   };
 
-  const handleStartConsultation = (id: string) => {
-    setTokens((prev) =>
-      prev.map((tok) => {
-        if (tok.id === id) {
-          return { ...tok, status: "IN_CONSULTATION" };
-        }
-        if (tok.status === "IN_CONSULTATION") {
-          return { ...tok, status: "COMPLETED" };
-        }
-        return tok;
-      })
-    );
+  const handleStartConsultation = async (id: string) => {
+    try {
+      await api.post(`/queue/tokens/${id}/start-consultation`);
+      await fetchTokens();
+    } catch (err) {
+      console.error("Failed to start consultation", err);
+    }
   };
 
-  const handleCompleteToken = (id: string) => {
-    setTokens((prev) =>
-      prev.map((tok) => {
-        if (tok.id === id) {
-          return { ...tok, status: "COMPLETED" };
-        }
-        return tok;
-      })
-    );
+  const handleCompleteToken = async (id: string) => {
+    try {
+      await api.post(`/queue/tokens/${id}/complete`);
+      await fetchTokens();
+    } catch (err) {
+      console.error("Failed to complete token", err);
+    }
   };
 
-  const handleEmergencyPrioritize = (id: string) => {
-    setTokens((prev) =>
-      prev.map((tok) => {
-        if (tok.id === id) {
-          return { ...tok, priorityTier: "EMERGENCY", estimatedWaitMinutes: 0 };
-        }
-        return tok;
-      })
-    );
+  const handleEmergencyPrioritize = async (id: string) => {
+    try {
+      await api.post(`/queue/tokens/${id}/recall`);
+      await fetchTokens();
+    } catch (err) {
+      console.error("Failed to prioritize token", err);
+    }
   };
 
-  const handleCreateWalkIn = (e: React.FormEvent) => {
+  const handleCreateWalkIn = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!walkInName) return;
 
-    const nextSeq = tokens.length + 1;
-    const newToken: QueueToken = {
-      id: `tok-${Date.now()}`,
-      tokenNumber: isEmergency ? `#EMG-0${nextSeq}` : `#A-${String(nextSeq).padStart(2, "0")}`,
-      patientName: walkInName,
-      mrn: `MRN-2026-00${1850 + nextSeq}`,
-      status: "WAITING",
-      priorityTier: isEmergency ? "EMERGENCY" : "NORMAL",
-      source: "WALK_IN",
-      estimatedWaitMinutes: isEmergency ? 2 : 24,
-      roomNumber: "Room 402B",
-      doctorName: "Dr. Marcus Vance",
-      checkedInAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    };
+    try {
+      let patientId: string | undefined;
+      const patientsRes = await api.get(`/patients?query=${encodeURIComponent(walkInName)}`);
+      if (patientsRes.data?.data && patientsRes.data.data.length > 0) {
+        patientId = patientsRes.data.data[0].id;
+      } else {
+        const newPatientRes = await api.post("/patients", {
+          name: walkInName,
+          gender: "OTHER",
+          phone: "+1-555-0100",
+          email: `walkin.${Date.now()}@goingmerry.org`,
+        });
+        patientId = newPatientRes.data?.data?.id;
+      }
 
-    setTokens([newToken, ...tokens]);
+      const doctorsRes = await api.get("/doctors");
+      const doctorId = doctorsRes.data?.data?.[0]?.id;
+
+      if (doctorId && patientId) {
+        await api.post("/queue/check-in", {
+          patientId,
+          doctorId,
+          isWalkIn: true,
+          priorityTier: isEmergency ? "EMERGENCY" : "NORMAL",
+          allowOverride: true,
+        });
+        await fetchTokens();
+      }
+    } catch (err) {
+      console.error("Failed to check in walk-in patient", err);
+    }
+
     setCheckInModal(false);
     setWalkInName("");
     setWalkInReason("");
@@ -244,7 +208,11 @@ export default function QueueBoardPage() {
               </span>
             </div>
             <p className="font-body-md text-on-surface-variant mt-1">
-              Cardiology & Vascular Medicine • Station 402B • Dr. Marcus Vance
+              {myToken?.doctorName
+                ? `Attending: ${myToken.doctorName} • Room ${myToken.roomNumber}`
+                : nowServing?.doctorName
+                ? `Attending: ${nowServing.doctorName} • Room ${nowServing.roomNumber}`
+                : "Outpatient Department • Live Queue Stream"}
             </p>
           </div>
 
@@ -356,16 +324,20 @@ export default function QueueBoardPage() {
                     </span>
                   </div>
                   <h2 className="font-headline-lg font-black text-on-surface tracking-tight">
-                    Eleanor Vance • Token #A-24
+                    {myToken
+                      ? `${myToken.patientName} • Token ${myToken.tokenNumber}`
+                      : `${user?.name || "Patient"} • Outpatient Pass`}
                   </h2>
                   <p className="text-body-md text-outline">
-                    Cardiology &amp; Vascular Consultation • Room 402B, East Wing
+                    {myToken
+                      ? `${myToken.doctorName} • ${myToken.roomNumber}`
+                      : "Check in at Reception Desk to activate queue pass"}
                   </p>
                 </div>
 
                 <div className="flex items-center gap-space-3">
                   <Badge variant="primary" className="px-space-3 py-1 text-label-md">
-                    Station 4 Active
+                    {myToken ? `${myToken.roomNumber} Active` : "Station 1 Active"}
                   </Badge>
                   <Button
                     variant="outline"
@@ -383,17 +355,27 @@ export default function QueueBoardPage() {
               <div className="my-space-6 p-space-5 rounded-2xl bg-primary/10 border border-primary/20 flex flex-col sm:flex-row sm:items-center justify-between gap-space-4">
                 <div className="flex items-center gap-space-4">
                   <div className="w-14 h-14 rounded-2xl bg-primary text-on-primary flex items-center justify-center font-bold text-headline-sm shrink-0 shadow-md">
-                    #A-24
+                    {myToken ? myToken.tokenNumber : "#--"}
                   </div>
                   <div>
                     <span className="text-label-xs uppercase font-bold text-outline tracking-wider">
                       Current Queue Status
                     </span>
                     <h3 className="font-headline-sm font-extrabold text-primary">
-                      Waiting in Line • 3 Patients Ahead
+                      {myToken
+                        ? `${
+                            myToken.status === "WAITING"
+                              ? "Waiting in Line"
+                              : myToken.status === "CALLED"
+                              ? "Called to Station"
+                              : myToken.status
+                          } • Position ${myToken.position}`
+                        : "No Active Token"}
                     </h3>
                     <p className="text-body-sm text-on-surface-variant">
-                      Doctor is currently attending to Token #A-21 in Room 402B.
+                      {myToken
+                        ? `Attending Clinician: ${myToken.doctorName} (${myToken.roomNumber})`
+                        : "Please check in at the reception desk."}
                     </p>
                   </div>
                 </div>
@@ -403,7 +385,8 @@ export default function QueueBoardPage() {
                     Estimated Wait Time
                   </span>
                   <div className="text-3xl sm:text-4xl font-black font-mono text-on-surface">
-                    ~18 <span className="text-body-md font-medium text-outline">minutes</span>
+                    ~{myToken?.estimatedWaitMinutes || 15}{" "}
+                    <span className="text-body-md font-medium text-outline">minutes</span>
                   </div>
                 </div>
               </div>
@@ -434,40 +417,65 @@ export default function QueueBoardPage() {
                   Queue Sequence Ahead of You
                 </h4>
                 <div className="grid grid-cols-1 sm:grid-cols-4 gap-space-3">
-                  <div className="p-space-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-800">
-                    <span className="text-[11px] font-bold uppercase tracking-wider block">
-                      In Room 402B
-                    </span>
-                    <span className="font-headline-md font-mono font-bold block mt-0.5">#A-21</span>
-                    <span className="text-xs truncate block text-emerald-700">
-                      Arthur P. (Done in ~2m)
-                    </span>
-                  </div>
-                  <div className="p-space-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-800">
-                    <span className="text-[11px] font-bold uppercase tracking-wider block">
-                      Called Next
-                    </span>
-                    <span className="font-headline-md font-mono font-bold block mt-0.5">#A-22</span>
-                    <span className="text-xs truncate block text-amber-700">
-                      Sofia R. (~3 mins)
-                    </span>
-                  </div>
-                  <div className="p-space-3 rounded-xl bg-surface-container border border-outline-variant/30 text-on-surface">
-                    <span className="text-[11px] font-bold uppercase tracking-wider block text-outline">
-                      Next in Turn
-                    </span>
-                    <span className="font-headline-md font-mono font-bold block mt-0.5">#A-23</span>
-                    <span className="text-xs truncate block text-outline">David C. (~10 mins)</span>
-                  </div>
-                  <div className="p-space-3 rounded-xl bg-primary-container border-2 border-primary text-on-primary-container">
-                    <span className="text-[11px] font-bold uppercase tracking-wider block text-primary">
-                      Your Turn
-                    </span>
-                    <span className="font-headline-md font-mono font-bold block mt-0.5">#A-24</span>
-                    <span className="text-xs truncate block font-bold text-primary">
-                      Eleanor V. (~18 mins)
-                    </span>
-                  </div>
+                  {tokens
+                    .filter((t) => t.status === "IN_CONSULTATION" || t.status === "CALLED" || t.status === "WAITING")
+                    .slice(0, 4)
+                    .map((tok, idx) => {
+                      const isMyTok = myToken && tok.id === myToken.id;
+                      const isServing = tok.status === "IN_CONSULTATION";
+                      const isCalled = tok.status === "CALLED";
+                      return (
+                        <div
+                          key={tok.id}
+                          className={`p-space-3 rounded-xl border ${
+                            isMyTok
+                              ? "bg-primary-container border-2 border-primary text-on-primary-container"
+                              : isServing
+                              ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-800"
+                              : isCalled
+                              ? "bg-amber-500/10 border border-amber-500/20 text-amber-800"
+                              : "bg-surface-container border border-outline-variant/30 text-on-surface"
+                          }`}
+                        >
+                          <span
+                            className={`text-[11px] font-bold uppercase tracking-wider block ${
+                              isMyTok
+                                ? "text-primary"
+                                : isServing
+                                ? "text-emerald-700"
+                                : isCalled
+                                ? "text-amber-700"
+                                : "text-outline"
+                            }`}
+                          >
+                            {isMyTok
+                              ? "Your Turn"
+                              : isServing
+                              ? `In Room ${tok.roomNumber || "401"}`
+                              : isCalled
+                              ? "Called Next"
+                              : `Queue #${idx + 1}`}
+                          </span>
+                          <span className="font-headline-md font-mono font-bold block mt-0.5">
+                            #{tok.tokenNumber}
+                          </span>
+                          <span
+                            className={`text-xs truncate block ${
+                              isMyTok ? "font-bold text-primary" : "text-on-surface-variant"
+                            }`}
+                          >
+                            {tok.patientName} (~{tok.estimatedWaitMinutes || 15}m)
+                          </span>
+                        </div>
+                      );
+                    })}
+                  {tokens.filter(
+                    (t) => t.status === "IN_CONSULTATION" || t.status === "CALLED" || t.status === "WAITING"
+                  ).length === 0 && (
+                    <div className="col-span-full py-4 text-center text-sm text-outline">
+                      No patients currently waiting in line.
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -487,13 +495,13 @@ export default function QueueBoardPage() {
                   </div>
                   <div>
                     <h4 className="font-headline-sm font-bold text-on-surface">
-                      Dr. Marcus Vance, MD
+                      {myToken?.doctorName || nowServing?.doctorName || "Assigned Duty Clinician"}
                     </h4>
                     <p className="text-label-md text-primary font-semibold">
-                      Senior Specialist • Department of Cardiology
+                      Outpatient Specialist • Room {myToken?.roomNumber || nowServing?.roomNumber || "402"}
                     </p>
                     <p className="text-body-sm text-outline mt-0.5">
-                      Room 402B, East Wing (Level 3) • Station 4
+                      Status: {myToken ? (myToken.status === "IN_CONSULTATION" ? "Session In Progress" : myToken.status === "CALLED" ? "Calling Patient" : "Waiting In Queue") : "Station Active"}
                     </p>
                   </div>
                 </div>
@@ -550,7 +558,7 @@ export default function QueueBoardPage() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-space-8 items-center">
                 <div>
                   <span className="px-space-3 py-1 rounded-full bg-emerald-400/20 text-emerald-300 font-mono text-sm font-semibold uppercase tracking-widest border border-emerald-400/30">
-                    NOW SERVING IN ROOM 402B
+                    {nowServing?.roomNumber ? `NOW SERVING IN ROOM ${nowServing.roomNumber}` : "CURRENT CONSULTATION"}
                   </span>
                   <div className="text-7xl sm:text-9xl font-black font-mono tracking-tighter text-white mt-space-4 drop-shadow-sm">
                     {nowServing?.tokenNumber || "NONE"}
@@ -559,7 +567,9 @@ export default function QueueBoardPage() {
                     {nowServing?.patientName || "Waiting for next patient call"}
                   </p>
                   <p className="text-sm sm:text-base text-teal-300/80 mt-1">
-                    Please proceed to Examination Room 402B • Dr. Marcus Vance
+                    {nowServing
+                      ? `Please proceed to Room ${nowServing.roomNumber || "Consultation"} • ${nowServing.doctorName || "Attending Clinician"}`
+                      : "Please wait for your token to be announced"}
                   </p>
                 </div>
 

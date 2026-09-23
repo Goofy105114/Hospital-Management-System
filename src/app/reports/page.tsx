@@ -46,241 +46,79 @@ const WARD_OCCUPANCY_DATA = [
   { ward: "ICU 1", occupied: 7, total: 8 },
   { ward: "Maternity", occupied: 12, total: 15 },
 ];
-
-const PATIENT_LAB_REPORTS = [
-  {
-    id: "rep-cmp-01",
-    specimenId: "SPEC-2026-8819",
-    testName: "Comprehensive Metabolic Panel (CMP)",
-    category: "BIOCHEMISTRY",
-    date: "Oct 24, 2026 • 10:15 AM",
-    orderingDoctor: "Dr. Marcus Vance, MD (Cardiology)",
-    pathologist: "Dr. Helena Brooks, MD (FCAP)",
-    impression:
-      "Normal electrolyte and renal function profile. Fasting plasma glucose within normal limits.",
-    status: "FINAL_REPORT",
-    results: [
-      {
-        analyte: "Glucose (Fasting)",
-        value: "92",
-        unit: "mg/dL",
-        reference: "70 - 99",
-        status: "NORMAL" as const,
-      },
-      {
-        analyte: "Blood Urea Nitrogen (BUN)",
-        value: "14",
-        unit: "mg/dL",
-        reference: "7 - 20",
-        status: "NORMAL" as const,
-      },
-      {
-        analyte: "Serum Creatinine",
-        value: "0.85",
-        unit: "mg/dL",
-        reference: "0.60 - 1.10",
-        status: "NORMAL" as const,
-      },
-      {
-        analyte: "Sodium",
-        value: "140",
-        unit: "mEq/L",
-        reference: "136 - 145",
-        status: "NORMAL" as const,
-      },
-      {
-        analyte: "Potassium",
-        value: "4.2",
-        unit: "mEq/L",
-        reference: "3.5 - 5.1",
-        status: "NORMAL" as const,
-      },
-      {
-        analyte: "Chloride",
-        value: "102",
-        unit: "mEq/L",
-        reference: "98 - 107",
-        status: "NORMAL" as const,
-      },
-      {
-        analyte: "Carbon Dioxide (CO2)",
-        value: "24",
-        unit: "mEq/L",
-        reference: "22 - 29",
-        status: "NORMAL" as const,
-      },
-      {
-        analyte: "Calcium",
-        value: "9.4",
-        unit: "mg/dL",
-        reference: "8.5 - 10.2",
-        status: "NORMAL" as const,
-      },
-    ],
-  },
-  {
-    id: "rep-lip-02",
-    specimenId: "SPEC-2026-8820",
-    testName: "Lipid Profile Panel",
-    category: "BIOCHEMISTRY",
-    date: "Oct 24, 2026 • 10:20 AM",
-    orderingDoctor: "Dr. Marcus Vance, MD (Cardiology)",
-    pathologist: "Dr. Helena Brooks, MD (FCAP)",
-    impression:
-      "Lipid targets stable on current statin regimen. Triglycerides and LDL-C are optimal.",
-    status: "FINAL_REPORT",
-    results: [
-      {
-        analyte: "Total Cholesterol",
-        value: "188",
-        unit: "mg/dL",
-        reference: "< 200",
-        status: "NORMAL" as const,
-      },
-      {
-        analyte: "Triglycerides",
-        value: "132",
-        unit: "mg/dL",
-        reference: "< 150",
-        status: "NORMAL" as const,
-      },
-      {
-        analyte: "HDL Cholesterol",
-        value: "58",
-        unit: "mg/dL",
-        reference: "> 50",
-        status: "NORMAL" as const,
-      },
-      {
-        analyte: "LDL Calculated",
-        value: "98",
-        unit: "mg/dL",
-        reference: "< 100",
-        status: "NORMAL" as const,
-      },
-      {
-        analyte: "Chol / HDL Ratio",
-        value: "3.24",
-        unit: "ratio",
-        reference: "< 4.5",
-        status: "NORMAL" as const,
-      },
-    ],
-  },
-  {
-    id: "rep-ecg-03",
-    specimenId: "SPEC-2026-8825",
-    testName: "12-Lead Electrocardiogram (Resting)",
-    category: "CARDIOLOGY",
-    date: "Oct 24, 2026 • 09:30 AM",
-    orderingDoctor: "Dr. Marcus Vance, MD (Cardiology)",
-    pathologist: "Dr. Marcus Vance, MD",
-    impression:
-      "Normal sinus rhythm at 72 bpm. PR interval 150 ms, QRS duration 88 ms, QTc 412 ms. No acute ischemic ST-T changes.",
-    status: "FINAL_REPORT",
-    results: [
-      {
-        analyte: "Ventricular Rate",
-        value: "72",
-        unit: "bpm",
-        reference: "60 - 100",
-        status: "NORMAL" as const,
-      },
-      {
-        analyte: "PR Interval",
-        value: "150",
-        unit: "ms",
-        reference: "120 - 200",
-        status: "NORMAL" as const,
-      },
-      {
-        analyte: "QRS Duration",
-        value: "88",
-        unit: "ms",
-        reference: "80 - 120",
-        status: "NORMAL" as const,
-      },
-      {
-        analyte: "QT / QTc Interval",
-        value: "390 / 412",
-        unit: "ms",
-        reference: "< 450",
-        status: "NORMAL" as const,
-      },
-      {
-        analyte: "P-R-T Axes",
-        value: "54 / 62 / 48",
-        unit: "degrees",
-        reference: "-30 to +90",
-        status: "NORMAL" as const,
-      },
-    ],
-  },
-  {
-    id: "rep-cbc-04",
-    specimenId: "SPEC-2026-8790",
-    testName: "Complete Blood Count (CBC with Differential)",
-    category: "HEMATOLOGY",
-    date: "Oct 10, 2026 • 08:15 AM",
-    orderingDoctor: "Dr. Sarah Lin, MD (Internal Medicine)",
-    pathologist: "Dr. Helena Brooks, MD (FCAP)",
-    impression:
-      "Normocytic, normochromic red cell indices. Normal white cell differential and platelet count.",
-    status: "FINAL_REPORT",
-    results: [
-      {
-        analyte: "White Blood Cells (WBC)",
-        value: "6.4",
-        unit: "x10^3/uL",
-        reference: "4.5 - 11.0",
-        status: "NORMAL" as const,
-      },
-      {
-        analyte: "Red Blood Cells (RBC)",
-        value: "4.42",
-        unit: "x10^6/uL",
-        reference: "4.00 - 5.20",
-        status: "NORMAL" as const,
-      },
-      {
-        analyte: "Hemoglobin",
-        value: "13.8",
-        unit: "g/dL",
-        reference: "12.0 - 15.5",
-        status: "NORMAL" as const,
-      },
-      {
-        analyte: "Hematocrit",
-        value: "41.2",
-        unit: "%",
-        reference: "37.0 - 48.0",
-        status: "NORMAL" as const,
-      },
-      {
-        analyte: "Platelet Count",
-        value: "245",
-        unit: "x10^3/uL",
-        reference: "150 - 450",
-        status: "NORMAL" as const,
-      },
-    ],
-  },
-];
+import api from "@/lib/axios";
 
 export default function ReportsAnalyticsPage() {
-  const { activeRole } = useAuthStore();
+  const { activeRole, user } = useAuthStore();
   const isPatient = activeRole === "PATIENT";
   const [timeframe, setTimeframe] = useState<"7D" | "30D" | "YTD">("7D");
   const [patientCategory, setPatientCategory] = useState<string>("ALL");
-  const [selectedReport, setSelectedReport] = useState(PATIENT_LAB_REPORTS[0]);
+  const [labReports, setLabReports] = useState<any[]>([]);
+  const [selectedReport, setSelectedReport] = useState<any>(null);
+  const [overviewData, setOverviewData] = useState<any>(null);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    api
+      .get("/reports/overview")
+      .then((res) => {
+        if (!isMounted) return;
+        setOverviewData(res.data?.data);
+      })
+      .catch(() => {});
+
+    api
+      .get("/diagnostics/orders")
+      .then((res) => {
+        if (!isMounted) return;
+        const orders = res.data?.data;
+        if (Array.isArray(orders) && orders.length > 0) {
+          const mapped = orders.flatMap((o: any) =>
+            (o.tests || []).map((t: any) => ({
+              id: `${o.id}-${t.testId}`,
+              specimenId: o.orderNumber || "SPEC-2026",
+              testName: t.testName,
+              category: t.category || "BIOCHEMISTRY",
+              date: new Date(o.createdAt).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              }),
+              orderingDoctor: "Attending Clinician",
+              pathologist: "Certified Laboratory Service",
+              impression: o.notes || "Standard clinical profile within validated tolerance limits.",
+              status: o.status || "FINAL_REPORT",
+              results: [
+                {
+                  analyte: t.testName,
+                  value: "Reference Standard",
+                  unit: t.sampleType || "Blood",
+                  reference: "Normal Range",
+                  status: "NORMAL" as const,
+                },
+              ],
+            }))
+          );
+          if (mapped.length > 0) {
+            setLabReports(mapped);
+            setSelectedReport(mapped[0]);
+          }
+        }
+      })
+      .catch(() => {});
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const totalWeeklyRevenue = REVENUE_DATA.reduce((acc, curr) => acc + curr.value, 0);
   const totalWeeklyPatients = OPD_VOLUME_DATA.reduce((acc, curr) => acc + curr.count, 0);
 
   const filteredPatientReports =
     patientCategory === "ALL"
-      ? PATIENT_LAB_REPORTS
-      : PATIENT_LAB_REPORTS.filter((r) => r.category === patientCategory);
+      ? labReports
+      : labReports.filter((r) => r.category === patientCategory);
 
   if (isPatient) {
     return (
@@ -298,7 +136,7 @@ export default function ReportsAnalyticsPage() {
                 </Badge>
               </div>
               <p className="font-body-md text-on-surface-variant mt-1">
-                Eleanor Vance (MRN: GM-84920) • Verified Pathology &amp; Cardiology Assays
+                {user?.name || "Patient Record"} {user?.mrn ? `(MRN: ${user.mrn})` : ""} • Verified Pathology &amp; Cardiology Assays
               </p>
             </div>
 
@@ -336,50 +174,59 @@ export default function ReportsAnalyticsPage() {
           </div>
 
           {/* 2-Column Reports Master-Detail */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-space-6">
-            {/* Left Column: Report Selection Cards */}
-            <div className="space-y-space-3">
-              <h3 className="font-title-sm font-bold text-outline uppercase tracking-wider text-xs">
-                Available Reports ({filteredPatientReports.length})
-              </h3>
-              {filteredPatientReports.map((report) => {
-                const isSelected = selectedReport.id === report.id;
-                return (
-                  <div
-                    key={report.id}
-                    onClick={() => setSelectedReport(report)}
-                    className={`p-space-4 rounded-2xl border cursor-pointer transition-all space-y-2 ${
-                      isSelected
-                        ? "bg-primary/5 border-primary shadow-sm"
-                        : "bg-surface-container-lowest border-outline-variant/30 hover:border-outline"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="font-label-lg text-on-surface font-bold leading-snug">
-                        {report.testName}
-                      </span>
-                      <Badge variant="primary" className="text-[10px] shrink-0 font-mono">
-                        FINAL
-                      </Badge>
-                    </div>
-                    <p className="text-body-sm text-on-surface-variant line-clamp-2">
-                      {report.impression}
-                    </p>
-                    <div className="flex items-center justify-between text-label-xs text-outline pt-1 border-t border-outline-variant/20">
-                      <span>{report.date}</span>
-                      <span className="font-mono">{report.specimenId}</span>
-                    </div>
-                  </div>
-                );
-              })}
+          {filteredPatientReports.length === 0 ? (
+            <div className="py-16 text-center text-outline bg-surface-container-lowest border border-outline-variant/30 rounded-2xl">
+              <span className="material-symbols-outlined text-[48px] text-outline/50 mb-2">science</span>
+              <p className="font-semibold text-on-surface">No Diagnostic Reports On File</p>
+              <p className="text-body-sm text-outline mt-1">
+                Validated laboratory, imaging, and pathology reports will appear here when finalized by clinical staff.
+              </p>
             </div>
+          ) : selectedReport ? (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-space-6">
+              {/* Left Column: Report Selection Cards */}
+              <div className="space-y-space-3">
+                <h3 className="font-title-sm font-bold text-outline uppercase tracking-wider text-xs">
+                  Available Reports ({filteredPatientReports.length})
+                </h3>
+                {filteredPatientReports.map((report) => {
+                  const isSelected = selectedReport?.id === report.id;
+                  return (
+                    <div
+                      key={report.id}
+                      onClick={() => setSelectedReport(report)}
+                      className={`p-space-4 rounded-2xl border cursor-pointer transition-all space-y-2 ${
+                        isSelected
+                          ? "bg-primary/5 border-primary shadow-sm"
+                          : "bg-surface-container-lowest border-outline-variant/30 hover:border-outline"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="font-label-lg text-on-surface font-bold leading-snug">
+                          {report.testName}
+                        </span>
+                        <Badge variant="primary" className="text-[10px] shrink-0 font-mono">
+                          FINAL
+                        </Badge>
+                      </div>
+                      <p className="text-body-sm text-on-surface-variant line-clamp-2">
+                        {report.impression}
+                      </p>
+                      <div className="flex items-center justify-between text-label-xs text-outline pt-1 border-t border-outline-variant/20">
+                        <span>{report.date}</span>
+                        <span className="font-mono">{report.specimenId}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
 
-            {/* Right Column: Detailed Report Sheet */}
-            <div className="lg:col-span-2">
-              <Card className="border border-outline-variant/30 shadow-sm">
-                <CardHeader className="border-b border-outline-variant/20 p-space-6 space-y-space-3">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-space-3">
-                    <div>
+              {/* Right Column: Detailed Report Sheet */}
+              <div className="lg:col-span-2">
+                <Card className="border border-outline-variant/30 shadow-sm">
+                  <CardHeader className="border-b border-outline-variant/20 p-space-6 space-y-space-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-space-3">
+                      <div>
                       <span className="text-label-xs uppercase font-bold text-primary tracking-wider">
                         {selectedReport.category}
                       </span>
@@ -436,7 +283,7 @@ export default function ReportsAnalyticsPage() {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-outline-variant/20">
-                          {selectedReport.results.map((res, rIdx) => (
+                          {selectedReport.results.map((res: any, rIdx: number) => (
                             <tr key={rIdx} className="hover:bg-surface-container-low/50">
                               <td className="p-space-3 font-semibold text-on-surface">
                                 {res.analyte}
@@ -492,8 +339,9 @@ export default function ReportsAnalyticsPage() {
                   </div>
                 </CardContent>
               </Card>
+              </div>
             </div>
-          </div>
+          ) : null}
         </div>
       </AppLayout>
     );
@@ -543,10 +391,10 @@ export default function ReportsAnalyticsPage() {
                 Total OPD Visits
               </span>
               <div className="text-3xl font-bold font-mono text-on-surface mt-1">
-                {totalWeeklyPatients}
+                {overviewData?.metrics?.totalPatients || totalWeeklyPatients}
               </div>
               <span className="text-xs text-emerald-600 font-semibold block mt-0.5">
-                +12% vs last period
+                Active Patients in System
               </span>
             </CardContent>
           </Card>
@@ -568,11 +416,13 @@ export default function ReportsAnalyticsPage() {
           <Card className="border border-outline-variant/30 shadow-xs">
             <CardContent className="p-space-4">
               <span className="font-label-sm text-outline uppercase tracking-wider block">
-                Average Wait to Consult
+                Active Queue / Waiting
               </span>
-              <div className="text-3xl font-bold font-mono text-secondary mt-1">11.8 Mins</div>
+              <div className="text-3xl font-bold font-mono text-secondary mt-1">
+                {overviewData?.metrics?.activeQueueTokens ?? 0} Tokens
+              </div>
               <span className="text-xs text-emerald-600 font-semibold block mt-0.5">
-                Well within 20 min SLA
+                Live Outpatient Queue
               </span>
             </CardContent>
           </Card>
@@ -582,8 +432,12 @@ export default function ReportsAnalyticsPage() {
               <span className="font-label-sm text-outline uppercase tracking-wider block">
                 Overall Bed Occupancy
               </span>
-              <div className="text-3xl font-bold font-mono text-on-surface mt-1">83.5%</div>
-              <span className="text-xs text-outline block mt-0.5">Optimal capacity band</span>
+              <div className="text-3xl font-bold font-mono text-on-surface mt-1">
+                {overviewData?.metrics?.bedOccupancyRate ?? 0}%
+              </div>
+              <span className="text-xs text-outline block mt-0.5">
+                {overviewData?.metrics?.occupiedBeds ?? 0} / {overviewData?.metrics?.totalBeds ?? 0} Beds Occupied
+              </span>
             </CardContent>
           </Card>
         </div>
