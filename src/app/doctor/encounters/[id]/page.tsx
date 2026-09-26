@@ -31,6 +31,7 @@ import api from "@/lib/axios";
 interface EncounterData {
   id: string;
   encounterNumber: string;
+  patientId?: string;
   patientName: string;
   patientMrn: string;
   dob?: string;
@@ -107,6 +108,7 @@ export default function SignedEncounterSummaryPage() {
           setEncounter({
             id: data.id || encounterId,
             encounterNumber: data.encounterNumber || data.id || encounterId,
+            patientId: data.patientId || data.patient?.id,
             patientName: data.patient?.user?.name || "Patient Record",
             patientMrn: data.patient?.mrn || "—",
             dob: dobStr,
@@ -384,7 +386,7 @@ export default function SignedEncounterSummaryPage() {
           <div>
             <span className="text-[10px] text-slate-400 uppercase font-semibold block">Patient Name</span>
             <Link
-              href="/patients"
+              href={encounter.patientId ? `/doctor/patients/${encounter.patientId}` : "/doctor/patients"}
               className="font-bold text-teal-800 hover:underline mt-0.5 block"
             >
               {encounter.patientName}

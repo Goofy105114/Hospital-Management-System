@@ -54,7 +54,7 @@ export default function ReceptionistDashboardPage() {
           </Link>
 
           <Link
-            href="/patients/register"
+            href="/receptionist/patients/register"
             className="block p-5 rounded-2xl bg-surface-container-lowest border border-outline-variant/30 shadow-xs hover:border-emerald-600 hover:shadow-md transition-all group"
           >
             <div className="w-10 h-10 rounded-xl bg-emerald-600/15 text-emerald-700 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
@@ -65,7 +65,7 @@ export default function ReceptionistDashboardPage() {
           </Link>
 
           <Link
-            href="/appointments/book"
+            href="/receptionist/appointments/book"
             className="block p-5 rounded-2xl bg-surface-container-lowest border border-outline-variant/30 shadow-xs hover:border-emerald-600 hover:shadow-md transition-all group"
           >
             <div className="w-10 h-10 rounded-xl bg-emerald-600/15 text-emerald-700 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
@@ -76,7 +76,7 @@ export default function ReceptionistDashboardPage() {
           </Link>
 
           <Link
-            href="/billing"
+            href="/receptionist/billing"
             className="block p-5 rounded-2xl bg-surface-container-lowest border border-outline-variant/30 shadow-xs hover:border-emerald-600 hover:shadow-md transition-all group"
           >
             <div className="w-10 h-10 rounded-xl bg-emerald-600/15 text-emerald-700 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
@@ -117,7 +117,7 @@ export default function ReceptionistDashboardPage() {
             </div>
             <div className="pt-2">
               <Link
-                href="/patients"
+                href="/receptionist/patients"
                 className="text-xs text-primary font-semibold hover:underline flex items-center gap-1"
               >
                 <span>Search full patient registry</span>

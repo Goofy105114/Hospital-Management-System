@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
 import { AppLayout } from "@/components/shared/AppLayout";
@@ -27,7 +28,17 @@ export interface PatientRecord {
 }
 
 export default function PatientsDirectoryPage() {
+  const pathname = usePathname();
   const [genderFilter, setGenderFilter] = useState("ALL");
+
+  const basePath = React.useMemo(() => {
+    if (pathname.startsWith("/admin")) return "/admin/patients";
+    if (pathname.startsWith("/receptionist")) return "/receptionist/patients";
+    if (pathname.startsWith("/doctor")) return "/doctor/patients";
+    if (pathname.startsWith("/nurse")) return "/nurse/patients";
+    if (pathname.startsWith("/billing-staff")) return "/billing-staff/patients";
+    return "/patients";
+  }, [pathname]);
 
   // TanStack React Query with Axios
   const { data: patients = [], isLoading } = useQuery<PatientRecord[]>({
@@ -59,7 +70,7 @@ export default function PatientsDirectoryPage() {
         header: "MRN",
         cell: ({ getValue, row }) => (
           <Link
-            href={`/patients/${row.original.id}`}
+            href={`${basePath}/${row.original.id}`}
             className="whitespace-nowrap font-mono font-semibold text-xs text-teal-700 hover:underline inline-block"
           >
             {getValue() as string}
@@ -126,7 +137,7 @@ export default function PatientsDirectoryPage() {
         header: () => <div className="text-right">Actions</div>,
         cell: ({ row }) => (
           <div className="text-right">
-            <Link href={`/patients/${row.original.id}`}>
+            <Link href={`${basePath}/${row.original.id}`}>
               <Button
                 size="sm"
                 variant="outline"
@@ -140,7 +151,7 @@ export default function PatientsDirectoryPage() {
         ),
       },
     ],
-    []
+    [basePath]
   );
 
   return (
@@ -163,7 +174,7 @@ export default function PatientsDirectoryPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            <Link href="/patients/register">
+            <Link href={`${basePath}/register`}>
               <Button className="h-9 px-3.5 text-xs font-semibold bg-teal-700 text-white hover:bg-teal-800 gap-1.5 rounded-xl shadow-2xs transition-colors">
                 <UserPlus className="w-4 h-4" />
                 <span>Register New Patient</span>

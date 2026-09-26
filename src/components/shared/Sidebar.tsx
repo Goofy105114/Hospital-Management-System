@@ -126,7 +126,7 @@ export function Sidebar() {
     if (pathname.startsWith("/doctor")) return "DOCTOR";
     if (pathname.startsWith("/admin")) return "ADMIN";
     if (pathname.startsWith("/receptionist")) return "RECEPTIONIST";
-    if (pathname.startsWith("/patient")) return "PATIENT";
+    if (pathname === "/patient" || pathname.startsWith("/patient/")) return "PATIENT";
     if (pathname.startsWith("/pharmacist") || pathname.startsWith("/pharmacy")) return "PHARMACIST";
     if (pathname.startsWith("/nurse")) return "NURSE";
     if (pathname.startsWith("/billing-staff")) return "BILLING_STAFF";
