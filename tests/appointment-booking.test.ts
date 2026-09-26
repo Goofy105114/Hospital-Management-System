@@ -45,4 +45,63 @@ describe("APT-03 booking rules", () => {
       )
     ).toBe(false);
   });
+
+  describe("AI-02 no-show prediction and appointment optimization", () => {
+    it("calculates low risk for reliable patients with short lead times", async () => {
+      const { calculateNoShowRisk } = await import(
+        "@/server/domain/appointment-booking"
+      );
+      const res = calculateNoShowRisk({
+        pastNoShowsCount: 0,
+        totalPastAppointments: 5,
+        leadDays: 1,
+        isFollowUp: true,
+      });
+
+      expect(res.level).toBe("LOW");
+      expect(res.riskScore).toBeLessThan(0.3);
+      expect(res.isAdvisory).toBe(true);
+      expect(res.recommendedReminderFrequency).toBe("STANDARD");
+      expect(res.factors.length).toBeGreaterThan(0);
+    });
+
+    it("calculates high risk and intensive reminders for high past no-show rates and long lead times", async () => {
+      const { calculateNoShowRisk } = await import(
+        "@/server/domain/appointment-booking"
+      );
+      const res = calculateNoShowRisk({
+        pastNoShowsCount: 3,
+        totalPastAppointments: 4,
+        leadDays: 35,
+        previousCancellationsCount: 3,
+      });
+
+      expect(res.level).toBe("HIGH");
+      expect(res.riskScore).toBeGreaterThanOrEqual(0.6);
+      expect(res.isAdvisory).toBe(true);
+      expect(res.recommendedReminderFrequency).toBe("INTENSIVE");
+      expect(res.suggestedMitigations).toContain(
+        "Schedule automated 48h, 24h, and 2h SMS reminders (NOT-02)"
+      );
+    });
+
+    it("calculates safe overbooking buffer and risk-adjusted clinic capacity", async () => {
+      const { calculateOverbookingRecommendation } = await import(
+        "@/server/domain/appointment-booking"
+      );
+      const res = calculateOverbookingRecommendation({
+        slotCount: 20,
+        averageNoShowRate: 0.2,
+        targetUtilization: 95,
+      });
+
+      expect(res.scheduledSlots).toBe(20);
+      expect(res.historicalNoShowRate).toBe(20.0);
+      expect(res.suggestedBufferSlots).toBeGreaterThanOrEqual(1);
+      expect(res.suggestedBufferSlots).toBeLessThanOrEqual(5);
+      expect(res.riskAdjustedCapacity).toBe(20 + res.suggestedBufferSlots);
+      expect(res.isAdvisory).toBe(true);
+    });
+  });
 });
+
