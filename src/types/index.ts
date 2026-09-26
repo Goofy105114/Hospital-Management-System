@@ -11,6 +11,7 @@ import {
   DiagnosticOrderStatus,
   InvoiceStatus,
   BedStatus,
+  AdmissionStatus,
 } from "@prisma/client";
 
 export interface DoctorDTO {
@@ -187,3 +188,182 @@ export interface BedDTO {
   dailyRate: number;
   patientName?: string | null;
 }
+
+export interface TraceabilityItemDTO {
+  id: string;
+  code: string;
+  featureId: string;
+  domain: string;
+  title: string;
+  category: string;
+  sprint: string;
+  status: string;
+  testCoverage?: string | null;
+  apiPath?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TraceabilitySummaryDTO {
+  totalItems: number;
+  byDomain: Record<string, number>;
+  bySprint: Record<string, number>;
+  byStatus: Record<string, number>;
+  byCategory: Record<string, number>;
+}
+
+export interface NoShowPredictionDTO {
+  appointmentId?: string | null;
+  patientId?: string | null;
+  riskScore: number;
+  level: "LOW" | "MODERATE" | "HIGH";
+  factors: string[];
+  suggestedMitigations: string[];
+  recommendedReminderFrequency: "STANDARD" | "ENHANCED" | "INTENSIVE";
+  advisoryNotice: string;
+  source: "heuristic" | "ai" | "fallback";
+}
+
+export interface AppointmentOptimizationDTO {
+  doctorId?: string | null;
+  clinicDate?: string | null;
+  scheduledSlots: number;
+  historicalNoShowRate: number;
+  suggestedBufferSlots: number;
+  targetUtilizationPercent: number;
+  estimatedPatientAttendance: number;
+  riskAdjustedCapacity: number;
+  isAdvisory: true;
+}
+
+export interface DischargeSummaryDTO {
+  id: string;
+  admissionId: string;
+  patientId: string;
+  patientName: string;
+  patientMrn: string;
+  doctorId: string;
+  doctorName: string;
+  admittingDiagnosis: string;
+  finalDiagnosis: string;
+  treatmentSummary: string;
+  dischargeCondition: string;
+  followUpInstructions?: string | null;
+  followUpDate?: string | null;
+  createdAt: string;
+}
+
+export interface DischargeResultDTO {
+  admissionId: string;
+  patientId: string;
+  status: "DISCHARGED";
+  dischargedAt: string;
+  stayDays: number;
+  releasedBedId?: string | null;
+  finalInvoiceId?: string | null;
+  totalCharges: number;
+}
+
+export interface AdmissionRequestDTO {
+  id?: string;
+  patientId: string;
+  encounterId?: string;
+  admittingDoctorId: string;
+  reasonForAdmission: string;
+  admittingDiagnosis?: string;
+  preferredWardType?: string;
+  priority?: "ROUTINE" | "URGENT" | "EMERGENCY";
+  notes?: string;
+}
+
+export interface AdmissionApprovalDTO {
+  bedId: string;
+  admittingDoctorId?: string;
+  approverRole?: string;
+  approverId?: string;
+  initialNotes?: string;
+}
+
+export interface AdmissionDetailDTO {
+  id: string;
+  admissionNumber: string;
+  patientId: string;
+  patientName: string;
+  patientMrn: string;
+  admittingDoctorId: string;
+  doctorName: string;
+  bedId: string;
+  bedNumber: string;
+  wardName: string;
+  dailyRate: number;
+  admissionDate: string;
+  dischargeDate?: string | null;
+  admissionDiagnosis?: string | null;
+  dischargeSummary?: string | null;
+  status: AdmissionStatus;
+  createdAt: string;
+}
+
+export interface PaymentReceiptDTO {
+  receiptNumber: string;
+  paymentId: string;
+  invoiceId: string;
+  invoiceNumber: string;
+  patientId: string;
+  patientName: string;
+  patientMrn: string;
+  amount: number;
+  paymentMethod: string;
+  transactionReference?: string | null;
+  collectedBy?: string | null;
+  invoiceTotal: number;
+  remainingBalance: number;
+  paymentDate: string;
+}
+
+export interface PatientStatementDTO {
+  patientId: string;
+  patientName: string;
+  patientMrn: string;
+  generatedAt: string;
+  totalInvoiced: number;
+  totalPaid: number;
+  totalAdjustments: number;
+  outstandingBalance: number;
+  aging: {
+    current: number;
+    days30: number;
+    days60: number;
+    days90Plus: number;
+    totalOutstanding: number;
+  };
+  invoices: Array<{
+    id: string;
+    invoiceNumber: string;
+    invoiceDate: string;
+    totalAmount: number;
+    paidAmount: number;
+    balanceAmount: number;
+    status: string;
+  }>;
+  payments: Array<{
+    id: string;
+    receiptNumber: string;
+    invoiceNumber: string;
+    amount: number;
+    paymentMethod: string;
+    paymentDate: string;
+    collectedBy?: string | null;
+  }>;
+}
+
+export interface FinancialReconciliationDTO {
+  asOfDate: string;
+  totalBilled: number;
+  totalCollected: number;
+  totalOutstanding: number;
+  transactionCount: number;
+  collectionsByMethod: Record<string, number>;
+  generatedBy?: string | null;
+}
+
