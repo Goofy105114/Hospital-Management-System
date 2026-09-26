@@ -44,7 +44,28 @@ describe("Clinical Safety Checking Engine (PHA-02 / EMR-05)", () => {
     const result = SafetyCheckService.checkPrescriptionSafety(newMeds, patientAllergies);
 
     expect(result.hasConflicts).toBe(false);
+    expect(result.requiresClinicalOverride).toBe(false);
     expect(result.allergyConflicts).toHaveLength(0);
     expect(result.interactionWarnings).toHaveLength(0);
+    expect(result.duplicateTherapies).toHaveLength(0);
+  });
+
+  it("detects duplicate therapy when prescribing two drugs in the same pharmacological class", () => {
+    const newMeds = ["Ibuprofen 400mg", "Naproxen 250mg"]; // Both NSAIDs
+    const result = SafetyCheckService.checkPrescriptionSafety(newMeds, []);
+
+    expect(result.hasConflicts).toBe(true);
+    expect(result.duplicateTherapies).toHaveLength(1);
+    expect(result.duplicateTherapies[0].class).toBe("NSAID");
+  });
+
+  it("sets requiresClinicalOverride to true for severe allergy or drug interaction conflicts", () => {
+    const severeAllergyMeds = ["Amoxicillin Penicillin"];
+    const patientAllergies = [{ allergen: "Penicillin", severity: "SEVERE" }];
+    const result = SafetyCheckService.checkPrescriptionSafety(severeAllergyMeds, patientAllergies);
+
+    expect(result.hasConflicts).toBe(true);
+    expect(result.requiresClinicalOverride).toBe(true);
   });
 });
+

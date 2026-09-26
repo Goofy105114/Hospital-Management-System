@@ -109,4 +109,66 @@ describe("Authentication & Authorization Library (SEC-01 / AUTH)", () => {
       expect(getAuthUser(req)).toBeNull();
     });
   });
+
+  describe("SEC-01 — Granular RBAC and record/department scope authorization", () => {
+    it("evaluates role permission checks according to least privilege matrix", async () => {
+      const { hasPermission } = await import("@/lib/auth");
+
+      expect(hasPermission(UserRole.DOCTOR, "prescriptions:write")).toBe(true);
+      expect(hasPermission(UserRole.DOCTOR, "inventory:write")).toBe(false);
+
+      expect(hasPermission(UserRole.PHARMACIST, "dispensations:write")).toBe(true);
+      expect(hasPermission(UserRole.PHARMACIST, "encounters:write")).toBe(false);
+
+      expect(hasPermission(UserRole.NURSE, "vitals:write")).toBe(true);
+      expect(hasPermission(UserRole.NURSE, "billing:invoices_write")).toBe(false);
+
+      expect(hasPermission(UserRole.BILLING_STAFF, "billing:invoices_write")).toBe(true);
+      expect(hasPermission(UserRole.BILLING_STAFF, "diagnostics:order")).toBe(false);
+
+      // Super admin has all permissions wildcard
+      expect(hasPermission(UserRole.SUPER_ADMIN, "anything:arbitrary")).toBe(true);
+    });
+
+    it("restricts patient record access according to least privilege and ownership", async () => {
+      const { canAccessPatientRecord } = await import("@/lib/auth");
+
+      // Patient accessing own record
+      const patientSelf = canAccessPatientRecord(
+        { role: "PATIENT", userId: "usr-patient-1" },
+        { patientUserId: "usr-patient-1" }
+      );
+      expect(patientSelf).toBe(true);
+
+      // Patient attempting to access another patient's record
+      const patientSnooping = canAccessPatientRecord(
+        { role: "PATIENT", userId: "usr-patient-1" },
+        { patientUserId: "usr-patient-2" }
+      );
+      expect(patientSnooping).toBe(false);
+
+      // Doctor accessing record
+      const doctorAccess = canAccessPatientRecord(
+        { role: "DOCTOR", userId: "usr-doc-1", doctorId: "doc-1" },
+        { patientUserId: "usr-patient-2", doctorId: "doc-1" }
+      );
+      expect(doctorAccess).toBe(true);
+
+      // Admin has governance access
+      const adminAccess = canAccessPatientRecord(
+        { role: "ADMIN", userId: "usr-admin-1" },
+        { patientUserId: "usr-patient-99" }
+      );
+      expect(adminAccess).toBe(true);
+    });
+
+    it("enforces department scope restrictions", async () => {
+      const { enforceDepartmentScope } = await import("@/lib/auth");
+
+      expect(enforceDepartmentScope("DOCTOR", "dept-cardio", "dept-cardio")).toBe(true);
+      expect(enforceDepartmentScope("DOCTOR", "dept-cardio", "dept-pediatrics")).toBe(false);
+      expect(enforceDepartmentScope("ADMIN", "dept-admin", "dept-pediatrics")).toBe(true);
+    });
+  });
 });
+
