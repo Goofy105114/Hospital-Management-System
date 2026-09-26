@@ -45,4 +45,11 @@ describe("APT-03 booking rules", () => {
       )
     ).toBe(false);
   });
+
+  it("accepts slots formatted in UTC when time matches session operating window", () => {
+    const session = { startTime: "09:00", endTime: "17:00", slotDurationMinutes: 15 };
+    const utcStart = new Date("2026-09-28T09:30:00.000Z");
+    const utcEnd = new Date("2026-09-28T09:45:00.000Z");
+    expect(sessionContainsSlot({ slotStart: utcStart, slotEnd: utcEnd }, session)).toBe(true);
+  });
 });

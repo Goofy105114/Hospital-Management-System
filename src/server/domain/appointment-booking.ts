@@ -27,17 +27,33 @@ export function sessionContainsSlot(
   const [endHour, endMinute] = session.endTime.split(":").map(Number);
   const sessionStart = startHour * 60 + startMinute;
   const sessionEnd = endHour * 60 + endMinute;
+  const duration = Math.round((window.slotEnd.getTime() - window.slotStart.getTime()) / 60_000);
+
+  if (duration !== session.slotDurationMinutes) {
+    return false;
+  }
+
+  // 1. Evaluate with local time
   const slotStart = timeOfDayMinutes(window.slotStart);
   const slotEnd = timeOfDayMinutes(window.slotEnd);
-  const duration = (window.slotEnd.getTime() - window.slotStart.getTime()) / 60_000;
-
-  return (
+  const matchesLocal =
     window.slotStart.toDateString() === window.slotEnd.toDateString() &&
     slotStart >= sessionStart &&
     slotEnd <= sessionEnd &&
-    duration === session.slotDurationMinutes &&
-    (slotStart - sessionStart) % session.slotDurationMinutes === 0
-  );
+    (slotStart - sessionStart) % session.slotDurationMinutes === 0;
+
+  if (matchesLocal) return true;
+
+  // 2. Evaluate with UTC time (when slots are serialized as UTC ISO strings)
+  const utcStart = window.slotStart.getUTCHours() * 60 + window.slotStart.getUTCMinutes();
+  const utcEnd = window.slotEnd.getUTCHours() * 60 + window.slotEnd.getUTCMinutes();
+  const matchesUtc =
+    window.slotStart.getUTCDate() === window.slotEnd.getUTCDate() &&
+    utcStart >= sessionStart &&
+    utcEnd <= sessionEnd &&
+    (utcStart - sessionStart) % session.slotDurationMinutes === 0;
+
+  return matchesUtc;
 }
 
 // ---------------------------------------------------------------------------
