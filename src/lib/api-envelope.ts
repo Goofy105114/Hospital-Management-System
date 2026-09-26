@@ -31,13 +31,17 @@ export interface ApiErrorEnvelope {
   };
 }
 
-export function successResponse<T>(data: T, meta?: Record<string, unknown>): ApiSuccessEnvelope<T> {
+export function successResponse<T>(
+  data: T,
+  meta?: Record<string, unknown> | string
+): ApiSuccessEnvelope<T> {
+  const metaObj = typeof meta === "string" ? { message: meta } : (meta || {});
   return {
     success: true,
     data,
     meta: {
       timestamp: new Date().toISOString(),
-      ...meta,
+      ...metaObj,
     },
   };
 }
@@ -58,7 +62,11 @@ export function errorResponse(
   };
 }
 
-export function apiSuccess<T>(data: T, meta?: Record<string, unknown>, status = 200) {
+export function apiSuccess<T>(
+  data: T,
+  meta?: Record<string, unknown> | string,
+  status = 200
+) {
   return NextResponse.json<ApiSuccessEnvelope<T>>(successResponse(data, meta), { status });
 }
 
