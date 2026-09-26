@@ -100,4 +100,125 @@ describe("ADM-04 system configuration and operational administration", () => {
       expect(canBypassMaintenanceMode(null)).toBe(false);
     });
   });
+
+  describe("TRC-01 authoritative 310-item SRS traceability backlog", () => {
+    it("verifies the authoritative dataset contains exactly 310 items across 78 BRD features", async () => {
+      const fs = await import("fs");
+      const path = await import("path");
+      const jsonPath = path.join(process.cwd(), "prisma", "traceability-items.json");
+      expect(fs.existsSync(jsonPath)).toBe(true);
+
+      const items = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
+      expect(items.length).toBe(310);
+
+      // Verify unique codes
+      const codes = new Set(items.map((i: any) => i.code));
+      expect(codes.size).toBe(310);
+
+      // Verify all 78 features are covered
+      const features = new Set(items.map((i: any) => i.featureId));
+      expect(features.size).toBe(78);
+
+      // Verify 16 canonical domains
+      const expectedDomains = [
+        "IAM", "PAT", "APT", "SCH", "ADM", "SEC",
+        "QUE", "EMR", "PHA", "INV", "NOT",
+        "DIA", "BIL", "IPD", "REP", "AI"
+      ];
+      const domains = new Set(items.map((i: any) => i.domain));
+      for (const d of expectedDomains) {
+        expect(domains.has(d)).toBe(true);
+      }
+
+      // Verify sprint distribution
+      const bySprint: Record<string, number> = {};
+      for (const item of items) {
+        bySprint[item.sprint] = (bySprint[item.sprint] || 0) + 1;
+        expect(item.title).toBeTruthy();
+        expect(item.category).toBeTruthy();
+      }
+
+      expect(bySprint["Sprint 1"]).toBe(96);
+      expect(bySprint["Sprint 2"]).toBe(96);
+      expect(bySprint["Sprint 3"]).toBe(106);
+      expect(bySprint["Sprint 4"]).toBe(12);
+    });
+  });
+
+  describe("ADM-02 — User lifecycle, staff onboarding and administrative approvals", () => {
+    it("validates staff onboarding input details", async () => {
+      const { validateStaffOnboardingInput } = await import(
+        "@/server/domain/system-config"
+      );
+
+      const valid = validateStaffOnboardingInput({
+        name: "Dr. Gregory House",
+        email: "gregory.house@goingmerry.org",
+        phone: "+1-555-0199",
+        role: "DOCTOR",
+      });
+      expect(valid.isValid).toBe(true);
+
+      const invalidEmail = validateStaffOnboardingInput({
+        name: "Dr. House",
+        email: "not-an-email",
+        role: "DOCTOR",
+      });
+      expect(invalidEmail.isValid).toBe(false);
+      expect(invalidEmail.errorCode).toBe("ADM_INVALID_EMAIL");
+
+      const invalidRole = validateStaffOnboardingInput({
+        name: "John Doe",
+        email: "john@goingmerry.org",
+        role: "PRESIDENT_OF_UNIVERSE",
+      });
+      expect(invalidRole.isValid).toBe(false);
+      expect(invalidRole.errorCode).toBe("ADM_INVALID_STAFF_ROLE");
+    });
+
+    it("enforces admin authorization for user lifecycle status changes", async () => {
+      const { canTransitionUserStatus } = await import(
+        "@/server/domain/system-config"
+      );
+
+      const adminOk = canTransitionUserStatus("PENDING_VERIFICATION", "ACTIVE", "ADMIN");
+      expect(adminOk.allowed).toBe(true);
+
+      const doctorDenied = canTransitionUserStatus("ACTIVE", "SUSPENDED", "DOCTOR");
+      expect(doctorDenied.allowed).toBe(false);
+      expect(doctorDenied.errorCode).toBe("FORBIDDEN");
+
+      const sameStatus = canTransitionUserStatus("ACTIVE", "ACTIVE", "ADMIN");
+      expect(sameStatus.allowed).toBe(false);
+      expect(sameStatus.errorCode).toBe("ADM_STATUS_UNCHANGED");
+    });
+
+    it("validates administrative approval action decision rules", async () => {
+      const { validateAdministrativeApprovalAction } = await import(
+        "@/server/domain/system-config"
+      );
+
+      const validApprove = validateAdministrativeApprovalAction({
+        approverRole: "ADMIN",
+        decision: "APPROVED",
+      });
+      expect(validApprove.isValid).toBe(true);
+
+      const rejectWithoutReason = validateAdministrativeApprovalAction({
+        approverRole: "ADMIN",
+        decision: "REJECTED",
+      });
+      expect(rejectWithoutReason.isValid).toBe(false);
+      expect(rejectWithoutReason.errorCode).toBe("ADM_REJECTION_REASON_REQUIRED");
+
+      const unauthorized = validateAdministrativeApprovalAction({
+        approverRole: "NURSE",
+        decision: "APPROVED",
+      });
+      expect(unauthorized.isValid).toBe(false);
+      expect(unauthorized.errorCode).toBe("FORBIDDEN");
+    });
+  });
 });
+
+
