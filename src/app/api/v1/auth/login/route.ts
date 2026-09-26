@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { AuthService } from "@/server/services/auth.service";
 import { apiSuccess, apiError } from "@/lib/api-envelope";
+import { isValidEmail } from "@/lib/utils";
 
 export async function POST(req: NextRequest) {
   try {
@@ -9,6 +10,14 @@ export async function POST(req: NextRequest) {
 
     if (!identifier || !password) {
       return apiError("AUTH_INVALID_REQUEST", "Identifier and password are required", 400);
+    }
+
+    if (typeof identifier === "string" && identifier.includes("@") && !isValidEmail(identifier)) {
+      return apiError(
+        "AUTH_INVALID_CREDENTIALS",
+        "Invalid email format: email username cannot consist of only numbers or start with a number",
+        400
+      );
     }
 
     const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || undefined;

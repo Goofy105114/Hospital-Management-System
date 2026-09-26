@@ -9,10 +9,19 @@ import { z } from "zod";
 import { useAuthStore } from "@/stores/authStore";
 import { Button } from "@/components/ui/button";
 import { signInWithSupabase } from "@/lib/supabase";
+import { isValidEmail } from "@/lib/utils";
 import api from "@/lib/axios";
 
 const patientLoginSchema = z.object({
-  identifier: z.string().min(3, "Please enter your registered email or MRN"),
+  identifier: z
+    .string()
+    .min(3, "Please enter your registered email or MRN")
+    .refine((val) => {
+      if (val.includes("@")) {
+        return isValidEmail(val);
+      }
+      return true;
+    }, "Email username cannot consist of only numbers or start with a number"),
   password: z.string().min(4, "Password must be at least 4 characters"),
 });
 
@@ -122,17 +131,9 @@ export default function PatientLoginPage() {
             </div>
 
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-bold text-on-surface uppercase tracking-wider">
-                  Password
-                </label>
-                <Link
-                  href="/forgot-password"
-                  className="text-[11px] font-semibold text-primary hover:underline"
-                >
-                  Forgot Password?
-                </Link>
-              </div>
+              <label className="block text-xs font-bold text-on-surface uppercase tracking-wider mb-1">
+                Password
+              </label>
               <input
                 type="password"
                 {...register("password")}
