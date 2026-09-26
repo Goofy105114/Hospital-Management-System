@@ -32,8 +32,8 @@ export default function AdminLoginPage() {
   } = useForm<AdminLoginFormValues>({
     resolver: zodResolver(adminLoginSchema),
     defaultValues: {
-      identifier: "admin@goingmerry.hms",
-      password: "Password123!",
+      identifier: "",
+      password: "",
     },
   });
 
