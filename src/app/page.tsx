@@ -150,7 +150,7 @@ export default function DashboardPage() {
               </div>
             ) : (
               <>
-                <h1 className="font-headline-xl text-headline-xl text-on-surface tracking-tight font-bold">
+                <h1 className="font-headline-xl text-2xl sm:text-headline-xl text-on-surface tracking-tight font-bold">
                   Good morning,{" "}
                   {dashboard?.patient?.name?.split(" ")[0] ||
                     user?.name?.split(" ")[0] ||
@@ -166,7 +166,7 @@ export default function DashboardPage() {
               </>
             )}
           </div>
-          <div className="flex items-center gap-space-3 self-start md:self-auto">
+          <div className="flex items-center gap-space-3 self-start md:self-auto flex-wrap sm:flex-nowrap">
             <div className="flex items-center gap-space-2 px-space-3 py-space-2 rounded-lg bg-surface-container-lowest shadow-sm border border-outline-variant/30">
               <span className="material-symbols-outlined text-primary text-[20px]">
                 calendar_month
@@ -195,7 +195,7 @@ export default function DashboardPage() {
         {/* Top Hero Duo: Primary Appointment & Live Queue Monitor */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-space-6">
           {/* 1. Upcoming Appointment Card (7 cols) */}
-          <div className="lg:col-span-7 bg-surface-container-lowest rounded-xl p-space-6 shadow-sm flex flex-col justify-between relative overflow-hidden border border-outline-variant/30">
+          <div className="lg:col-span-7 bg-surface-container-lowest rounded-xl p-4 sm:p-space-6 shadow-sm flex flex-col justify-between relative overflow-hidden border border-outline-variant/30">
             <div className="absolute top-0 right-0 w-36 h-36 bg-gradient-to-bl from-primary/10 via-transparent to-transparent pointer-events-none rounded-tr-xl"></div>
             {isLoading ? (
               <div className="space-y-4">
@@ -301,7 +301,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-space-3 pt-space-3 border-t border-outline-variant/20">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-space-3 pt-space-3 border-t border-outline-variant/20">
                   <div className="flex items-center gap-space-2 text-primary font-label-md text-label-md">
                     <span className="material-symbols-outlined text-[18px]">check_circle</span>
                     <span className="font-semibold">
@@ -342,7 +342,7 @@ export default function DashboardPage() {
           </div>
 
           {/* 2. Live Queue Pass Tracker (5 cols) */}
-          <div className="lg:col-span-5 bg-surface-container-lowest rounded-xl p-space-6 shadow-sm flex flex-col justify-between border border-outline-variant/30">
+          <div className="lg:col-span-5 bg-surface-container-lowest rounded-xl p-4 sm:p-space-6 shadow-sm flex flex-col justify-between border border-outline-variant/30">
             {isLoading ? (
               <div className="space-y-4">
                 <div className="flex justify-between">
@@ -378,7 +378,7 @@ export default function DashboardPage() {
                     <span className="text-[11px] uppercase font-bold text-outline tracking-wider block">
                       Your Queue Token
                     </span>
-                    <span className="font-mono text-[42px] font-black text-primary leading-tight block">
+                    <span className="font-mono text-3xl sm:text-[42px] font-black text-primary leading-tight block">
                       {queue.tokenNumber}
                     </span>
                     <div className="flex items-center justify-center gap-2 mt-1">
@@ -444,7 +444,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Intake Vitals Ribbon */}
-        <div className="bg-surface-container-lowest rounded-xl p-space-5 shadow-sm border border-outline-variant/30">
+        <div className="bg-surface-container-lowest rounded-xl p-4 sm:p-space-5 shadow-sm border border-outline-variant/30">
           <div className="flex items-center justify-between pb-space-3 border-b border-outline-variant/20">
             <div className="flex items-center gap-2">
               <span className="material-symbols-outlined text-primary text-[20px]">
@@ -459,7 +459,7 @@ export default function DashboardPage() {
             </span>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-3">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 sm:gap-3 pt-3">
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <div key={i} className="p-3 bg-surface-container-low rounded-lg space-y-2">
@@ -524,8 +524,8 @@ export default function DashboardPage() {
         {/* Lower Grid: Daily Medication Adherence & Invoices / Copay */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-space-6">
           {/* Daily Medication Tracker (7 cols) */}
-          <div className="lg:col-span-7 bg-surface-container-lowest rounded-xl p-space-6 shadow-sm border border-outline-variant/30 space-y-4">
-            <div className="flex items-center justify-between">
+          <div className="lg:col-span-7 bg-surface-container-lowest rounded-xl p-4 sm:p-space-6 shadow-sm border border-outline-variant/30 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <h3 className="font-headline-sm text-headline-sm font-bold text-on-surface">
                   Daily Medication Adherence
@@ -536,7 +536,7 @@ export default function DashboardPage() {
               </div>
               <Link
                 href="/prescriptions"
-                className="text-xs font-semibold text-primary hover:underline"
+                className="text-xs font-semibold text-primary hover:underline self-start sm:self-auto"
               >
                 View All Prescriptions
               </Link>
@@ -554,17 +554,17 @@ export default function DashboardPage() {
                 prescriptions.map((med: any) => (
                   <div
                     key={med.id}
-                    className="p-3 bg-surface-container-low rounded-xl border border-outline-variant/20 flex items-center justify-between gap-3"
+                    className="p-3 bg-surface-container-low rounded-xl border border-outline-variant/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                   >
-                    <div className="flex items-center gap-3">
-                      <span className="material-symbols-outlined text-primary text-[22px]">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="material-symbols-outlined text-primary text-[22px] shrink-0">
                         medication
                       </span>
-                      <div>
-                        <span className="font-bold text-xs text-on-surface block">
+                      <div className="min-w-0">
+                        <span className="font-bold text-xs text-on-surface block truncate">
                           {med.name}
                         </span>
-                        <span className="text-[11px] text-outline block">
+                        <span className="text-[11px] text-outline block truncate">
                           {med.dosage} • {med.sig}
                         </span>
                       </div>
@@ -573,7 +573,7 @@ export default function DashboardPage() {
                       size="sm"
                       variant={takenDoses[med.id] ? "secondary" : "outline"}
                       onClick={() => handleMarkDose(med.id)}
-                      className="text-xs h-7 px-3 gap-1"
+                      className="text-xs h-8 sm:h-7 px-3 gap-1 w-full sm:w-auto shrink-0 justify-center"
                     >
                       <span className="material-symbols-outlined text-[14px]">
                         {takenDoses[med.id] ? "check" : "radio_button_unchecked"}
@@ -591,7 +591,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Outstanding Billing & Insurance Co-Pay (5 cols) */}
-          <div className="lg:col-span-5 bg-surface-container-lowest rounded-xl p-space-6 shadow-sm border border-outline-variant/30 flex flex-col justify-between">
+          <div className="lg:col-span-5 bg-surface-container-lowest rounded-xl p-4 sm:p-space-6 shadow-sm border border-outline-variant/30 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between pb-3 border-b border-outline-variant/20">
                 <div className="flex items-center gap-2">
@@ -618,10 +618,10 @@ export default function DashboardPage() {
                     Outstanding Balance Due
                   </span>
                   <span className="font-mono text-3xl font-black text-on-surface block mt-1">
-                    ${copayPaid ? "0.00" : Number(billing?.totalOwing ?? 0.0).toFixed(2)}
+                    ₹{copayPaid ? "0.00" : Number(billing?.totalOwing ?? 0.0).toFixed(2)}
                   </span>
                   <p className="text-[11px] text-success font-semibold mt-1">
-                    Insurance Covered: ${Number(billing?.insuranceCovered ?? 0.0).toFixed(2)}
+                    Insurance Covered: ₹{Number(billing?.insuranceCovered ?? 0.0).toFixed(2)}
                   </p>
                 </div>
               )}
@@ -639,7 +639,7 @@ export default function DashboardPage() {
                 <span>
                   {copayPaid || Number(billing?.totalOwing ?? 0) <= 0
                     ? "Settled Successfully"
-                    : `Pay Co-Pay ($${Number(billing?.totalOwing ?? 0.0).toFixed(2)})`}
+                    : `Pay Co-Pay (₹${Number(billing?.totalOwing ?? 0.0).toFixed(2)})`}
                 </span>
               </Button>
               <Link

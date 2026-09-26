@@ -49,6 +49,7 @@ import {
   LogOut,
   ArrowLeftRight,
   ShieldCheck,
+  X,
   LucideIcon,
 } from "lucide-react";
 
@@ -114,13 +115,22 @@ export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { activeRole, user, isAuthenticated, logout, hydrate } = useAuthStore();
-  const { sidebarOpen, toggleSidebar } = useUiStore();
+  const { sidebarOpen, toggleSidebar, setSidebarOpen } = useUiStore();
   const [mounted, setMounted] = React.useState(false);
 
   React.useEffect(() => {
     hydrate();
     setMounted(true);
-  }, [hydrate]);
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setSidebarOpen(false);
+    }
+  }, [hydrate, setSidebarOpen]);
+
+  const handleNavClick = () => {
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setSidebarOpen(false);
+    }
+  };
 
   const getEffectiveRole = (): UserRole => {
     if (pathname.startsWith("/doctor")) return "DOCTOR";
@@ -411,43 +421,68 @@ export function Sidebar() {
   const activeHref = bestMatch?.href ?? "";
 
   const handleSignOut = () => {
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setSidebarOpen(false);
+    }
     logout();
     router.push("/login");
   };
 
   return (
-    <aside
-      className={cn(
-        "fixed left-0 top-0 h-screen bg-white shadow-xs z-50 flex flex-col justify-between border-r border-slate-200/80 transition-all duration-300 ease-in-out",
-        sidebarOpen ? "w-64" : "w-[68px]"
+    <>
+      {/* Mobile Drawer Backdrop Overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-40 md:hidden transition-opacity"
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
+        />
       )}
-    >
-      <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden p-3">
-        {/* Brand Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
-          <Link
-            href="/"
-            className={cn(
-              "flex items-center gap-2.5 group overflow-hidden transition-all",
-              !sidebarOpen && "justify-center w-full"
-            )}
-            title="Going Merry Hospital"
-          >
-            <div className="w-9 h-9 rounded-xl bg-teal-50 text-teal-700 border border-teal-200/60 flex items-center justify-center font-bold shrink-0 group-hover:bg-teal-100 transition-colors shadow-2xs">
-              <Activity className="w-5 h-5 text-teal-700" />
-            </div>
-            {sidebarOpen && (
-              <div className="flex flex-col min-w-0 transition-opacity duration-200">
-                <span className="text-sm font-bold text-slate-900 leading-tight truncate">
-                  Going Merry
-                </span>
-                <span className="text-[10px] text-teal-700 font-semibold tracking-wide uppercase truncate mt-0.5">
-                  {getRoleLabel()}
-                </span>
+      <aside
+        className={cn(
+          "fixed left-0 top-0 h-screen bg-white shadow-xl md:shadow-xs z-50 flex flex-col justify-between border-r border-slate-200/80 transition-all duration-300 ease-in-out",
+          sidebarOpen
+            ? "translate-x-0 w-64"
+            : "-translate-x-full md:translate-x-0 md:w-[68px] w-64"
+        )}
+      >
+        <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden p-3">
+          {/* Brand Header */}
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
+            <Link
+              href="/"
+              onClick={handleNavClick}
+              className={cn(
+                "flex items-center gap-2.5 group overflow-hidden transition-all",
+                !sidebarOpen && "justify-center w-full"
+              )}
+              title="Going Merry Hospital"
+            >
+              <div className="w-9 h-9 rounded-xl bg-teal-50 text-teal-700 border border-teal-200/60 flex items-center justify-center font-bold shrink-0 group-hover:bg-teal-100 transition-colors shadow-2xs">
+                <Activity className="w-5 h-5 text-teal-700" />
               </div>
+              {sidebarOpen && (
+                <div className="flex flex-col min-w-0 transition-opacity duration-200">
+                  <span className="text-sm font-bold text-slate-900 leading-tight truncate">
+                    Going Merry
+                  </span>
+                  <span className="text-[10px] text-teal-700 font-semibold tracking-wide uppercase truncate mt-0.5">
+                    {getRoleLabel()}
+                  </span>
+                </div>
+              )}
+            </Link>
+            {sidebarOpen && (
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors md:hidden shrink-0"
+                aria-label="Close sidebar"
+              >
+                <X className="w-4 h-4" />
+              </button>
             )}
-          </Link>
-        </div>
+          </div>
 
         {/* Navigation Sections */}
         <nav className="flex flex-col gap-3">
@@ -468,6 +503,7 @@ export function Sidebar() {
                     <Link
                       key={item.href}
                       href={item.href}
+                      onClick={handleNavClick}
                       title={!sidebarOpen ? item.label : undefined}
                       className={cn(
                         "flex items-center rounded-xl transition-all group",
@@ -532,6 +568,7 @@ export function Sidebar() {
               <div className="grid grid-cols-2 gap-1.5">
                 <Link
                   href="/login"
+                  onClick={handleNavClick}
                   className="flex items-center justify-center gap-1 py-1 px-2 rounded-lg text-[11px] font-medium bg-white text-slate-700 hover:bg-teal-50 hover:text-teal-800 transition-colors border border-slate-200/80 shadow-2xs"
                 >
                   <ArrowLeftRight className="w-3 h-3" />
@@ -549,12 +586,14 @@ export function Sidebar() {
               <div className="grid grid-cols-2 gap-1.5">
                 <Link
                   href="/login"
+                  onClick={handleNavClick}
                   className="flex items-center justify-center gap-1 py-1 px-2 rounded-lg text-[11px] font-medium bg-white text-slate-700 hover:bg-teal-50 hover:text-teal-800 transition-colors border border-slate-200/80 shadow-2xs"
                 >
                   <span>Sign In</span>
                 </Link>
                 <Link
                   href="/register"
+                  onClick={handleNavClick}
                   className="flex items-center justify-center gap-1 py-1 px-2 rounded-lg text-[11px] font-medium bg-teal-700 text-white hover:bg-teal-800 transition-colors shadow-2xs"
                 >
                   <span>Sign Up</span>
@@ -591,5 +630,6 @@ export function Sidebar() {
         )}
       </div>
     </aside>
+    </>
   );
 }

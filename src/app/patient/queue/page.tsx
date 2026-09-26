@@ -92,8 +92,8 @@ export default function PatientQueuePassPage() {
             </p>
           </div>
 
-          <Link href="/">
-            <Button variant="outline" size="sm" className="gap-1.5 text-xs font-bold">
+          <Link href="/" className="w-full sm:w-auto">
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs font-bold w-full sm:w-auto justify-center">
               <span className="material-symbols-outlined text-[16px]">arrow_back</span>
               <span>Patient Dashboard</span>
             </Button>
@@ -101,7 +101,7 @@ export default function PatientQueuePassPage() {
         </div>
 
         {/* Live Token Hero Pass */}
-        <div className="rounded-3xl bg-gradient-to-br from-primary/5 via-surface-container-lowest to-primary/10 border-2 border-primary/40 p-8 shadow-xl text-center relative overflow-hidden">
+        <div className="rounded-2xl sm:rounded-3xl bg-gradient-to-br from-primary/5 via-surface-container-lowest to-primary/10 border-2 border-primary/40 p-5 sm:p-8 shadow-xl text-center relative overflow-hidden">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/15 text-primary text-xs font-bold uppercase tracking-wider mb-4">
             <span className="w-2 h-2 rounded-full bg-primary animate-ping"></span>
             <span>{token?.stationName || "Outpatient Clinic Service"}</span>
@@ -110,7 +110,7 @@ export default function PatientQueuePassPage() {
           <p className="text-xs font-bold text-outline uppercase tracking-wider">
             Your Assigned Token Pass
           </p>
-          <div className="font-mono text-6xl sm:text-7xl font-black text-primary my-2 tracking-tight">
+          <div className="font-mono text-5xl sm:text-7xl font-black text-primary my-2 tracking-tight">
             {token?.tokenNumber || (isLoading ? "..." : "No Active Token")}
           </div>
           <p className="text-sm font-semibold text-on-surface">
@@ -122,7 +122,7 @@ export default function PatientQueuePassPage() {
           </p>
 
           {/* Turn Progress Status */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 my-8 max-w-xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 my-6 sm:my-8 max-w-xl mx-auto">
             <div className="bg-surface-container-lowest p-4 rounded-2xl border border-outline-variant/30 shadow-xs">
               <span className="text-[10px] text-outline uppercase font-bold block">
                 Currently Serving
@@ -159,15 +159,15 @@ export default function PatientQueuePassPage() {
             <Button
               variant="outline"
               onClick={playTurnChime}
-              className="gap-2 text-xs font-bold h-11 px-5 rounded-xl border-primary/40 text-primary hover:bg-primary/10"
+              className="gap-2 text-xs font-bold h-11 px-5 rounded-xl border-primary/40 text-primary hover:bg-primary/10 w-full sm:w-auto justify-center"
             >
               <span className="material-symbols-outlined text-[18px]">volume_up</span>
               <span>{chimePlayed ? "Chime Played! (Ding-Dong)" : "Test Hospital Turn Chime"}</span>
             </Button>
-            <Link href="/queue/display" target="_blank">
+            <Link href="/queue/display" target="_blank" className="w-full sm:w-auto">
               <Button
                 variant="ghost"
-                className="gap-2 text-xs font-bold h-11 px-4 rounded-xl text-outline hover:text-on-surface"
+                className="gap-2 text-xs font-bold h-11 px-4 rounded-xl text-outline hover:text-on-surface w-full sm:w-auto justify-center"
               >
                 <span className="material-symbols-outlined text-[18px]">open_in_new</span>
                 <span>Open Full Waiting Room TV</span>

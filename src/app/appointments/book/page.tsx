@@ -320,7 +320,7 @@ export default function BookAppointmentPage() {
           {/* Left Canvas */}
           <div className="lg:col-span-8 flex flex-col space-y-6">
             {/* Step 1: Select Department */}
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
+            <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
                 <div className="flex items-center gap-3">
                   <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">
@@ -376,7 +376,7 @@ export default function BookAppointmentPage() {
             </div>
 
             {/* Step 2: Select Specialist Doctor */}
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
+            <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
                 <div className="flex items-center gap-3">
                   <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">
@@ -444,7 +444,7 @@ export default function BookAppointmentPage() {
                                 <span>{doc.roomNumber || "Outpatient Clinic"}</span>
                                 <span>•</span>
                                 <span className="font-semibold text-slate-700">
-                                  ${doc.consultationFee.toFixed(2)}
+                                  ₹{doc.consultationFee.toFixed(2)}
                                 </span>
                               </div>
                             </div>
@@ -467,7 +467,7 @@ export default function BookAppointmentPage() {
             </div>
 
             {/* Step 3: Date & Time Slot Selection */}
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
+            <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 mb-4 gap-2">
                 <div className="flex items-center gap-3">
                   <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">
@@ -642,8 +642,8 @@ export default function BookAppointmentPage() {
           </div>
 
           {/* Right Rail: Summary */}
-          <div className="lg:col-span-4 flex flex-col space-y-4 sticky top-20">
-            <div className="bg-white rounded-xl p-5 shadow-sm border border-slate-200 space-y-4">
+          <div className="lg:col-span-4 flex flex-col space-y-4 lg:sticky lg:top-20">
+            <div className="bg-white rounded-xl p-4 sm:p-5 shadow-sm border border-slate-200 space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <div className="flex items-center gap-2">
                   <span className="material-symbols-outlined text-primary text-[20px]">
@@ -706,17 +706,17 @@ export default function BookAppointmentPage() {
                 <div className="flex justify-between text-slate-600">
                   <span>Standard Consultation Fee</span>
                   <span className="font-semibold text-slate-900">
-                    ${selectedDoctor?.consultationFee ? selectedDoctor.consultationFee.toFixed(2) : "120.00"}
+                    ₹{selectedDoctor?.consultationFee ? selectedDoctor.consultationFee.toFixed(2) : "120.00"}
                   </span>
                 </div>
                 <div className="flex justify-between text-emerald-600 font-medium">
                   <span>Hospital Co-pay Coverage</span>
-                  <span>-$100.00</span>
+                  <span>-₹100.00</span>
                 </div>
                 <div className="flex justify-between font-bold text-sm text-slate-900 pt-2 border-t border-slate-100">
                   <span>Patient Co-Pay Due</span>
                   <span className="text-primary text-base">
-                    ${Math.max(0, (selectedDoctor?.consultationFee || 120) - 100).toFixed(2)}
+                    ₹{Math.max(0, (selectedDoctor?.consultationFee || 120) - 100).toFixed(2)}
                   </span>
                 </div>
               </div>

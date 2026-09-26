@@ -135,12 +135,12 @@ export default function BillingPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-space-3">
+          <div className="flex items-center gap-space-3 w-full sm:w-auto">
             <Button
               variant="outline"
               size="sm"
               onClick={() => window.print()}
-              className="gap-1 border-outline-variant/40"
+              className="gap-1 border-outline-variant/40 w-full sm:w-auto justify-center"
             >
               <span className="material-symbols-outlined text-base">print</span>
               Print Statement
@@ -249,7 +249,7 @@ export default function BillingPage() {
             {selectedInvoice && (
               <div className="lg:col-span-2 space-y-space-6">
                 <Card className="border border-outline-variant/30 shadow-xs">
-                  <CardHeader className="pb-space-3 border-b border-outline-variant/20 flex flex-row items-center justify-between">
+                  <CardHeader className="pb-space-3 border-b border-outline-variant/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
                       <div className="flex items-center gap-2">
                         <CardTitle className="font-title-lg text-title-lg text-on-surface">
@@ -267,7 +267,7 @@ export default function BillingPage() {
                       </p>
                     </div>
 
-                    <div className="text-right">
+                    <div className="text-left sm:text-right">
                       <span className="font-bold text-sm text-on-surface block">
                         {selectedInvoice.patientName}
                       </span>
@@ -277,8 +277,8 @@ export default function BillingPage() {
 
                   <CardContent className="pt-space-4 space-y-space-6">
                     {/* Itemized Line Items */}
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse text-sm">
+                    <div className="overflow-x-auto -mx-3 sm:mx-0">
+                      <table className="w-full text-left border-collapse text-xs sm:text-sm min-w-[340px]">
                         <thead>
                           <tr className="border-b border-outline-variant/20 bg-surface-container-low font-label-sm text-outline uppercase tracking-wider text-xs">
                             <th className="p-3">Service / Procedure</th>
@@ -301,7 +301,7 @@ export default function BillingPage() {
                     </div>
 
                     {/* Financial Synthesis Summary */}
-                    <div className="p-space-4 rounded-xl bg-surface-container-low border border-outline-variant/20 space-y-space-2 max-w-sm ml-auto text-sm">
+                    <div className="p-space-4 rounded-xl bg-surface-container-low border border-outline-variant/20 space-y-space-2 w-full sm:max-w-sm sm:ml-auto text-sm">
                       <div className="flex justify-between text-outline">
                         <span>Gross Hospital Charges:</span>
                         <span className="font-mono font-semibold text-on-surface">
@@ -325,7 +325,7 @@ export default function BillingPage() {
                     </div>
 
                     {/* Payment Action Bar */}
-                    <div className="pt-space-4 border-t border-outline-variant/30 flex items-center justify-between">
+                    <div className="pt-space-4 border-t border-outline-variant/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div className="text-xs text-outline">
                         Official Tax Invoice • Electronic Cashier Stamp
                       </div>
@@ -333,13 +333,13 @@ export default function BillingPage() {
                       {selectedInvoice.status !== "PAID" && selectedInvoice.patientOwing > 0 ? (
                         <Button
                           onClick={() => setPayModalOpen(true)}
-                          className="bg-primary text-white hover:bg-primary/90 gap-1 font-bold shadow-xs"
+                          className="bg-primary text-white hover:bg-primary/90 gap-1 font-bold shadow-xs w-full sm:w-auto justify-center"
                         >
                           <span className="material-symbols-outlined text-base">payments</span>
                           Settle Balance ({formatCurrency(selectedInvoice.patientOwing)})
                         </Button>
                       ) : (
-                        <Badge variant="success" className="px-3 py-1.5 text-xs">
+                        <Badge variant="success" className="px-3 py-1.5 text-xs w-fit">
                           Fully Settled & Reconciled
                         </Badge>
                       )}
