@@ -37,6 +37,9 @@ export default function PharmacyConsolePage() {
   const [showLabelModal, setShowLabelModal] = useState(false);
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("mockRole", "PHARMACIST");
+    }
     async function loadQueue() {
       try {
         const res = await api.get("/pharmacy/queue");
