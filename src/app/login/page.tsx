@@ -13,7 +13,7 @@ interface PortalRole {
   title: string;
   subtitle: string;
   badge: string;
-  category: "Clinical Care" | "Front Office & Ops" | "Pharmacy & Supply" | "Diagnostics" | "Administration & Security";
+  category: "Clinical Care" | "Front Office & Ops" | "Pharmacy & Supply" | "Administration & Security";
   icon: string;
   accentBg: string;
   accentBorder: string;
@@ -96,6 +96,9 @@ const allPortalRoles: PortalRole[] = [
       "Triage & Acuity Scoring",
     ],
     defaultHref: "/nurse",
+    dedicatedLoginHref: "/nurse/login",
+    registerHref: "/nurse/register",
+    registerLabel: "Nurse Registration",
   },
   {
     role: "RECEPTIONIST",
@@ -141,6 +144,9 @@ const allPortalRoles: PortalRole[] = [
       "Department Billing Ledgers",
     ],
     defaultHref: "/billing-staff",
+    dedicatedLoginHref: "/billing-staff/login",
+    registerHref: "/billing-staff/register",
+    registerLabel: "Billing Staff Registration",
   },
   {
     role: "PHARMACIST",
@@ -162,6 +168,9 @@ const allPortalRoles: PortalRole[] = [
       "Safety Stock Reorder Alerts",
     ],
     defaultHref: "/pharmacist",
+    dedicatedLoginHref: "/pharmacist/login",
+    registerHref: "/pharmacist/register",
+    registerLabel: "Pharmacist Registration",
   },
   {
     role: "INVENTORY_MANAGER",
@@ -183,48 +192,9 @@ const allPortalRoles: PortalRole[] = [
       "Stock Transfer Ledgers",
     ],
     defaultHref: "/inventory-manager",
-  },
-  {
-    role: "LAB_TECH",
-    title: "Diagnostic Pathology",
-    subtitle: "Laboratory Assays & Blood Tests",
-    badge: "Diagnostic Lab",
-    category: "Diagnostics",
-    icon: "biotech",
-    accentBg: "hover:bg-teal-600/[0.04]",
-    accentBorder: "hover:border-teal-600/60",
-    accentText: "text-teal-800",
-    iconBg: "bg-teal-600/10 text-teal-800",
-    description:
-      "Access incoming laboratory orders, record quantitative test assay values, verify specimens, and dispatch diagnostic findings.",
-    features: [
-      "Diagnostic Test Catalog",
-      "Specimen Barcode Tracking",
-      "Assay Reference Ranges",
-      "Electronic Report Release",
-    ],
-    defaultHref: "/lab",
-  },
-  {
-    role: "RADIOLOGIST",
-    title: "Radiology & Imaging",
-    subtitle: "X-Ray, CT, MRI & Medical Scans",
-    badge: "Imaging Suite",
-    category: "Diagnostics",
-    icon: "radiology",
-    accentBg: "hover:bg-indigo-500/[0.04]",
-    accentBorder: "hover:border-indigo-500/60",
-    accentText: "text-indigo-700",
-    iconBg: "bg-indigo-500/10 text-indigo-700",
-    description:
-      "Review diagnostic imaging requests, interpret modality studies (CT/MRI/X-Ray), and publish verified radiological impressions.",
-    features: [
-      "Modality Imaging Worklist",
-      "Diagnostic Scan Uploads",
-      "Structured Radiology Notes",
-      "DICOM & Report Dispatch",
-    ],
-    defaultHref: "/lab",
+    dedicatedLoginHref: "/inventory-manager/login",
+    registerHref: "/inventory-manager/register",
+    registerLabel: "Inventory Staff Registration",
   },
   {
     role: "ADMIN",
@@ -250,48 +220,6 @@ const allPortalRoles: PortalRole[] = [
     registerHref: "/admin/register",
     registerLabel: "Admin Onboarding",
   },
-  {
-    role: "MANAGEMENT",
-    title: "Executive Management",
-    subtitle: "Enterprise Analytics & Governance",
-    badge: "Leadership",
-    category: "Administration & Security",
-    icon: "analytics",
-    accentBg: "hover:bg-blue-600/[0.04]",
-    accentBorder: "hover:border-blue-600/60",
-    accentText: "text-blue-700",
-    iconBg: "bg-blue-600/10 text-blue-700",
-    description:
-      "Review high-level executive dashboards, track bed occupancy percentages, monitor hospital revenue streams, and analyze throughput.",
-    features: [
-      "Executive KPI Dashboard",
-      "Bed Occupancy Trends",
-      "Revenue Stream Analytics",
-      "Clinical Throughput Metrics",
-    ],
-    defaultHref: "/admin",
-  },
-  {
-    role: "SUPER_ADMIN",
-    title: "Super Administrator",
-    subtitle: "Security, Audits & Emergency Controls",
-    badge: "System Security",
-    category: "Administration & Security",
-    icon: "shield_person",
-    accentBg: "hover:bg-rose-600/[0.04]",
-    accentBorder: "hover:border-rose-600/60",
-    accentText: "text-rose-700",
-    iconBg: "bg-rose-600/10 text-rose-700",
-    description:
-      "Root security administration with disaster recovery, immutable HIPAA audit review, emergency glass break access, and DB backups.",
-    features: [
-      "Emergency Glass Break Override",
-      "Zero-Loss Backup / Restore",
-      "Immutable Audit Log Viewer",
-      "System Security Controls",
-    ],
-    defaultHref: "/admin",
-  },
 ];
 
 const categories = [
@@ -299,7 +227,6 @@ const categories = [
   "Clinical Care",
   "Front Office & Ops",
   "Pharmacy & Supply",
-  "Diagnostics",
   "Administration & Security",
 ] as const;
 
@@ -414,7 +341,7 @@ export default function LoginPortalSelectionPage() {
           Select Your Healthcare Workspace Role
         </h1>
         <p className="mt-2.5 text-sm sm:text-base text-outline max-w-2xl mx-auto">
-          Choose from all 12 authorized clinical and administrative workspaces to securely sign in with
+          Choose from your authorized clinical and administrative workspaces to securely sign in with
           tailored permissions, clinical audit compliance, and dedicated workstations.
         </p>
 
@@ -472,7 +399,7 @@ export default function LoginPortalSelectionPage() {
         </div>
       </div>
 
-      {/* Grid of All 12 Roles */}
+      {/* Grid of All 8 Roles */}
       <div className="max-w-7xl mx-auto w-full my-8">
         {filteredRoles.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-3xl border border-outline-variant/40 p-8 max-w-md mx-auto">
@@ -668,18 +595,9 @@ export default function LoginPortalSelectionPage() {
 
               {/* Password - Empty by default, no autofill */}
               <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-xs font-bold text-on-surface uppercase tracking-wider">
-                    Password
-                  </label>
-                  <Link
-                    href="/forgot-password"
-                    onClick={() => setIsLoginModalOpen(false)}
-                    className="text-[11px] font-semibold text-primary hover:underline"
-                  >
-                    Forgot?
-                  </Link>
-                </div>
+                <label className="block text-xs font-bold text-on-surface uppercase tracking-wider mb-1">
+                  Password
+                </label>
                 <input
                   type="password"
                   autoComplete="off"
