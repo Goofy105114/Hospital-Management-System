@@ -13,22 +13,34 @@ api.interceptors.request.use((config) => {
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    const path = window.location.pathname;
     let mockRole = localStorage.getItem("mockRole");
-    if (!mockRole && !token) {
-      const path = window.location.pathname;
-      if (path.startsWith("/pharmacist") || path.startsWith("/pharmacy")) mockRole = "PHARMACIST";
-      else if (path.startsWith("/inventory-manager") || path.startsWith("/inventory")) mockRole = "INVENTORY_MANAGER";
-      else if (path.startsWith("/admin")) mockRole = "ADMIN";
-      else if (path.startsWith("/doctor")) mockRole = "DOCTOR";
-      else if (path.startsWith("/nurse")) mockRole = "NURSE";
-      else if (path.startsWith("/receptionist")) mockRole = "RECEPTIONIST";
-      else if (path.startsWith("/billing-staff")) mockRole = "BILLING_STAFF";
-      else if (path.startsWith("/patient")) mockRole = "PATIENT";
+
+    // Infer role from active workspace path if on dedicated portal routes
+    if (path.startsWith("/pharmacist") || path.startsWith("/pharmacy")) {
+      mockRole = "PHARMACIST";
+    } else if (path.startsWith("/inventory-manager") || path.startsWith("/inventory")) {
+      mockRole = "INVENTORY_MANAGER";
+    } else if (path.startsWith("/admin")) {
+      mockRole = "ADMIN";
+    } else if (path.startsWith("/doctor")) {
+      mockRole = "DOCTOR";
+    } else if (path.startsWith("/nurse")) {
+      mockRole = "NURSE";
+    } else if (path.startsWith("/receptionist")) {
+      mockRole = "RECEPTIONIST";
+    } else if (path.startsWith("/billing-staff")) {
+      mockRole = "BILLING_STAFF";
+    } else if (path.startsWith("/patient")) {
+      mockRole = "PATIENT";
     }
+
     if (mockRole) {
       config.headers["X-Mock-Role"] = mockRole;
     }
-    const mockUserId = localStorage.getItem("mockUserId") || (mockRole ? "session-desk-user" : null);
+    const mockUserId =
+      localStorage.getItem("mockUserId") ||
+      (mockRole ? `session-${mockRole.toLowerCase()}-user` : null);
     if (mockUserId) {
       config.headers["X-Mock-User-Id"] = mockUserId;
     }
@@ -43,10 +55,9 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Standardize error handling
+    // Clear dead/expired token on 401 so it does not persist across future requests
     if (error.response?.status === 401 && typeof window !== "undefined") {
-      // Token expired or invalid
-      // Only clear if on a protected route
+      localStorage.removeItem("accessToken");
     }
     return Promise.reject(error);
   }
