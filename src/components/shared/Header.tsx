@@ -13,7 +13,6 @@ import {
   Search,
   Bell,
   ChevronDown,
-  CheckCircle2,
   LogIn,
   UserPlus,
   LogOut,
@@ -26,7 +25,7 @@ import { CommandPalette } from "./CommandPalette";
 export function Header() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
-  const { user, activeRole, setActiveRole, isAuthenticated, logout, hydrate } = useAuthStore();
+  const { user, activeRole, isAuthenticated, logout, hydrate } = useAuthStore();
   const { facilityLocation, setSearchModalOpen, sidebarOpen, toggleSidebar } = useUiStore();
   const [roleDropdownOpen, setRoleDropdownOpen] = useState(false);
 
@@ -43,8 +42,10 @@ export function Header() {
     { role: "PHARMACIST", name: "Pharmacy Dispensary", tag: "Medication & Formulary" },
     { role: "INVENTORY_MANAGER", name: "Supply & Inventory", tag: "Procurement & Stock" },
     { role: "LAB_TECH", name: "Diagnostic Laboratory", tag: "Assays & Pathology" },
+    { role: "RADIOLOGIST", name: "Radiology & Imaging", tag: "Scans & Radiographs" },
     { role: "BILLING_STAFF", name: "Cashier & Billing", tag: "Invoicing & Claims" },
     { role: "ADMIN", name: "Hospital Administration", tag: "Facility Ops & Master Data" },
+    { role: "MANAGEMENT", name: "Executive Management", tag: "Analytics & Governance" },
     { role: "SUPER_ADMIN", name: "System Super Admin", tag: "Security & Full Access" },
   ];
 
@@ -235,60 +236,6 @@ export function Header() {
                     <LogOut className="w-3.5 h-3.5 text-rose-600" />
                     <span>Sign Out of System</span>
                   </button>
-                </div>
-
-                {/* Role Switcher Section */}
-                <div className="px-4 py-2 border-b border-slate-100">
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    Switch Workspace Role
-                  </p>
-                </div>
-                <div className="max-h-56 overflow-y-auto py-1">
-                  {roles.map((r) => (
-                    <button
-                      key={r.role}
-                      onClick={() => {
-                        setActiveRole(r.role);
-                        setRoleDropdownOpen(false);
-                        const roleHome =
-                          r.role === "DOCTOR"
-                            ? "/doctor"
-                            : r.role === "RECEPTIONIST"
-                              ? "/receptionist"
-                              : r.role === "ADMIN" ||
-                                  r.role === "SUPER_ADMIN" ||
-                                  r.role === "MANAGEMENT"
-                                ? "/admin"
-                                : r.role === "PHARMACIST"
-                                  ? "/pharmacist"
-                                  : r.role === "NURSE"
-                                    ? "/nurse"
-                                    : r.role === "LAB_TECH" || r.role === "RADIOLOGIST"
-                                      ? "/lab"
-                                      : r.role === "BILLING_STAFF"
-                                        ? "/billing-staff"
-                                        : r.role === "INVENTORY_MANAGER"
-                                          ? "/inventory-manager"
-                                          : "/patient";
-                        router.push(roleHome);
-                      }}
-                      className={`w-full text-left px-4 py-2 flex items-center justify-between hover:bg-slate-50 transition-colors ${
-                        activeRole === r.role
-                          ? "bg-teal-50 text-teal-800 font-semibold"
-                          : "text-slate-700"
-                      }`}
-                    >
-                      <div>
-                        <p className="text-xs font-medium">{r.name}</p>
-                        <p className="text-[10px] text-slate-400">
-                          {r.role} • {r.tag}
-                        </p>
-                      </div>
-                      {activeRole === r.role && (
-                        <CheckCircle2 className="w-4 h-4 text-teal-600" />
-                      )}
-                    </button>
-                  ))}
                 </div>
               </div>
             )}

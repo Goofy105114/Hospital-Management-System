@@ -213,7 +213,7 @@ export default function MedicinesFormularyPage() {
                       {med.atcCode}
                     </td>
                     <td className="py-space-3 px-space-4 font-mono font-bold text-on-surface">
-                      ${Number(med.unitPrice ?? 0).toFixed(2)} / {med.unit || "Unit"}
+                      ₹{Number(med.unitPrice ?? 0).toFixed(2)} / {med.unit || "Unit"}
                     </td>
                     <td className="py-space-3 px-space-4 font-mono font-semibold">
                       <span className={(Number(med.stockOnHand) || 0) < 200 ? "text-warning" : "text-success"}>
@@ -338,7 +338,7 @@ export default function MedicinesFormularyPage() {
                   </div>
                   <div>
                     <label className="block text-label-md font-semibold text-on-surface mb-space-1">
-                      Base Price ($)
+                      Base Price (₹)
                     </label>
                     <input
                       type="number"

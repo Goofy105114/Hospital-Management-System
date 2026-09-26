@@ -213,7 +213,7 @@ export default function DetailedInvoicePage() {
                   <th className="py-space-3 px-space-4">Department</th>
                   <th className="py-space-3 px-space-4 text-center">Qty</th>
                   <th className="py-space-3 px-space-4 text-right">Unit Rate</th>
-                  <th className="py-space-3 px-space-4 text-right">Total ($)</th>
+                  <th className="py-space-3 px-space-4 text-right">Total (₹)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-outline-variant/20">
@@ -225,10 +225,10 @@ export default function DetailedInvoicePage() {
                     <td className="py-space-3 px-space-4 text-outline">{item.department}</td>
                     <td className="py-space-3 px-space-4 text-center font-mono">{item.quantity}</td>
                     <td className="py-space-3 px-space-4 text-right font-mono text-outline">
-                      ${item.unitPrice.toFixed(2)}
+                      ₹{item.unitPrice.toFixed(2)}
                     </td>
                     <td className="py-space-3 px-space-4 text-right font-mono font-bold text-on-surface">
-                      ${item.total.toFixed(2)}
+                      ₹{item.total.toFixed(2)}
                     </td>
                   </tr>
                 ))}
@@ -247,24 +247,24 @@ export default function DetailedInvoicePage() {
               <div className="flex justify-between text-outline">
                 <span>Gross Subtotal:</span>
                 <span className="font-mono font-semibold text-on-surface">
-                  ${invoice.subtotal.toFixed(2)}
+                  ₹{invoice.subtotal.toFixed(2)}
                 </span>
               </div>
               <div className="flex justify-between text-outline">
                 <span>Applicable GST / Tax (5%):</span>
                 <span className="font-mono font-semibold text-on-surface">
-                  ${invoice.taxAmount.toFixed(2)}
+                  ₹{invoice.taxAmount.toFixed(2)}
                 </span>
               </div>
               <div className="flex justify-between text-success">
                 <span>Insurance Adjudication (80%):</span>
                 <span className="font-mono font-semibold">
-                  -${invoice.insuranceCovered.toFixed(2)}
+                  -₹{invoice.insuranceCovered.toFixed(2)}
                 </span>
               </div>
               <div className="border-t border-outline-variant/30 pt-space-2 flex justify-between font-bold text-title-md">
                 <span className="text-on-surface">Net Patient Payable:</span>
-                <span className="font-mono text-primary">${invoice.patientOwing.toFixed(2)}</span>
+                <span className="font-mono text-primary">₹{invoice.patientOwing.toFixed(2)}</span>
               </div>
             </div>
           </div>
@@ -293,7 +293,7 @@ export default function DetailedInvoicePage() {
                       </span>
                     </div>
                   </div>
-                  <span className="font-mono font-bold text-success">${pmt.amount.toFixed(2)}</span>
+                  <span className="font-mono font-bold text-success">₹{pmt.amount.toFixed(2)}</span>
                 </div>
               ))}
             </div>
@@ -337,7 +337,7 @@ export default function DetailedInvoicePage() {
 
                 <div>
                   <label className="block text-label-md font-semibold text-on-surface mb-space-1">
-                    Amount to Collect ($)
+                    Amount to Collect (₹)
                   </label>
                   <input
                     type="number"
