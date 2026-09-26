@@ -26,10 +26,33 @@ export async function GET(req: NextRequest) {
             }
           : {}),
       },
+      include: {
+        inventoryItems: {
+          select: { currentStockOnHand: true, category: true },
+        },
+      },
       orderBy: { name: "asc" },
     });
 
-    return NextResponse.json(successResponse(dbMedicines));
+    const formatted = dbMedicines.map((m) => {
+      const stock = m.inventoryItems?.reduce((acc, item) => acc + (item.currentStockOnHand || 0), 0) ?? 250;
+      const category = m.inventoryItems?.[0]?.category || m.manufacturer || "Pharmaceutical";
+      return {
+        id: m.id,
+        name: m.name,
+        genericName: m.genericName,
+        form: m.form,
+        strength: m.strength || "Standard",
+        unit: m.unit || "Tablet",
+        category,
+        atcCode: "N/A",
+        unitPrice: Number(m.unitPrice ?? 1.5),
+        stockOnHand: stock,
+        isActive: m.isActive,
+      };
+    });
+
+    return NextResponse.json(successResponse(formatted));
   } catch (error) {
     return NextResponse.json(
       errorResponse("MED_FETCH_FAILED", "Failed to retrieve medicines catalog", {
