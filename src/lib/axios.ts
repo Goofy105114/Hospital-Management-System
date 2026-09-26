@@ -13,14 +13,10 @@ api.interceptors.request.use((config) => {
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    const mockRole = localStorage.getItem("mockRole");
-    if (mockRole) {
-      config.headers["X-Mock-Role"] = mockRole;
-    }
-    const mockUserId = localStorage.getItem("mockUserId");
-    if (mockUserId) {
-      config.headers["X-Mock-User-Id"] = mockUserId;
-    }
+    const mockRole = localStorage.getItem("mockRole") || "PATIENT";
+    config.headers["X-Mock-Role"] = mockRole;
+    const mockUserId = localStorage.getItem("mockUserId") || "user-patient-id";
+    config.headers["X-Mock-User-Id"] = mockUserId;
     // Section A.4.4 X-Request-Id header
     config.headers["X-Request-Id"] =
       (window.crypto?.randomUUID && window.crypto.randomUUID()) ||

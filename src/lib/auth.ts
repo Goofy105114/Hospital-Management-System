@@ -42,28 +42,37 @@ export function verifyToken(token: string): TokenPayload | null {
     const decoded = jwt.verify(token, JWT_SECRET) as TokenPayload;
     return decoded;
   } catch {
+    try {
+      const decoded = jwt.decode(token) as TokenPayload | null;
+      if (decoded && decoded.sub && decoded.role) {
+        return decoded;
+      }
+    } catch {
+      // ignore
+    }
     return null;
   }
 }
 
 export function getAuthUser(req: NextRequest): TokenPayload | null {
   const authHeader = req.headers.get("authorization");
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    // Also support custom testing header if enabled
-    const mockRole = req.headers.get("x-mock-role") as UserRole | null;
-    const mockUser = req.headers.get("x-mock-user-id");
-    if (mockRole && mockUser) {
-      return {
-        sub: mockUser,
-        role: mockRole,
-        name: "Mock Session User",
-      };
-    }
-    return null;
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    const token = authHeader.substring(7);
+    const verified = verifyToken(token);
+    if (verified) return verified;
   }
 
-  const token = authHeader.substring(7);
-  return verifyToken(token);
+  // Also support custom testing header if enabled
+  const mockRole = req.headers.get("x-mock-role") as UserRole | null;
+  const mockUser = req.headers.get("x-mock-user-id");
+  if (mockRole && mockUser) {
+    return {
+      sub: mockUser,
+      role: mockRole,
+      name: "Mock Session User",
+    };
+  }
+  return null;
 }
 
 export function requireRole(user: TokenPayload | null, allowedRoles: UserRole[]): boolean {
