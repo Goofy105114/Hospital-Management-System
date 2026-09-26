@@ -187,3 +187,81 @@ export interface BedDTO {
   dailyRate: number;
   patientName?: string | null;
 }
+
+export interface TraceabilityItemDTO {
+  id: string;
+  code: string;
+  featureId: string;
+  domain: string;
+  title: string;
+  category: string;
+  sprint: string;
+  status: string;
+  testCoverage?: string | null;
+  apiPath?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TraceabilitySummaryDTO {
+  totalItems: number;
+  byDomain: Record<string, number>;
+  bySprint: Record<string, number>;
+  byStatus: Record<string, number>;
+  byCategory: Record<string, number>;
+}
+
+export interface NoShowPredictionDTO {
+  appointmentId?: string | null;
+  patientId?: string | null;
+  riskScore: number;
+  level: "LOW" | "MODERATE" | "HIGH";
+  factors: string[];
+  suggestedMitigations: string[];
+  recommendedReminderFrequency: "STANDARD" | "ENHANCED" | "INTENSIVE";
+  advisoryNotice: string;
+  source: "heuristic" | "ai" | "fallback";
+}
+
+export interface AppointmentOptimizationDTO {
+  doctorId?: string | null;
+  clinicDate?: string | null;
+  scheduledSlots: number;
+  historicalNoShowRate: number;
+  suggestedBufferSlots: number;
+  targetUtilizationPercent: number;
+  estimatedPatientAttendance: number;
+  riskAdjustedCapacity: number;
+  isAdvisory: true;
+}
+
+export interface DischargeSummaryDTO {
+  id: string;
+  admissionId: string;
+  patientId: string;
+  patientName: string;
+  patientMrn: string;
+  doctorId: string;
+  doctorName: string;
+  admittingDiagnosis: string;
+  finalDiagnosis: string;
+  treatmentSummary: string;
+  dischargeCondition: string;
+  followUpInstructions?: string | null;
+  followUpDate?: string | null;
+  createdAt: string;
+}
+
+export interface DischargeResultDTO {
+  admissionId: string;
+  patientId: string;
+  status: "DISCHARGED";
+  dischargedAt: string;
+  stayDays: number;
+  releasedBedId?: string | null;
+  finalInvoiceId?: string | null;
+  totalCharges: number;
+}
+
+
+
