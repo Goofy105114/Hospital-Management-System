@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
 
     const formatted = dbMedicines.map((m) => {
       const stock = m.inventoryItems?.reduce((acc, item) => acc + (item.currentStockOnHand || 0), 0) ?? 250;
-      const category = m.inventoryItems?.[0]?.category || m.manufacturer || "Pharmaceutical";
+      const category = m.manufacturer || m.inventoryItems?.[0]?.category || "General Medicine";
       return {
         id: m.id,
         name: m.name,
@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  // PHA-02: only INVENTORY_MANAGER and ADMIN may add medicines to the formulary
+  // PHA-02: PHARMACIST, INVENTORY_MANAGER and ADMIN may add medicines to the formulary
   const user = getAuthUser(req);
   if (!user) {
     return NextResponse.json(
@@ -72,9 +72,9 @@ export async function POST(req: NextRequest) {
       { status: 401 }
     );
   }
-  if (!requireRole(user, [UserRole.INVENTORY_MANAGER, UserRole.ADMIN])) {
+  if (!requireRole(user, [UserRole.PHARMACIST, UserRole.INVENTORY_MANAGER, UserRole.ADMIN])) {
     return NextResponse.json(
-      errorResponse("UNAUTHORIZED_ROLE", "Inventory manager or admin role required"),
+      errorResponse("UNAUTHORIZED_ROLE", "Pharmacist, inventory manager, or admin role required"),
       { status: 403 }
     );
   }
@@ -90,8 +90,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const upperForm = String(form).toUpperCase() as MedicineForm;
+
     // Validate form enum
-    if (!Object.values(MedicineForm).includes(form as MedicineForm)) {
+    if (!Object.values(MedicineForm).includes(upperForm)) {
       return NextResponse.json(
         errorResponse(
           "PHA_INVALID_FORM",
@@ -103,14 +105,23 @@ export async function POST(req: NextRequest) {
 
     const medicine = await prisma.medicine.create({
       data: {
-        name,
-        genericName,
-        form: form as MedicineForm,
-        strength: strength || null,
+        name: name.trim(),
+        genericName: genericName.trim(),
+        form: upperForm,
+        strength: strength?.trim() || null,
         unit: unit || "Tablet",
-        manufacturer: manufacturer || null,
+        manufacturer: manufacturer?.trim() || null,
         unitPrice: unitPrice ? Number(unitPrice) : 1.5,
         isActive: true,
+        inventoryItems: {
+          create: {
+            name: `${name.trim()} ${strength?.trim() || ""}`.trim(),
+            category: "MEDICINE",
+            unit: unit || "Box",
+            reorderThreshold: 50,
+            currentStockOnHand: 100,
+          },
+        },
       },
     });
     return NextResponse.json(successResponse(medicine), { status: 201 });

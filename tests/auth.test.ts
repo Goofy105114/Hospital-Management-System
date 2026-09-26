@@ -104,6 +104,37 @@ describe("Authentication & Authorization Library (SEC-01 / AUTH)", () => {
       expect(user?.role).toBe(UserRole.RECEPTIONIST);
     });
 
+    it("falls back to default sub when x-mock-user-id is omitted but x-mock-role is present", () => {
+      const req = new NextRequest("http://localhost:3000/api/v1/medicines", {
+        headers: {
+          "x-mock-role": UserRole.PHARMACIST,
+        },
+      });
+
+      const user = getAuthUser(req);
+      expect(user).not.toBeNull();
+      expect(user?.sub).toBe("mock-session-user");
+      expect(user?.role).toBe(UserRole.PHARMACIST);
+    });
+
+    it("authorizes PHARMACIST to manage formulary medicines alongside INVENTORY_MANAGER and ADMIN", () => {
+      const pharmacistUser: TokenPayload = {
+        sub: "usr-pharma-1",
+        role: UserRole.PHARMACIST,
+        name: "Head Pharmacist",
+      };
+
+      const allowedRoles = [UserRole.PHARMACIST, UserRole.INVENTORY_MANAGER, UserRole.ADMIN];
+      expect(requireRole(pharmacistUser, allowedRoles)).toBe(true);
+
+      const patientUser: TokenPayload = {
+        sub: "usr-patient-1",
+        role: UserRole.PATIENT,
+        name: "Jane Doe",
+      };
+      expect(requireRole(patientUser, allowedRoles)).toBe(false);
+    });
+
     it("returns null when no valid credentials provided", () => {
       const req = new NextRequest("http://localhost:3000/api/v1/profile");
       expect(getAuthUser(req)).toBeNull();
