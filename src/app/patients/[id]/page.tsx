@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, usePathname } from "next/navigation";
 import { AppLayout } from "@/components/shared/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,7 +35,21 @@ interface DocumentItem {
 
 export default function PatientChartPage() {
   const params = useParams();
+  const pathname = usePathname();
   const patientId = (params?.id as string) || "pat-01";
+
+  const basePath = React.useMemo(() => {
+    if (pathname.startsWith("/admin")) return "/admin/patients";
+    if (pathname.startsWith("/receptionist")) return "/receptionist/patients";
+    if (pathname.startsWith("/doctor")) return "/doctor/patients";
+    if (pathname.startsWith("/nurse")) return "/nurse/patients";
+    if (pathname.startsWith("/billing-staff")) return "/billing-staff/patients";
+    return "/patients";
+  }, [pathname]);
+
+  const bookAppointmentHref = pathname.startsWith("/receptionist")
+    ? `/receptionist/appointments/book?patientId=${patientId}`
+    : `/appointments/book?patientId=${patientId}`;
 
   // Tab State
   const [activeTab, setActiveTab] = useState<
@@ -209,7 +223,7 @@ export default function PatientChartPage() {
       <div className="space-y-space-6 max-w-6xl mx-auto pb-space-12">
         {/* Breadcrumb Navigation */}
         <div className="flex items-center gap-space-2 text-label-md text-outline">
-          <Link href="/patients" className="hover:text-primary transition-colors">
+          <Link href={basePath} className="hover:text-primary transition-colors">
             Patients
           </Link>
           <span className="material-symbols-outlined text-[16px]">chevron_right</span>
@@ -351,7 +365,7 @@ export default function PatientChartPage() {
               </Button>
             )}
 
-            <Link href={`/appointments/book?patientId=${patient.id}`}>
+            <Link href={bookAppointmentHref}>
               <Button variant="primary" size="sm" className="gap-space-1">
                 <span className="material-symbols-outlined text-[16px]">calendar_add_on</span>
                 Book Appointment

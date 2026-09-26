@@ -88,7 +88,7 @@ export default function ReceptionistRegisterPage() {
           <Button
             variant="primary"
             className="w-full h-11 font-bold rounded-xl mt-6 bg-emerald-700 hover:bg-emerald-800 text-white"
-            onClick={() => router.push("/patients")}
+            onClick={() => router.push("/receptionist/patients")}
           >
             Launch Front Desk Directory
           </Button>
