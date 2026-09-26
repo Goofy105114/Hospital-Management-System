@@ -43,7 +43,20 @@ export default function MedicinesFormularyPage() {
       setLoading(true);
       const res = await api.get("/medicines");
       if (res.data?.success && Array.isArray(res.data.data)) {
-        setMedicines(res.data.data);
+        const formatted: MedicineItem[] = res.data.data.map((m: any) => ({
+          id: m.id,
+          name: m.name || "Unknown Medicine",
+          genericName: m.genericName || "—",
+          form: m.form || "TABLET",
+          strength: m.strength || "Standard",
+          unit: m.unit || "Tablet",
+          category: m.category || m.manufacturer || "General Medicine",
+          atcCode: m.atcCode || "—",
+          unitPrice: Number(m.unitPrice ?? 0),
+          stockOnHand: Number(m.stockOnHand ?? 250),
+          isActive: m.isActive !== undefined ? Boolean(m.isActive) : true,
+        }));
+        setMedicines(formatted);
       }
     } catch (err) {
       console.error("Failed to load medicines", err);
@@ -77,11 +90,12 @@ export default function MedicinesFormularyPage() {
   };
 
   const filteredMedicines = medicines.filter((med) => {
+    const q = (searchQuery || "").toLowerCase();
     const matchesSearch =
-      med.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      med.genericName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      med.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      med.atcCode.toLowerCase().includes(searchQuery.toLowerCase());
+      (med.name || "").toLowerCase().includes(q) ||
+      (med.genericName || "").toLowerCase().includes(q) ||
+      (med.category || "").toLowerCase().includes(q) ||
+      (med.atcCode || "").toLowerCase().includes(q);
     const matchesForm = selectedForm === "ALL" || med.form === selectedForm;
     return matchesSearch && matchesForm;
   });
@@ -199,11 +213,11 @@ export default function MedicinesFormularyPage() {
                       {med.atcCode}
                     </td>
                     <td className="py-space-3 px-space-4 font-mono font-bold text-on-surface">
-                      ${med.unitPrice.toFixed(2)} / {med.unit}
+                      ${Number(med.unitPrice ?? 0).toFixed(2)} / {med.unit || "Unit"}
                     </td>
                     <td className="py-space-3 px-space-4 font-mono font-semibold">
-                      <span className={med.stockOnHand < 200 ? "text-warning" : "text-success"}>
-                        {med.stockOnHand} {med.unit}s
+                      <span className={(Number(med.stockOnHand) || 0) < 200 ? "text-warning" : "text-success"}>
+                        {Number(med.stockOnHand) || 0} {med.unit || "Unit"}s
                       </span>
                     </td>
                     <td className="py-space-3 px-space-4">

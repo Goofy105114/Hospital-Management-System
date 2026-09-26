@@ -37,3 +37,8 @@ prisma/*.db
 prisma/*.db-journal
 .env
 .env.example
+
+# AI Agent cache
+.serena/
+.claude-flow/
+
