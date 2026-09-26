@@ -34,3 +34,27 @@ export function formatTime(date: string | Date | null | undefined): string {
     hour12: true,
   });
 }
+
+/**
+ * Strict email validation rule:
+ * - Must be a valid email format.
+ * - Username (local part before '@') must start with a letter and contain alphabet characters.
+ * - Purely numeric email usernames (e.g. 434@gmail.com, 12345@domain.com) are strictly rejected.
+ */
+export const EMAIL_REGEX = /^[a-zA-Z][a-zA-Z0-9._%+-]*@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
+export function isValidEmail(email: string): boolean {
+  if (!email || typeof email !== "string") return false;
+  const trimmed = email.trim();
+  const localPart = trimmed.split("@")[0];
+  if (!localPart || /^\d+$/.test(localPart)) return false;
+  return EMAIL_REGEX.test(trimmed);
+}
+
+export function isValidName(name: string): boolean {
+  if (!name || typeof name !== "string") return false;
+  const trimmed = name.trim();
+  if (trimmed.length < 2) return false;
+  if (/^\d+$/.test(trimmed)) return false;
+  return /[a-zA-Z]/.test(trimmed);
+}

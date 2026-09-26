@@ -9,11 +9,21 @@ import { z } from "zod";
 import { useAuthStore } from "@/stores/authStore";
 import { Button } from "@/components/ui/button";
 import { signUpWithSupabase } from "@/lib/supabase";
+import { isValidEmail, isValidName } from "@/lib/utils";
 
 const doctorRegisterSchema = z
   .object({
-    name: z.string().min(2, "Full legal title & name is required (e.g. Dr. Jane Smith, MD)"),
-    email: z.string().email("Valid hospital or institutional email is required"),
+    name: z
+      .string()
+      .min(2, "Full legal title & name is required (e.g. Dr. Jane Smith, MD)")
+      .refine(isValidName, "Full name must contain letters and cannot be purely numbers"),
+    email: z
+      .string()
+      .email("Valid hospital or institutional email is required")
+      .refine(
+        isValidEmail,
+        "Email username cannot consist of only numbers or start with a number"
+      ),
     medicalLicenseNumber: z.string().min(4, "State medical license number is required"),
     department: z.string().min(2, "Department is required"),
     specialization: z.string().min(2, "Specialization / sub-specialty is required"),

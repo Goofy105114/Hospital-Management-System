@@ -6,6 +6,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { AppLayout } from "@/components/shared/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { isValidEmail, isValidName } from "@/lib/utils";
 import api from "@/lib/axios";
 
 export default function RegisterPatientPage() {
@@ -52,8 +53,22 @@ export default function RegisterPatientPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
     setErrorMessage(null);
+
+    if (formData.firstName.trim() && !isValidName(formData.firstName.trim())) {
+      setErrorMessage("First name must contain letters and cannot be purely numeric.");
+      return;
+    }
+    if (formData.lastName.trim() && !isValidName(formData.lastName.trim())) {
+      setErrorMessage("Last name must contain letters and cannot be purely numeric.");
+      return;
+    }
+    if (formData.email.trim() && !isValidEmail(formData.email.trim())) {
+      setErrorMessage("Please enter a valid email address. Email usernames cannot consist of only numbers or start with a number.");
+      return;
+    }
+
+    setIsSubmitting(true);
 
     try {
       const res = await api.post("/patients", {

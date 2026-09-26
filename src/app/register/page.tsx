@@ -9,16 +9,29 @@ import { z } from "zod";
 import { useAuthStore } from "@/stores/authStore";
 import { Button } from "@/components/ui/button";
 import { signUpWithSupabase } from "@/lib/supabase";
+import { isValidEmail, isValidName } from "@/lib/utils";
 import api from "@/lib/axios";
 
 const registerSchema = z
   .object({
-    name: z.string().min(2, "Full legal name must be at least 2 characters"),
+    name: z
+      .string()
+      .min(2, "Full legal name must be at least 2 characters")
+      .refine(isValidName, "Full legal name must contain letters and cannot be purely numbers"),
     dob: z.string().min(1, "Date of birth is required"),
     gender: z.enum(["FEMALE", "MALE", "OTHER", "UNKNOWN"]),
     bloodGroup: z.string().optional(),
-    phone: z.string().min(8, "Valid mobile phone number is required"),
-    email: z.string().email("Valid email address is required"),
+    phone: z
+      .string()
+      .min(8, "Valid mobile phone number is required")
+      .regex(/^[+]?[0-9\s()-]{8,20}$/, "Invalid phone format"),
+    email: z
+      .string()
+      .email("Valid email address is required")
+      .refine(
+        isValidEmail,
+        "Email username cannot consist of only numbers or start with a number"
+      ),
     password: z.string().min(6, "Password must be at least 6 characters"),
     confirmPassword: z.string().min(6, "Please confirm password"),
   })
@@ -53,7 +66,7 @@ export default function PatientRegistrationPage() {
       dob: "1992-08-14",
       gender: "FEMALE",
       bloodGroup: "O+",
-      phone: "+1 (555) 789-0123",
+      phone: "",
       email: "",
       password: "",
       confirmPassword: "",

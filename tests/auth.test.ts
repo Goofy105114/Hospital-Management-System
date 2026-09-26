@@ -109,4 +109,52 @@ describe("Authentication & Authorization Library (SEC-01 / AUTH)", () => {
       expect(getAuthUser(req)).toBeNull();
     });
   });
+
+  describe("Signup & Authentication Validation Rules (AUTH-VAL)", () => {
+    it("strictly rejects numeric emails such as 434@gmail.com", async () => {
+      const { isValidEmail } = await import("@/lib/utils");
+
+      // Pure numeric emails must be rejected
+      expect(isValidEmail("434@gmail.com")).toBe(false);
+      expect(isValidEmail("123@yahoo.com")).toBe(false);
+      expect(isValidEmail("999999@domain.org")).toBe(false);
+      expect(isValidEmail("0@gmail.com")).toBe(false);
+
+      // Emails starting with numbers must be rejected
+      expect(isValidEmail("1user@example.com")).toBe(false);
+      expect(isValidEmail("123abc@domain.com")).toBe(false);
+
+      // Malformed emails must be rejected
+      expect(isValidEmail("")).toBe(false);
+      expect(isValidEmail("not-an-email")).toBe(false);
+      expect(isValidEmail("@domain.com")).toBe(false);
+      expect(isValidEmail("user@")).toBe(false);
+      expect(isValidEmail("user@domain")).toBe(false);
+
+      // Valid name-based emails must be accepted
+      expect(isValidEmail("eleanor.vance@example.com")).toBe(true);
+      expect(isValidEmail("dr.vance@goingmerry.hms")).toBe(true);
+      expect(isValidEmail("admin@goingmerry.hms")).toBe(true);
+      expect(isValidEmail("receptionist@goingmerry.hms")).toBe(true);
+      expect(isValidEmail("john.doe+care@example.com")).toBe(true);
+      expect(isValidEmail("alice-smith@hospital.org")).toBe(true);
+      expect(isValidEmail("nurse_joy@pokemon.center")).toBe(true);
+      expect(isValidEmail("doctor123@hospital.org")).toBe(true);
+    });
+
+    it("strictly validates names to prevent empty or purely numeric inputs", async () => {
+      const { isValidName } = await import("@/lib/utils");
+
+      expect(isValidName("")).toBe(false);
+      expect(isValidName("   ")).toBe(false);
+      expect(isValidName("A")).toBe(false);
+      expect(isValidName("12345")).toBe(false);
+      expect(isValidName("999")).toBe(false);
+
+      expect(isValidName("Jane Doe")).toBe(true);
+      expect(isValidName("Dr. Eleanor Vance, MD")).toBe(true);
+      expect(isValidName("Bob")).toBe(true);
+    });
+  });
 });
+

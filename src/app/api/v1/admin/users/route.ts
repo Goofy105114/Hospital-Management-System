@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { successResponse, errorResponse } from "@/lib/api-envelope";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth";
+import { isValidEmail, isValidName } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,26 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { name, email, phone, role, password } = body;
+
+    if (!name || typeof name !== "string" || !isValidName(name)) {
+      return NextResponse.json(
+        errorResponse(
+          "VALIDATION_ERROR",
+          "Invalid name: full name must be at least 2 characters and contain letters"
+        ),
+        { status: 400 }
+      );
+    }
+
+    if (!email || typeof email !== "string" || !isValidEmail(email)) {
+      return NextResponse.json(
+        errorResponse(
+          "VALIDATION_ERROR",
+          "Invalid email format: email username cannot consist of only numbers or start with a number"
+        ),
+        { status: 400 }
+      );
+    }
 
     const passwordHash = await hashPassword(password || "Password123!");
 
