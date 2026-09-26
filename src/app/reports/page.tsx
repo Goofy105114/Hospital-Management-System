@@ -144,7 +144,7 @@ export default function ReportsAnalyticsPage() {
               variant="outline"
               size="sm"
               onClick={() => window.print()}
-              className="gap-1.5 border-outline-variant/40"
+              className="gap-1.5 border-outline-variant/40 w-full sm:w-auto justify-center"
             >
               <span className="material-symbols-outlined text-[18px]">print</span>
               Print Full Lab Record
@@ -152,7 +152,7 @@ export default function ReportsAnalyticsPage() {
           </div>
 
           {/* Category Filter Tabs */}
-          <div className="flex items-center gap-space-2 overflow-x-auto pb-1 border-b border-outline-variant/20">
+          <div className="flex items-center gap-space-2 overflow-x-auto no-scrollbar pb-1 border-b border-outline-variant/20 max-w-full">
             {[
               { id: "ALL", label: "All Reports" },
               { id: "BIOCHEMISTRY", label: "Biochemistry & Panels" },
@@ -271,8 +271,8 @@ export default function ReportsAnalyticsPage() {
                     <h4 className="font-label-lg font-bold text-on-surface uppercase tracking-wider text-[12px] mb-space-3">
                       Analyte Findings &amp; Reference Intervals
                     </h4>
-                    <div className="border border-outline-variant/30 rounded-xl overflow-hidden">
-                      <table className="w-full text-left text-body-sm">
+                    <div className="border border-outline-variant/30 rounded-xl overflow-x-auto">
+                      <table className="w-full text-left text-body-sm min-w-[340px]">
                         <thead className="bg-surface-container text-outline text-label-xs uppercase tracking-wider">
                           <tr>
                             <th className="p-space-3 font-semibold">Analyte Parameter</th>

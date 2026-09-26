@@ -123,12 +123,12 @@ export default function MedicalRecordsPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-space-3">
+          <div className="flex items-center gap-space-3 w-full sm:w-auto">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setPdfModalOpen(true)}
-              className="gap-1 border-outline-variant/40"
+              className="gap-1 border-outline-variant/40 w-full sm:w-auto justify-center"
               disabled={!selectedReport}
             >
               <span className="material-symbols-outlined text-base">picture_as_pdf</span>
@@ -138,10 +138,10 @@ export default function MedicalRecordsPage() {
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex items-center gap-space-2 border-b border-outline-variant/20 pb-space-2">
+        <div className="flex items-center gap-2 border-b border-outline-variant/20 pb-2 overflow-x-auto no-scrollbar max-w-full">
           <button
             onClick={() => setActiveTab("LABS")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-label-md transition-colors ${
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg font-label-md transition-colors shrink-0 text-xs sm:text-sm ${
               activeTab === "LABS"
                 ? "bg-primary text-white font-bold"
                 : "text-on-surface-variant hover:bg-surface-container"
@@ -152,7 +152,7 @@ export default function MedicalRecordsPage() {
           </button>
           <button
             onClick={() => setActiveTab("ENCOUNTERS")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-label-md transition-colors ${
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg font-label-md transition-colors shrink-0 text-xs sm:text-sm ${
               activeTab === "ENCOUNTERS"
                 ? "bg-primary text-white font-bold"
                 : "text-on-surface-variant hover:bg-surface-container"
@@ -163,7 +163,7 @@ export default function MedicalRecordsPage() {
           </button>
           <button
             onClick={() => setActiveTab("IMMUNIZATIONS")}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-label-md transition-colors ${
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg font-label-md transition-colors shrink-0 text-xs sm:text-sm ${
               activeTab === "IMMUNIZATIONS"
                 ? "bg-primary text-white font-bold"
                 : "text-on-surface-variant hover:bg-surface-container"
@@ -255,8 +255,8 @@ export default function MedicalRecordsPage() {
 
                   <CardContent className="pt-space-4 space-y-space-6">
                     {/* Results Table */}
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left border-collapse text-sm">
+                    <div className="overflow-x-auto -mx-3 sm:mx-0">
+                      <table className="w-full text-left border-collapse text-xs sm:text-sm min-w-[500px]">
                         <thead>
                           <tr className="border-b border-outline-variant/20 bg-surface-container-low font-label-sm text-outline uppercase tracking-wider text-xs">
                             <th className="p-3">Biomarker / Analyte</th>
@@ -433,8 +433,8 @@ export default function MedicalRecordsPage() {
 
       {/* Official Diagnostic PDF Preview Modal */}
       {pdfModalOpen && selectedReport && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white text-slate-900 rounded-2xl max-w-2xl w-full p-space-8 shadow-2xl border border-slate-300 space-y-space-6 animate-in fade-in zoom-in-95 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white text-slate-900 rounded-2xl max-w-2xl w-full p-4 sm:p-space-8 shadow-2xl border border-slate-300 space-y-space-6 animate-in fade-in zoom-in-95 max-h-[90vh] overflow-y-auto">
             {/* Header / Letterhead */}
             <div className="flex justify-between items-start border-b border-slate-200 pb-space-4">
               <div>

@@ -273,11 +273,11 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
 
-          <div className="flex justify-end">
+          <div className="flex justify-end w-full">
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="bg-primary text-white"
+              className="bg-primary text-white w-full sm:w-auto"
             >
               {isSubmitting ? "Saving..." : "Save Profile Changes"}
             </Button>
