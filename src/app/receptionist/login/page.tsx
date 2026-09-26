@@ -62,7 +62,7 @@ export default function ReceptionistLoginPage() {
 
       setAuth(authUser, token);
       setActiveRole("RECEPTIONIST");
-      router.push("/patients");
+      router.push("/receptionist");
     } catch (err: any) {
       const msg =
         err?.response?.data?.error?.message ||

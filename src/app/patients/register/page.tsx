@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { AppLayout } from "@/components/shared/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -10,6 +10,17 @@ import api from "@/lib/axios";
 
 export default function RegisterPatientPage() {
   const router = useRouter();
+  const pathname = usePathname();
+
+  const basePath = React.useMemo(() => {
+    if (pathname.startsWith("/admin")) return "/admin/patients";
+    if (pathname.startsWith("/receptionist")) return "/receptionist/patients";
+    if (pathname.startsWith("/doctor")) return "/doctor/patients";
+    if (pathname.startsWith("/nurse")) return "/nurse/patients";
+    if (pathname.startsWith("/billing-staff")) return "/billing-staff/patients";
+    return "/patients";
+  }, [pathname]);
+
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -84,7 +95,7 @@ export default function RegisterPatientPage() {
       <div className="space-y-space-6 max-w-5xl mx-auto pb-space-12">
         {/* Breadcrumb Navigation */}
         <div className="flex items-center gap-space-2 text-label-md text-outline">
-          <Link href="/patients" className="hover:text-primary transition-colors">
+          <Link href={basePath} className="hover:text-primary transition-colors">
             Patients
           </Link>
           <span className="material-symbols-outlined text-[16px]">chevron_right</span>
@@ -102,7 +113,7 @@ export default function RegisterPatientPage() {
               unique MRN will be issued.
             </p>
           </div>
-          <Link href="/patients">
+          <Link href={basePath}>
             <Button variant="outline" className="gap-space-2">
               <span className="material-symbols-outlined text-[18px]">arrow_back</span>
               Cancel & Return
@@ -432,7 +443,7 @@ export default function RegisterPatientPage() {
 
           {/* Submit Actions */}
           <div className="flex items-center justify-end gap-space-3">
-            <Link href="/patients">
+            <Link href={basePath}>
               <Button type="button" variant="outline">
                 Cancel
               </Button>
@@ -494,7 +505,7 @@ export default function RegisterPatientPage() {
                 <Button
                   variant="primary"
                   className="w-full gap-space-2"
-                  onClick={() => router.push(`/patients/${registeredPatient.id}`)}
+                  onClick={() => router.push(`${basePath}/${registeredPatient.id}`)}
                 >
                   <span className="material-symbols-outlined text-[18px]">badge</span>
                   View Full Patient Chart
@@ -503,7 +514,11 @@ export default function RegisterPatientPage() {
                   variant="secondary"
                   className="w-full gap-space-2"
                   onClick={() =>
-                    router.push(`/appointments/book?patientId=${registeredPatient.id}`)
+                    router.push(
+                      pathname.startsWith("/receptionist")
+                        ? `/receptionist/appointments/book?patientId=${registeredPatient.id}`
+                        : `/appointments/book?patientId=${registeredPatient.id}`
+                    )
                   }
                 >
                   <span className="material-symbols-outlined text-[18px]">calendar_add_on</span>
@@ -514,7 +529,7 @@ export default function RegisterPatientPage() {
                   className="w-full text-outline"
                   onClick={() => {
                     setRegisteredPatient(null);
-                    router.push("/patients");
+                    router.push(basePath);
                   }}
                 >
                   Return to Patient Directory
