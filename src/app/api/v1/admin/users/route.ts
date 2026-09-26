@@ -53,6 +53,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const existing = await prisma.user.findFirst({
+      where: {
+        OR: [{ email }, ...(phone ? [{ phone }] : [])],
+      },
+    });
+
+    if (existing) {
+      return NextResponse.json(
+        errorResponse("REG_DUPLICATE_IDENTITY", "User with this email or phone already exists"),
+        { status: 409 }
+      );
+    }
+
     const passwordHash = await hashPassword(password || "Password123!");
 
     const user = await prisma.user.create({
