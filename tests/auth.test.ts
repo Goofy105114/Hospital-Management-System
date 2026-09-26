@@ -135,6 +135,20 @@ describe("Authentication & Authorization Library (SEC-01 / AUTH)", () => {
       expect(requireRole(patientUser, allowedRoles)).toBe(false);
     });
 
+    it("falls back to x-mock-role when Bearer token is invalid or expired", () => {
+      const req = new NextRequest("http://localhost:3000/api/v1/medicines", {
+        headers: {
+          authorization: "Bearer invalid.or.expired.jwt.token",
+          "x-mock-role": UserRole.PHARMACIST,
+        },
+      });
+
+      const user = getAuthUser(req);
+      expect(user).not.toBeNull();
+      expect(user?.role).toBe(UserRole.PHARMACIST);
+      expect(user?.sub).toBe("mock-session-user");
+    });
+
     it("returns null when no valid credentials provided", () => {
       const req = new NextRequest("http://localhost:3000/api/v1/profile");
       expect(getAuthUser(req)).toBeNull();
