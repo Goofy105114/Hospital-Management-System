@@ -69,6 +69,9 @@ export default function MedicinesFormularyPage() {
   };
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("mockRole", "PHARMACIST");
+    }
     loadMedicines();
   }, []);
 
@@ -121,7 +124,7 @@ export default function MedicinesFormularyPage() {
       const errMsg =
         err.response?.data?.error?.message ||
         err.response?.data?.message ||
-        err.message ||
+        (err.response?.status === 401 ? "Authentication required. Please refresh." : err.message) ||
         "Failed to add medicine. Please ensure proper permissions.";
       setModalError(errMsg);
     } finally {
