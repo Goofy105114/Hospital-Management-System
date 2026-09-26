@@ -32,8 +32,8 @@ export default function HelpSupportPage() {
               </p>
             </div>
           </div>
-          <a href="tel:911">
-            <Button className="bg-red-600 text-white hover:bg-red-700 font-bold shrink-0">
+          <a href="tel:911" className="w-full sm:w-auto">
+            <Button className="bg-red-600 text-white hover:bg-red-700 font-bold shrink-0 w-full sm:w-auto">
               Call 911 Now
             </Button>
           </a>

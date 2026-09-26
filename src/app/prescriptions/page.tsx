@@ -105,10 +105,10 @@ export default function PrescriptionsPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <Button
               onClick={() => setQrModalOpen(true)}
-              className="bg-teal-700 hover:bg-teal-800 text-white gap-1.5 shadow-2xs text-xs font-semibold h-9 rounded-xl"
+              className="bg-teal-700 hover:bg-teal-800 text-white gap-1.5 shadow-2xs text-xs font-semibold h-9 rounded-xl w-full sm:w-auto justify-center"
             >
               <QrCode className="w-4 h-4" />
               Show Pharmacy Pickup QR
@@ -169,7 +169,7 @@ export default function PrescriptionsPage() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {meds.map((med) => (
             <Card
               key={med.id}

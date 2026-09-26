@@ -62,12 +62,12 @@ export function Header() {
       <CommandPalette />
       <header
         className={cn(
-          "fixed top-0 right-0 h-16 bg-white/95 backdrop-blur-xl shadow-xs z-40 flex items-center justify-between px-4 sm:px-6 border-b border-slate-200/80 transition-all duration-300 ease-in-out",
-          sidebarOpen ? "left-64" : "left-[68px]"
+          "fixed top-0 right-0 h-16 bg-white/95 backdrop-blur-xl shadow-xs z-40 flex items-center justify-between px-3 sm:px-6 border-b border-slate-200/80 transition-all duration-300 ease-in-out left-0",
+          sidebarOpen ? "md:left-64" : "md:left-[68px]"
         )}
       >
         {/* Left: Sidebar Toggle & Search Bar */}
-        <div className="flex items-center gap-3 flex-1 max-w-lg">
+        <div className="flex items-center gap-2 sm:gap-3 flex-1 max-w-lg min-w-0 mr-2">
           <button
             type="button"
             onClick={toggleSidebar}
@@ -85,11 +85,12 @@ export function Header() {
           <button
             type="button"
             onClick={() => setSearchModalOpen(true)}
-            className="relative w-full flex items-center h-9 pl-9 pr-3 bg-slate-50 text-slate-800 rounded-xl hover:bg-slate-100/80 transition-all border border-slate-200/80 hover:border-teal-600/40 text-left group shadow-2xs"
+            className="relative flex-1 sm:w-full flex items-center h-9 pl-8 sm:pl-9 pr-2 sm:pr-3 bg-slate-50 text-slate-800 rounded-xl hover:bg-slate-100/80 transition-all border border-slate-200/80 hover:border-teal-600/40 text-left group shadow-2xs min-w-0"
           >
-            <Search className="absolute left-3 w-4 h-4 text-slate-400 group-hover:text-teal-600 transition-colors" />
+            <Search className="absolute left-2.5 sm:left-3 w-4 h-4 text-slate-400 group-hover:text-teal-600 transition-colors shrink-0" />
             <span className="text-slate-400 text-xs truncate flex-1 font-normal">
-              Search doctors, appointments, medical records, medicines...
+              <span className="hidden sm:inline">Search doctors, appointments, medical records, medicines...</span>
+              <span className="sm:hidden">Search...</span>
             </span>
             <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono bg-white rounded border border-slate-200 text-slate-500 shrink-0 shadow-2xs">
               <span className="text-[11px]">⌘</span>K
@@ -98,7 +99,7 @@ export function Header() {
         </div>
 
         {/* Right Controls */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
           {/* Facility Location Pill */}
           <div className="hidden lg:flex items-center gap-2 px-3 py-1 bg-slate-100 rounded-full border border-slate-200/80">
             <span className="w-2 h-2 rounded-full bg-teal-600 animate-pulse"></span>
@@ -162,7 +163,7 @@ export function Header() {
           <div className="relative">
             <button
               onClick={() => setRoleDropdownOpen(!roleDropdownOpen)}
-              className="flex items-center gap-2.5 pl-2.5 py-1 pr-2 rounded-xl hover:bg-slate-100 transition-colors text-left border border-slate-200/80"
+              className="flex items-center gap-1.5 sm:gap-2.5 p-1 sm:pl-2.5 sm:py-1 sm:pr-2 rounded-xl hover:bg-slate-100 transition-colors text-left border border-slate-200/80 shrink-0"
             >
               <div className="relative w-7 h-7 rounded-full overflow-hidden bg-slate-100 shrink-0 border border-slate-200">
                 <Image
@@ -177,11 +178,11 @@ export function Header() {
                   unoptimized
                 />
               </div>
-              <div className="flex flex-col text-left" suppressHydrationWarning>
-                <span className="text-xs text-slate-800 font-semibold leading-tight" suppressHydrationWarning>
+              <div className="hidden sm:flex flex-col text-left" suppressHydrationWarning>
+                <span className="text-xs text-slate-800 font-semibold leading-tight truncate max-w-[120px]" suppressHydrationWarning>
                   {mounted && user?.name ? user.name : currentRoleInfo.name}
                 </span>
-                <span className="text-[10px] text-teal-700 font-bold" suppressHydrationWarning>
+                <span className="text-[10px] text-teal-700 font-bold truncate max-w-[120px]" suppressHydrationWarning>
                   {activeRole} {mounted && user?.mrn ? `(${user.mrn})` : ""}
                 </span>
               </div>
@@ -190,7 +191,7 @@ export function Header() {
 
             {/* User Account & Role Switcher Dropdown */}
             {roleDropdownOpen && (
-              <div className="absolute right-0 top-11 mt-1.5 w-80 bg-white rounded-2xl shadow-xl border border-slate-200 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+              <div className="absolute right-0 top-11 mt-1.5 w-72 sm:w-80 max-w-[calc(100vw-1.5rem)] bg-white rounded-2xl shadow-xl border border-slate-200 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
                 {/* Profile Card Header */}
                 <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50 rounded-t-2xl">
                   <p className="text-xs font-bold text-slate-800">

@@ -138,9 +138,9 @@ export default function NotificationsPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-space-2">
+          <div className="flex items-center gap-space-2 w-full sm:w-auto">
             {unreadCount > 0 && (
-              <Button variant="outline" size="sm" onClick={markAllAsRead} className="gap-1.5">
+              <Button variant="outline" size="sm" onClick={markAllAsRead} className="gap-1.5 flex-1 sm:flex-initial justify-center">
                 <span className="material-symbols-outlined text-[18px]">done_all</span>
                 Mark All as Read
               </Button>
@@ -149,7 +149,7 @@ export default function NotificationsPage() {
               variant={activeTab === "SETTINGS" ? "primary" : "outline"}
               size="sm"
               onClick={() => setActiveTab(activeTab === "SETTINGS" ? "ALL" : "SETTINGS")}
-              className="gap-1.5"
+              className="gap-1.5 flex-1 sm:flex-initial justify-center"
             >
               <span className="material-symbols-outlined text-[18px]">tune</span>
               Preferences
@@ -159,7 +159,7 @@ export default function NotificationsPage() {
 
         {/* Category Filter Tabs */}
         {activeTab !== "SETTINGS" && (
-          <div className="flex items-center gap-space-2 overflow-x-auto pb-1 border-b border-outline-variant/20">
+          <div className="flex items-center gap-space-2 overflow-x-auto no-scrollbar pb-1 border-b border-outline-variant/20 max-w-full">
             {[
               { id: "ALL", label: "All Alerts", count: notifications.length },
               {
@@ -263,9 +263,9 @@ export default function NotificationsPage() {
                     </div>
                   </div>
 
-                  <div className="self-end sm:self-center shrink-0">
-                    <Link href={n.actionUrl}>
-                      <Button variant="outline" size="sm" className="gap-1 font-bold">
+                  <div className="w-full sm:w-auto flex justify-end shrink-0">
+                    <Link href={n.actionUrl} className="w-full sm:w-auto">
+                      <Button variant="outline" size="sm" className="gap-1 font-bold w-full sm:w-auto justify-center">
                         <span>{n.actionLabel}</span>
                         <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
                       </Button>
