@@ -24,9 +24,9 @@ export async function PATCH(
       { status: 401 }
     );
   }
-  if (!requireRole(user, [UserRole.INVENTORY_MANAGER, UserRole.ADMIN])) {
+  if (!requireRole(user, [UserRole.PHARMACIST, UserRole.INVENTORY_MANAGER, UserRole.ADMIN])) {
     return NextResponse.json(
-      errorResponse("UNAUTHORIZED_ROLE", "Inventory manager or admin role required"),
+      errorResponse("UNAUTHORIZED_ROLE", "Pharmacist, inventory manager, or admin role required"),
       { status: 403 }
     );
   }
