@@ -12,11 +12,28 @@ export interface InteractionWarning {
   description: string;
 }
 
+export interface DuplicateTherapyWarning {
+  class: string;
+  drugA: string;
+  drugB: string;
+  warning: string;
+}
+
 export interface SafetyCheckResult {
   hasConflicts: boolean;
+  requiresClinicalOverride: boolean;
   allergyConflicts: AllergyConflict[];
   interactionWarnings: InteractionWarning[];
+  duplicateTherapies: DuplicateTherapyWarning[];
 }
+
+const DRUG_CLASSES: Array<{ className: string; drugs: string[] }> = [
+  { className: "NSAID", drugs: ["aspirin", "ibuprofen", "naproxen", "diclofenac", "celecoxib", "meloxicam", "ketorolac"] },
+  { className: "ACE_INHIBITOR", drugs: ["lisinopril", "ramipril", "enalapril", "captopril", "benazepril"] },
+  { className: "STATIN", drugs: ["atorvastatin", "simvastatin", "rosuvastatin", "pravastatin"] },
+  { className: "BENZODIAZEPINE", drugs: ["diazepam", "lorazepam", "alprazolam", "clonazepam"] },
+  { className: "BETA_BLOCKER", drugs: ["metoprolol", "atenolol", "propranolol", "bisoprolol", "carvedilol"] },
+];
 
 // Known clinical drug-drug interactions database
 const KNOWN_INTERACTIONS: Array<{
@@ -61,7 +78,7 @@ const KNOWN_INTERACTIONS: Array<{
 
 export class SafetyCheckService {
   /**
-   * Check for allergy conflicts and drug-drug interactions
+   * Check for allergy conflicts, drug-drug interactions, and duplicate therapies
    */
   static checkPrescriptionSafety(
     newMedicines: string[],
@@ -70,6 +87,7 @@ export class SafetyCheckService {
   ): SafetyCheckResult {
     const allergyConflicts: AllergyConflict[] = [];
     const interactionWarnings: InteractionWarning[] = [];
+    const duplicateTherapies: DuplicateTherapyWarning[] = [];
 
     const allDrugs = [...newMedicines, ...existingMedications].map((d) => d.toLowerCase());
 
@@ -115,10 +133,48 @@ export class SafetyCheckService {
       }
     }
 
+    // 3. Check duplicate therapeutic class duplication
+    for (let i = 0; i < allDrugs.length; i++) {
+      for (let j = i + 1; j < allDrugs.length; j++) {
+        const drug1 = allDrugs[i];
+        const drug2 = allDrugs[j];
+
+        for (const drugClass of DRUG_CLASSES) {
+          const match1 = drugClass.drugs.some((d) => drug1.includes(d));
+          const match2 = drugClass.drugs.some((d) => drug2.includes(d));
+
+          if (match1 && match2 && drug1 !== drug2) {
+            duplicateTherapies.push({
+              class: drugClass.className,
+              drugA: allDrugs[i],
+              drugB: allDrugs[j],
+              warning: `Duplicate therapy detected: both belong to the ${drugClass.className} class.`,
+            });
+          }
+        }
+      }
+    }
+
+    const hasSevereAllergy = allergyConflicts.some(
+      (a) => a.severity.toUpperCase() === "SEVERE" || a.severity.toUpperCase() === "LIFE_THREATENING"
+    );
+    const hasSevereInteraction = interactionWarnings.some(
+      (w) => w.severity === "SEVERE"
+    );
+
+    const requiresClinicalOverride = hasSevereAllergy || hasSevereInteraction;
+    const hasConflicts =
+      allergyConflicts.length > 0 ||
+      interactionWarnings.length > 0 ||
+      duplicateTherapies.length > 0;
+
     return {
-      hasConflicts: allergyConflicts.length > 0 || interactionWarnings.length > 0,
+      hasConflicts,
+      requiresClinicalOverride,
       allergyConflicts,
       interactionWarnings,
+      duplicateTherapies,
     };
   }
 }
+

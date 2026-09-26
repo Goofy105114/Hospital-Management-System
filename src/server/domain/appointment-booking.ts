@@ -115,3 +115,160 @@ export class AppointmentLifecycleError extends Error {
     super(code);
   }
 }
+
+// ---------------------------------------------------------------------------
+// AI-02 — No-show prediction and appointment optimization
+// ---------------------------------------------------------------------------
+
+export interface NoShowRiskInput {
+  pastNoShowsCount?: number;
+  totalPastAppointments?: number;
+  leadDays?: number;
+  isFollowUp?: boolean;
+  previousCancellationsCount?: number;
+}
+
+export interface NoShowRiskResult {
+  riskScore: number;
+  level: "LOW" | "MODERATE" | "HIGH";
+  factors: string[];
+  suggestedMitigations: string[];
+  recommendedReminderFrequency: "STANDARD" | "ENHANCED" | "INTENSIVE";
+  isAdvisory: true;
+}
+
+export function calculateNoShowRisk(input: NoShowRiskInput): NoShowRiskResult {
+  const pastNoShows = Math.max(0, input.pastNoShowsCount ?? 0);
+  const totalAppts = Math.max(0, input.totalPastAppointments ?? 0);
+  const leadDays = Math.max(0, input.leadDays ?? 0);
+  const prevCancellations = Math.max(0, input.previousCancellationsCount ?? 0);
+  const isFollowUp = !!input.isFollowUp;
+
+  let baseScore = 0.1;
+  const factors: string[] = [];
+  const mitigations: string[] = [];
+
+  // Historical no-show rate factor
+  if (totalAppts > 0 && pastNoShows > 0) {
+    const rate = pastNoShows / totalAppts;
+    if (rate >= 0.5) {
+      baseScore += 0.4;
+      factors.push(`High historical no-show rate (${Math.round(rate * 100)}% of past appointments)`);
+    } else if (rate >= 0.25) {
+      baseScore += 0.25;
+      factors.push(`Moderate historical no-show rate (${Math.round(rate * 100)}% of past appointments)`);
+    } else {
+      baseScore += 0.1;
+      factors.push(`Occasional past no-show recorded (${pastNoShows} instance)`);
+    }
+  } else if (pastNoShows > 0) {
+    baseScore += Math.min(0.4, pastNoShows * 0.2);
+    factors.push(`${pastNoShows} past no-show(s) on file`);
+  } else if (totalAppts >= 3 && pastNoShows === 0) {
+    baseScore -= 0.05;
+    factors.push("Consistent attendance record with zero past no-shows");
+  }
+
+  // Booking lead time factor
+  if (leadDays > 30) {
+    baseScore += 0.25;
+    factors.push(`Long advance booking lead time (${leadDays} days in advance)`);
+  } else if (leadDays > 14) {
+    baseScore += 0.15;
+    factors.push(`Booking made ${leadDays} days in advance`);
+  } else if (leadDays <= 1) {
+    baseScore -= 0.05;
+    factors.push("Same-day or next-day booking (high immediacy)");
+  }
+
+  // Cancellation history factor
+  if (prevCancellations >= 3) {
+    baseScore += 0.1;
+    factors.push("Multiple prior appointment cancellations");
+  }
+
+  // Appointment type factor
+  if (isFollowUp) {
+    baseScore -= 0.05;
+    factors.push("Follow-up appointment with established treatment continuity");
+  } else if (totalAppts === 0) {
+    baseScore += 0.05;
+    factors.push("New patient with no prior visit history");
+  }
+
+  // Clamping score between 0.05 and 0.95
+  const riskScore = parseFloat(Math.min(0.95, Math.max(0.05, baseScore)).toFixed(2));
+
+  let level: "LOW" | "MODERATE" | "HIGH" = "LOW";
+  let reminderFrequency: "STANDARD" | "ENHANCED" | "INTENSIVE" = "STANDARD";
+
+  if (riskScore >= 0.6) {
+    level = "HIGH";
+    reminderFrequency = "INTENSIVE";
+    mitigations.push("Schedule automated 48h, 24h, and 2h SMS reminders (NOT-02)");
+    mitigations.push("Recommend staff telephone confirmation 24 hours prior");
+    mitigations.push("Flag slot for optional standby waitlist backup allocation");
+  } else if (riskScore >= 0.3) {
+    level = "MODERATE";
+    reminderFrequency = "ENHANCED";
+    mitigations.push("Send 24h pre-appointment confirmation prompt via SMS/Email");
+    mitigations.push("Provide one-click rescheduling link in reminder message");
+  } else {
+    level = "LOW";
+    reminderFrequency = "STANDARD";
+    mitigations.push("Standard automated 24-hour appointment reminder");
+  }
+
+  return {
+    riskScore,
+    level,
+    factors,
+    suggestedMitigations: mitigations,
+    recommendedReminderFrequency: reminderFrequency,
+    isAdvisory: true,
+  };
+}
+
+export interface OverbookingOptimizationInput {
+  slotCount: number;
+  averageNoShowRate?: number;
+  targetUtilization?: number;
+}
+
+export interface OverbookingOptimizationResult {
+  scheduledSlots: number;
+  historicalNoShowRate: number;
+  suggestedBufferSlots: number;
+  targetUtilizationPercent: number;
+  estimatedPatientAttendance: number;
+  riskAdjustedCapacity: number;
+  isAdvisory: true;
+}
+
+export function calculateOverbookingRecommendation(
+  input: OverbookingOptimizationInput
+): OverbookingOptimizationResult {
+  const slots = Math.max(1, input.slotCount);
+  const noShowRate = Math.min(0.5, Math.max(0.0, input.averageNoShowRate ?? 0.15));
+  const targetUtil = Math.min(100, Math.max(50, input.targetUtilization ?? 95));
+
+  const expectedNoShows = slots * noShowRate;
+  const suggestedBuffer = Math.min(
+    Math.floor(slots * 0.25),
+    Math.round(expectedNoShows * 0.6)
+  );
+
+  const riskAdjustedCap = slots + suggestedBuffer;
+  const estimatedAttendance = Math.round(riskAdjustedCap * (1 - noShowRate));
+
+  return {
+    scheduledSlots: slots,
+    historicalNoShowRate: parseFloat((noShowRate * 100).toFixed(1)),
+    suggestedBufferSlots: suggestedBuffer,
+    targetUtilizationPercent: targetUtil,
+    estimatedPatientAttendance: estimatedAttendance,
+    riskAdjustedCapacity: riskAdjustedCap,
+    isAdvisory: true,
+  };
+}
+
