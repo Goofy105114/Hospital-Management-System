@@ -32,8 +32,8 @@ export default function ReceptionistLoginPage() {
   } = useForm<ReceptionistLoginFormValues>({
     resolver: zodResolver(receptionistLoginSchema),
     defaultValues: {
-      identifier: "receptionist@goingmerry.hms",
-      password: "Password123!",
+      identifier: "",
+      password: "",
     },
   });
 

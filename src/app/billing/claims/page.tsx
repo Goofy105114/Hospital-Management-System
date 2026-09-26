@@ -146,7 +146,7 @@ export default function InsuranceClaimsPage() {
               Total Claimed
             </span>
             <span className="text-headline-sm font-extrabold text-on-surface font-mono mt-1 block">
-              ${claims.reduce((acc, c) => acc + c.claimedAmount, 0).toLocaleString()}
+              ₹{claims.reduce((acc, c) => acc + c.claimedAmount, 0).toLocaleString("en-IN")}
             </span>
           </div>
           <div className="p-space-4 bg-surface-container-lowest border border-outline-variant/30 rounded-xl">
@@ -154,7 +154,7 @@ export default function InsuranceClaimsPage() {
               Insurer Approved
             </span>
             <span className="text-headline-sm font-extrabold text-success font-mono mt-1 block">
-              ${claims.reduce((acc, c) => acc + c.approvedAmount, 0).toLocaleString()}
+              ₹{claims.reduce((acc, c) => acc + c.approvedAmount, 0).toLocaleString("en-IN")}
             </span>
           </div>
           <div className="p-space-4 bg-surface-container-lowest border border-outline-variant/30 rounded-xl">
@@ -162,7 +162,7 @@ export default function InsuranceClaimsPage() {
               Patient Co-Pay
             </span>
             <span className="text-headline-sm font-extrabold text-secondary font-mono mt-1 block">
-              ${claims.reduce((acc, c) => acc + c.copayAmount, 0).toLocaleString()}
+              ₹{claims.reduce((acc, c) => acc + c.copayAmount, 0).toLocaleString("en-IN")}
             </span>
           </div>
         </div>
@@ -256,13 +256,13 @@ export default function InsuranceClaimsPage() {
                         {clm.preAuthCode}
                       </td>
                       <td className="py-space-3 px-space-4 font-mono font-bold text-on-surface">
-                        ${clm.claimedAmount.toFixed(2)}
+                        ₹{clm.claimedAmount.toFixed(2)}
                       </td>
                       <td className="py-space-3 px-space-4 font-mono font-bold text-success">
-                        ${clm.approvedAmount.toFixed(2)}
+                        ₹{clm.approvedAmount.toFixed(2)}
                       </td>
                       <td className="py-space-3 px-space-4 font-mono font-bold text-secondary">
-                        ${clm.copayAmount.toFixed(2)}
+                        ₹{clm.copayAmount.toFixed(2)}
                       </td>
                       <td className="py-space-3 px-space-4">
                         <Badge
@@ -368,7 +368,7 @@ export default function InsuranceClaimsPage() {
                   </div>
                   <div>
                     <label className="block text-label-md font-semibold text-on-surface mb-space-1">
-                      Claim Total ($)
+                      Claim Total (₹)
                     </label>
                     <input
                       type="number"

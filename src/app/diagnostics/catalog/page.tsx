@@ -194,7 +194,7 @@ export default function DiagnosticCatalogPage() {
                   <th className="py-space-3 px-space-4">Category</th>
                   <th className="py-space-3 px-space-4">Specimen Required</th>
                   <th className="py-space-3 px-space-4">Turnaround Time</th>
-                  <th className="py-space-3 px-space-4">Standard Tariff</th>
+                  <th className="py-space-3 px-space-4">Standard Tariff (₹)</th>
                   <th className="py-space-3 px-space-4">Prep Instructions</th>
                   <th className="py-space-3 px-space-4 text-right">Status</th>
                 </tr>
@@ -227,7 +227,7 @@ export default function DiagnosticCatalogPage() {
                         {item.turnaroundTime}
                       </td>
                       <td className="py-space-3 px-space-4 font-mono font-bold text-on-surface">
-                        ${item.price.toFixed(2)}
+                        ₹{item.price.toFixed(2)}
                       </td>
                       <td className="py-space-3 px-space-4 text-label-sm text-outline max-w-xs truncate">
                         {item.prepInstructions}
@@ -335,7 +335,7 @@ export default function DiagnosticCatalogPage() {
                   </div>
                   <div>
                     <label className="block text-label-md font-semibold text-on-surface mb-space-1">
-                      Standard Tariff ($)
+                      Standard Tariff (₹)
                     </label>
                     <input
                       type="number"

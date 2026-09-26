@@ -32,8 +32,8 @@ export default function DoctorLoginPage() {
   } = useForm<DoctorLoginFormValues>({
     resolver: zodResolver(doctorLoginSchema),
     defaultValues: {
-      identifier: "dr.vance@goingmerry.hms",
-      password: "Password123!",
+      identifier: "",
+      password: "",
     },
   });
 
