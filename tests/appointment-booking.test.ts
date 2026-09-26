@@ -53,3 +53,19 @@ describe("APT-03 booking rules", () => {
     expect(sessionContainsSlot({ slotStart: utcStart, slotEnd: utcEnd }, session)).toBe(true);
   });
 });
+
+import { validateAppointmentEligibility } from "@/server/domain/queue-checkin";
+import { AppointmentStatus } from "@prisma/client";
+
+describe("APT to QUE linkage rules", () => {
+  it("allows queue token creation for confirmed appointments at any date when allowOverride is true", () => {
+    const candidate = {
+      id: "apt-future-99",
+      status: AppointmentStatus.CONFIRMED,
+      slotStart: new Date(Date.now() + 7 * 24 * 3600 * 1000),
+      hasExistingToken: false,
+    };
+    const res = validateAppointmentEligibility(candidate, { allowOverride: true });
+    expect(res.isEligible).toBe(true);
+  });
+});

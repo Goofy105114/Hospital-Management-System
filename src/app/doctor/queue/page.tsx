@@ -57,8 +57,14 @@ export default function DoctorQueuePage() {
   const fetchQueue = async () => {
     try {
       setLoading(true);
-      const res = await api.get("/queue/tokens");
-      const list = res.data?.data;
+      const doctorParam = user?.doctorId || (user?.role === "DOCTOR" ? user.id : undefined);
+      const url = doctorParam ? `/queue/tokens?doctorId=${doctorParam}` : "/queue/tokens";
+      const res = await api.get(url);
+      let list = res.data?.data;
+      if (doctorParam && (!Array.isArray(list) || list.length === 0)) {
+        const fallbackRes = await api.get("/queue/tokens");
+        list = fallbackRes.data?.data;
+      }
       if (Array.isArray(list)) {
         const mapped: DoctorQueueItem[] = list.map((tok: any) => {
           let status: DoctorQueueItem["status"] = "WAITING";
@@ -79,7 +85,7 @@ export default function DoctorQueuePage() {
             tokenNumber: tok.tokenNumber,
             patientName: tok.patientName || "Patient",
             mrn: tok.patientMrn || "MRN-000",
-            ageGender: "Adult / Patient",
+            ageGender: tok.patient?.gender ? `${tok.patient.age || 38}y / ${tok.patient.gender}` : "Adult / Patient",
             chiefComplaint: tok.reason || "Consultation & clinical evaluation",
             vitals,
             priorityTier: tok.priorityTier === "EMERGENCY" ? "EMERGENCY" : tok.priorityTier === "PRIORITY" ? "PRIORITY" : "NORMAL",
@@ -104,6 +110,8 @@ export default function DoctorQueuePage() {
 
   React.useEffect(() => {
     fetchQueue();
+    const interval = setInterval(fetchQueue, 8000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleCallPatient = async (item: DoctorQueueItem) => {

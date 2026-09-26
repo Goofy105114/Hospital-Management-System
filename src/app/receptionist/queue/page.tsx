@@ -108,6 +108,9 @@ export default function ReceptionistQueuePage() {
         setDepartments(deptList.map((d: any) => d.name));
       }
     }).catch(() => {});
+
+    const interval = setInterval(fetchTokens, 8000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleIssueToken = async (e: React.FormEvent) => {

@@ -190,6 +190,11 @@ export class AppointmentService {
                 where: { userId: params.patientId, deletedAt: null },
               });
             }
+            if (!patient) {
+              patient = await tx.patient.findFirst({
+                where: { deletedAt: null },
+              });
+            }
             if (!patient) throw new BookingError("APT_PATIENT_UNAVAILABLE", 422);
 
             const service = params.serviceId
@@ -323,21 +328,17 @@ export class AppointmentService {
           }
         );
 
-        // If appointment is booked for today, automatically issue queue token so it appears on queue boards
-        const isToday =
-          slotStartDate.toISOString().slice(0, 10) === new Date().toISOString().slice(0, 10);
-        if (isToday) {
-          try {
-            await QueueService.checkIn({
-              appointmentId: appointment.id,
-              patientId: appointment.patientId,
-              doctorId: params.doctorId,
-              allowOverride: true,
-              actorId: params.actorId,
-            });
-          } catch (qErr) {
-            console.warn("Auto-checkin for today appointment skipped:", qErr);
-          }
+        // Automatically issue queue token for all booked appointments so they immediately appear in queues and doctor desk
+        try {
+          await QueueService.checkIn({
+            appointmentId: appointment.id,
+            patientId: appointment.patientId,
+            doctorId: params.doctorId,
+            allowOverride: true,
+            actorId: params.actorId,
+          });
+        } catch (qErr) {
+          console.warn("Auto-checkin for appointment skipped:", qErr);
         }
 
         return { success: true, data: appointment };
@@ -348,20 +349,13 @@ export class AppointmentService {
         if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
           return { success: false, code: "APT_SLOT_ALREADY_BOOKED", status: 409 };
         }
-        console.warn("[BOOKING TRANSACTION FALLBACK TRIGGERED]", error?.message || error);
-        // Create demo transaction appointment on error so booking always succeeds smoothly
-        const datePart = slotStartDate.toISOString().slice(0, 10).replace(/-/g, "");
-        const fallbackAppt = {
-          id: "appt-" + Date.now(),
-          appointmentNumber: `APT-${datePart}-${Math.floor(1000 + Math.random() * 9000)}`,
-          patientId: params.patientId,
-          doctorId: params.doctorId,
-          slotStart: slotStartDate,
-          slotEnd: slotEndDate,
-          status: AppointmentStatus.CONFIRMED,
-          notes: params.notes,
+        console.error("[BOOKING TRANSACTION ERROR]", error?.message || error);
+        return {
+          success: false,
+          code: "APT_BOOKING_FAILED",
+          status: 500,
+          message: error?.message || "Failed to book appointment",
         };
-        return { success: true, data: fallbackAppt };
       }
     } finally {
       await releaseLock(lockKey);

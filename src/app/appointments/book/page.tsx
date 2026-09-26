@@ -37,6 +37,13 @@ interface Slot {
   available: boolean;
 }
 
+interface PatientOption {
+  id: string;
+  name: string;
+  mrn: string;
+  phone?: string;
+}
+
 const DEPT_ICONS: Record<string, string> = {
   CARD: "favorite",
   NEUR: "psychology",
@@ -60,6 +67,10 @@ function formatLocalDate(d: Date): string {
 export default function BookAppointmentPage() {
   const router = useRouter();
   const { user } = useAuthStore();
+
+  const [patients, setPatients] = useState<PatientOption[]>([]);
+  const [selectedPatientId, setSelectedPatientId] = useState<string>("");
+  const [patientSearch, setPatientSearch] = useState<string>("");
 
   const [departments, setDepartments] = useState<Department[]>([]);
   const [selectedDeptId, setSelectedDeptId] = useState<string>("");
@@ -94,6 +105,45 @@ export default function BookAppointmentPage() {
       };
     });
   }, []);
+
+  // 0. Fetch patients if user is staff (Receptionist / Admin / Doctor / Nurse)
+  useEffect(() => {
+    let isMounted = true;
+    if (user?.role && user.role !== "PATIENT") {
+      api
+        .get("/patients")
+        .then((res) => {
+          if (!isMounted) return;
+          const list = res.data?.data || [];
+          const mapped: PatientOption[] = list.map((p: any) => ({
+            id: p.id,
+            name: p.user?.name || p.name || "Patient",
+            mrn: p.mrn || "MRN-000",
+            phone: p.user?.phone || p.phone,
+          }));
+          setPatients(mapped);
+
+          let initialId = "";
+          if (typeof window !== "undefined") {
+            const params = new URLSearchParams(window.location.search);
+            const pId = params.get("patientId");
+            if (pId && mapped.some((m) => m.id === pId)) {
+              initialId = pId;
+            }
+          }
+          if (!initialId && mapped.length > 0) {
+            initialId = mapped[0].id;
+          }
+          if (initialId) {
+            setSelectedPatientId(initialId);
+          }
+        })
+        .catch(() => {});
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.role]);
 
   // 1. Fetch departments
   useEffect(() => {
@@ -231,6 +281,18 @@ export default function BookAppointmentPage() {
     }
   }, [selectedDate]);
 
+  const filteredPatients = useMemo(() => {
+    if (!patientSearch.trim()) return patients;
+    const q = patientSearch.toLowerCase();
+    return patients.filter(
+      (p) => p.name.toLowerCase().includes(q) || p.mrn.toLowerCase().includes(q)
+    );
+  }, [patients, patientSearch]);
+
+  const activeSelectedPatient = useMemo(() => {
+    return patients.find((p) => p.id === selectedPatientId) || patients[0];
+  }, [patients, selectedPatientId]);
+
   const hasAnyAvailableSlot = useMemo(() => slots.some((s) => s.available), [slots]);
 
   const handleNextDay = () => {
@@ -254,17 +316,22 @@ export default function BookAppointmentPage() {
     setIsSubmitting(true);
     setErrorMessage(null);
 
-    // Resolve patientId from authenticated state or stored profile
-    let resolvedPatientId = user?.id;
+    // Resolve patientId: If patient, user.id; if staff, selected patient or first active patient
+    let resolvedPatientId: string | undefined = undefined;
+    if (user?.role === "PATIENT") {
+      resolvedPatientId = user.id;
+    } else {
+      resolvedPatientId = selectedPatientId || activeSelectedPatient?.id;
+    }
+
     if (!resolvedPatientId && typeof window !== "undefined") {
       try {
         const stored = localStorage.getItem("authUser");
         if (stored) {
           const parsed = JSON.parse(stored);
-          resolvedPatientId = parsed.id;
-        }
-        if (!resolvedPatientId) {
-          resolvedPatientId = localStorage.getItem("mockUserId") || undefined;
+          if (parsed.role === "PATIENT") {
+            resolvedPatientId = parsed.id;
+          }
         }
       } catch {
         // Handled gracefully
@@ -272,26 +339,37 @@ export default function BookAppointmentPage() {
     }
 
     try {
-      await api.post("/appointments", {
+      const res = await api.post("/appointments", {
         patientId: resolvedPatientId,
         doctorId: selectedDoctorId,
         slotStart: selectedSlot.start,
         slotEnd: selectedSlot.end,
         appointmentType: "NEW",
-        notes: notes || "Booked via Patient Portal online scheduling.",
+        notes: notes || "Booked via Appointment Scheduling Portal.",
       });
 
-      setConfirmedSuccess(true);
-      setTimeout(() => {
-        router.push("/appointments");
-      }, 1600);
+      if (res.data?.success) {
+        setConfirmedSuccess(true);
+        setTimeout(() => {
+          if (user?.role === "RECEPTIONIST") {
+            router.push("/receptionist/appointments");
+          } else if (user?.role === "DOCTOR") {
+            router.push("/doctor/dashboard");
+          } else {
+            router.push("/appointments");
+          }
+        }, 1500);
+      } else {
+        setErrorMessage(res.data?.error?.message || "Failed to book appointment");
+      }
     } catch (err: any) {
-      console.warn("Booking transaction error, proceeding with demo reservation fallback:", err);
-      // Create demo transaction fallback on one click and continue
-      setConfirmedSuccess(true);
-      setTimeout(() => {
-        router.push("/appointments");
-      }, 1600);
+      console.error("Booking transaction error:", err);
+      const msg =
+        err.response?.data?.error?.message ||
+        err.response?.data?.message ||
+        err.message ||
+        "An error occurred while booking the appointment";
+      setErrorMessage(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -357,6 +435,81 @@ export default function BookAppointmentPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Left Canvas */}
           <div className="lg:col-span-8 flex flex-col space-y-6">
+            {/* Step 0: Patient Selection (for Staff / Receptionist / Admin) */}
+            {user?.role !== "PATIENT" && (
+              <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 mb-4 gap-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm">
+                      <span className="material-symbols-outlined text-[18px]">person</span>
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-bold text-slate-900">Patient Selection</h2>
+                      <p className="text-xs text-slate-500">
+                        Select the patient for whom you are scheduling this appointment
+                      </p>
+                    </div>
+                  </div>
+                  {activeSelectedPatient && (
+                    <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold flex items-center gap-1.5 self-start sm:self-auto">
+                      <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                      <span>{activeSelectedPatient.name} ({activeSelectedPatient.mrn})</span>
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-3">
+                  <div className="relative">
+                    <span className="material-symbols-outlined absolute left-3 top-2.5 text-slate-400 text-[18px]">
+                      search
+                    </span>
+                    <input
+                      type="text"
+                      placeholder="Search patient by name or MRN..."
+                      value={patientSearch}
+                      onChange={(e) => setPatientSearch(e.target.value)}
+                      className="w-full pl-9 pr-4 py-2 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    />
+                  </div>
+
+                  {filteredPatients.length === 0 ? (
+                    <div className="p-4 text-center text-xs text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                      No patients matching &quot;{patientSearch}&quot;
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 max-h-48 overflow-y-auto p-1">
+                      {filteredPatients.map((p) => {
+                        const isSelected =
+                          selectedPatientId === p.id ||
+                          (!selectedPatientId && activeSelectedPatient?.id === p.id);
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => setSelectedPatientId(p.id)}
+                            className={`p-3 rounded-xl text-left transition-all border flex flex-col ${
+                              isSelected
+                                ? "bg-primary text-white border-primary shadow-xs"
+                                : "bg-slate-50 hover:bg-slate-100 text-slate-800 border-slate-200"
+                            }`}
+                          >
+                            <span className="font-bold text-xs truncate">{p.name}</span>
+                            <span
+                              className={`font-mono text-[11px] mt-0.5 ${
+                                isSelected ? "text-blue-100" : "text-slate-500"
+                              }`}
+                            >
+                              {p.mrn}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Step 1: Select Department */}
             <div className="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-slate-200">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
@@ -768,9 +921,17 @@ export default function BookAppointmentPage() {
                   Patient Account
                 </p>
                 <p className="font-bold text-slate-900 text-sm mt-0.5">
-                  {user?.name || "Authenticated Patient"}
+                  {user?.role === "PATIENT"
+                    ? user.name
+                    : activeSelectedPatient?.name || "Patient"}
                 </p>
-                <p className="text-slate-500 mt-0.5">{user?.email || "Current User"}</p>
+                <p className="text-slate-500 mt-0.5">
+                  {user?.role === "PATIENT"
+                    ? user.mrn
+                      ? `MRN: ${user.mrn}`
+                      : user.email || "Self"
+                    : `MRN: ${activeSelectedPatient?.mrn || "Pending"}`}
+                </p>
               </div>
 
               {/* Fee */}

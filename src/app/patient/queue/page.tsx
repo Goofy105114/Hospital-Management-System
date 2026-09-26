@@ -15,20 +15,27 @@ export default function PatientQueuePassPage() {
 
   useEffect(() => {
     let isMounted = true;
-    api
-      .get("/dashboard/patient")
-      .then((res) => {
-        if (!isMounted) return;
-        setQueueData(res.data?.data);
-      })
-      .catch((err) => {
-        console.error("Failed to load queue data:", err);
-      })
-      .finally(() => {
-        if (isMounted) setIsLoading(false);
-      });
+    const fetchQueue = () => {
+      api
+        .get("/dashboard/patient")
+        .then((res) => {
+          if (!isMounted) return;
+          setQueueData(res.data?.data);
+        })
+        .catch((err) => {
+          console.error("Failed to load queue data:", err);
+        })
+        .finally(() => {
+          if (isMounted) setIsLoading(false);
+        });
+    };
+
+    fetchQueue();
+    const interval = setInterval(fetchQueue, 5000);
+
     return () => {
       isMounted = false;
+      clearInterval(interval);
     };
   }, []);
 
