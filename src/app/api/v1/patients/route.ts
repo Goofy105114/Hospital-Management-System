@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { apiSuccess, apiError } from "@/lib/api-envelope";
 import { getAuthUser, hashPassword } from "@/lib/auth";
 import { hasPiiAccess, maskPhone, maskEmail } from "@/lib/pii";
+import { isValidEmail, isValidName } from "@/lib/utils";
 import { UserRole, UserStatus, Gender } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -104,6 +105,22 @@ export async function POST(req: NextRequest) {
       allergies,
       preferredLanguage,
     } = body;
+
+    if (email && typeof email === "string" && email.trim() && !isValidEmail(email.trim())) {
+      return apiError(
+        "VALIDATION_ERROR",
+        "Invalid email format: email username cannot consist of only numbers or start with a number",
+        400
+      );
+    }
+
+    if (name && typeof name === "string" && name.trim() && !isValidName(name.trim())) {
+      return apiError(
+        "VALIDATION_ERROR",
+        "Invalid name: name must contain letters and cannot be purely numeric",
+        400
+      );
+    }
 
     const fullName = name || `${firstName || ""} ${lastName || ""}`.trim() || "Walk-in Patient";
     const patientEmail = email?.trim() || `patient.${Date.now()}@goingmerry.org`;

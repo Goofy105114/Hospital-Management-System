@@ -9,11 +9,21 @@ import { z } from "zod";
 import { useAuthStore } from "@/stores/authStore";
 import { Button } from "@/components/ui/button";
 import { signUpWithSupabase } from "@/lib/supabase";
+import { isValidEmail, isValidName } from "@/lib/utils";
 
 const adminRegisterSchema = z
   .object({
-    name: z.string().min(2, "Full name is required"),
-    email: z.string().email("Valid institutional administrative email is required"),
+    name: z
+      .string()
+      .min(2, "Full name is required")
+      .refine(isValidName, "Full name must contain letters and cannot be purely numbers"),
+    email: z
+      .string()
+      .email("Valid institutional administrative email is required")
+      .refine(
+        isValidEmail,
+        "Email username cannot consist of only numbers or start with a number"
+      ),
     department: z.string().min(2, "Department is required"),
     securityKey: z.string().min(4, "Admin master enrollment key is required"),
     password: z.string().min(6, "Password must be at least 6 characters"),

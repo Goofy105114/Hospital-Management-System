@@ -8,6 +8,7 @@ import {
   TokenPayload,
 } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit";
+import { isValidEmail, isValidName } from "@/lib/utils";
 import { UserRole, UserStatus, AuditAction, Gender } from "@prisma/client";
 
 export class AuthService {
@@ -158,6 +159,13 @@ export class AuthService {
     password: string;
     bloodGroup?: string;
   }) {
+    if (!isValidEmail(data.email)) {
+      return { success: false, code: "REG_INVALID_EMAIL", status: 400 };
+    }
+    if (!isValidName(data.name)) {
+      return { success: false, code: "REG_INVALID_NAME", status: 400 };
+    }
+
     // Check duplicate
     const existing = await prisma.user.findFirst({
       where: {
