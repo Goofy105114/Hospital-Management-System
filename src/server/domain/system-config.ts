@@ -160,3 +160,131 @@ export function isMaintenanceModeActive(settings?: Partial<SystemSettings> | nul
 export function canBypassMaintenanceMode(role?: string | null): boolean {
   return role === "SUPER_ADMIN" || role === "ADMIN";
 }
+
+// ---------------------------------------------------------------------------
+// ADM-02 — User lifecycle, staff onboarding and administrative approvals
+// ---------------------------------------------------------------------------
+
+export const VALID_STAFF_ROLES = [
+  "RECEPTIONIST",
+  "DOCTOR",
+  "NURSE",
+  "PHARMACIST",
+  "LAB_TECH",
+  "RADIOLOGIST",
+  "INVENTORY_MANAGER",
+  "BILLING_STAFF",
+  "ADMIN",
+  "MANAGEMENT",
+  "SUPER_ADMIN",
+];
+
+export interface StaffOnboardingInput {
+  name?: string;
+  email?: string;
+  phone?: string;
+  role?: string;
+  departmentId?: string;
+}
+
+export function validateStaffOnboardingInput(input: StaffOnboardingInput): {
+  isValid: boolean;
+  errorCode?: string;
+  errorMessage?: string;
+} {
+  if (!input.name || typeof input.name !== "string" || input.name.trim().length === 0) {
+    return {
+      isValid: false,
+      errorCode: "ADM_NAME_REQUIRED",
+      errorMessage: "Staff full name is required",
+    };
+  }
+
+  if (
+    !input.email ||
+    typeof input.email !== "string" ||
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email.trim())
+  ) {
+    return {
+      isValid: false,
+      errorCode: "ADM_INVALID_EMAIL",
+      errorMessage: "A valid email address is required for staff onboarding",
+    };
+  }
+
+  if (!input.role || typeof input.role !== "string" || !VALID_STAFF_ROLES.includes(input.role.toUpperCase())) {
+    return {
+      isValid: false,
+      errorCode: "ADM_INVALID_STAFF_ROLE",
+      errorMessage: `Staff role must be one of: ${VALID_STAFF_ROLES.join(", ")}`,
+    };
+  }
+
+  return { isValid: true };
+}
+
+export function canTransitionUserStatus(
+  from: string,
+  to: string,
+  actorRole?: string
+): { allowed: boolean; errorCode?: string; reason?: string } {
+  if (actorRole !== "ADMIN" && actorRole !== "SUPER_ADMIN") {
+    return {
+      allowed: false,
+      errorCode: "FORBIDDEN",
+      reason: "Only system administrators can modify user lifecycle status",
+    };
+  }
+
+  const validStatuses = ["ACTIVE", "SUSPENDED", "LOCKED", "PENDING_VERIFICATION"];
+  if (!validStatuses.includes(from) || !validStatuses.includes(to)) {
+    return {
+      allowed: false,
+      errorCode: "ADM_INVALID_STATUS",
+      reason: "Invalid user lifecycle status specified",
+    };
+  }
+
+  if (from === to) {
+    return {
+      allowed: false,
+      errorCode: "ADM_STATUS_UNCHANGED",
+      reason: `User is already in status ${to}`,
+    };
+  }
+
+  return { allowed: true };
+}
+
+export function validateAdministrativeApprovalAction(input: {
+  approverRole?: string;
+  decision?: "APPROVED" | "REJECTED";
+  reason?: string;
+}): { isValid: boolean; errorCode?: string; errorMessage?: string } {
+  if (input.approverRole !== "ADMIN" && input.approverRole !== "SUPER_ADMIN" && input.approverRole !== "MANAGEMENT") {
+    return {
+      isValid: false,
+      errorCode: "FORBIDDEN",
+      errorMessage: "Only administrative staff can process approval decisions",
+    };
+  }
+
+  if (!input.decision || (input.decision !== "APPROVED" && input.decision !== "REJECTED")) {
+    return {
+      isValid: false,
+      errorCode: "ADM_INVALID_DECISION",
+      errorMessage: "Decision must be either APPROVED or REJECTED",
+    };
+  }
+
+  if (input.decision === "REJECTED" && (!input.reason || input.reason.trim() === "")) {
+    return {
+      isValid: false,
+      errorCode: "ADM_REJECTION_REASON_REQUIRED",
+      errorMessage: "A reason is mandatory when rejecting an administrative request",
+    };
+  }
+
+  return { isValid: true };
+}
+

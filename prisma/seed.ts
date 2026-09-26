@@ -19,8 +19,61 @@ import {
   InvoiceStatus,
 } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import fs from "fs";
+import path from "path";
 
 const prisma = new PrismaClient();
+
+export async function seedTraceabilityBacklog(prismaClient: PrismaClient = prisma) {
+  console.log("📋 Importing authoritative 310-item SRS traceability backlog (TRC-01)...");
+  const jsonPath = path.join(process.cwd(), "prisma", "traceability-items.json");
+  let items: Array<{
+    code: string;
+    featureId: string;
+    domain: string;
+    title: string;
+    category: string;
+    sprint: string;
+    status: string;
+    testCoverage?: string | null;
+    apiPath?: string | null;
+  }> = [];
+
+  if (fs.existsSync(jsonPath)) {
+    items = JSON.parse(fs.readFileSync(jsonPath, "utf-8"));
+  }
+
+  let count = 0;
+  for (const item of items) {
+    await prismaClient.traceabilityItem.upsert({
+      where: { code: item.code },
+      update: {
+        featureId: item.featureId,
+        domain: item.domain,
+        title: item.title,
+        category: item.category,
+        sprint: item.sprint,
+        status: item.status,
+        testCoverage: item.testCoverage,
+        apiPath: item.apiPath,
+      },
+      create: {
+        code: item.code,
+        featureId: item.featureId,
+        domain: item.domain,
+        title: item.title,
+        category: item.category,
+        sprint: item.sprint,
+        status: item.status,
+        testCoverage: item.testCoverage,
+        apiPath: item.apiPath,
+      },
+    });
+    count++;
+  }
+  console.log(`✅ Successfully imported ${count} SRS traceability items across 78 BRD features!`);
+  return count;
+}
 
 async function main() {
   console.log("🌱 Seeding Going Merry Hospital Management System database...");
@@ -675,6 +728,9 @@ async function main() {
       status: InvoiceStatus.ISSUED,
     },
   });
+
+  // 12. Seed 310-item SRS Traceability Backlog (TRC-01)
+  await seedTraceabilityBacklog(prisma);
 
   console.log("✅ Database seeding complete with full enterprise clinical dataset!");
 }
