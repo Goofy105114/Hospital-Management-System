@@ -13,11 +13,22 @@ api.interceptors.request.use((config) => {
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    const mockRole = localStorage.getItem("mockRole");
+    let mockRole = localStorage.getItem("mockRole");
+    if (!mockRole && !token) {
+      const path = window.location.pathname;
+      if (path.startsWith("/pharmacist") || path.startsWith("/pharmacy")) mockRole = "PHARMACIST";
+      else if (path.startsWith("/inventory-manager") || path.startsWith("/inventory")) mockRole = "INVENTORY_MANAGER";
+      else if (path.startsWith("/admin")) mockRole = "ADMIN";
+      else if (path.startsWith("/doctor")) mockRole = "DOCTOR";
+      else if (path.startsWith("/nurse")) mockRole = "NURSE";
+      else if (path.startsWith("/receptionist")) mockRole = "RECEPTIONIST";
+      else if (path.startsWith("/billing-staff")) mockRole = "BILLING_STAFF";
+      else if (path.startsWith("/patient")) mockRole = "PATIENT";
+    }
     if (mockRole) {
       config.headers["X-Mock-Role"] = mockRole;
     }
-    const mockUserId = localStorage.getItem("mockUserId");
+    const mockUserId = localStorage.getItem("mockUserId") || (mockRole ? "session-desk-user" : null);
     if (mockUserId) {
       config.headers["X-Mock-User-Id"] = mockUserId;
     }

@@ -28,6 +28,9 @@ export default function MedicinesFormularyPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedForm, setSelectedForm] = useState("ALL");
   const [showAddModal, setShowAddModal] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // New Drug State
   const [newName, setNewName] = useState("");
@@ -71,22 +74,73 @@ export default function MedicinesFormularyPage() {
 
   const handleAddMedicine = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      await api.post("/medicines", {
-        name: newName,
-        genericName: newGeneric,
-        form: newForm,
-        strength: newStrength || "Standard",
-        unit: newForm === "INJECTION" ? "Vial" : "Tablet",
-        unitPrice: Number(newPrice) || 10,
-      });
-      await loadMedicines();
-    } catch (err) {
-      console.error("Failed to add medicine", err);
+    if (!newName.trim() || !newGeneric.trim()) {
+      setModalError("Please provide both brand name and generic active ingredient.");
+      return;
     }
-    setShowAddModal(false);
-    setNewName("");
-    setNewGeneric("");
+
+    setIsSubmitting(true);
+    setModalError(null);
+
+    const unitMap: Record<string, string> = {
+      TABLET: "Tablet",
+      CAPSULE: "Capsule",
+      INJECTION: "Vial",
+      SYRUP: "Bottle",
+      CREAM: "Tube",
+      INHALER: "Inhaler",
+      DROPS: "Bottle",
+      OTHER: "Unit",
+    };
+
+    try {
+      const res = await api.post("/medicines", {
+        name: newName.trim(),
+        genericName: newGeneric.trim(),
+        form: newForm,
+        strength: newStrength.trim() || "Standard",
+        unit: unitMap[newForm] || "Tablet",
+        unitPrice: Number(newPrice) || 10,
+        manufacturer: newCategory.trim() || "General Medicine",
+      });
+
+      if (res.data?.success) {
+        setSuccessMessage(`Medicine "${newName.trim()}" successfully added to formulary.`);
+        setShowAddModal(false);
+        setNewName("");
+        setNewGeneric("");
+        setNewStrength("");
+        setNewPrice("15.00");
+        setNewCategory("General Medicine");
+        await loadMedicines();
+      } else {
+        setModalError(res.data?.error?.message || "Failed to add medicine. Please try again.");
+      }
+    } catch (err: any) {
+      console.error("Failed to add medicine", err);
+      const errMsg =
+        err.response?.data?.error?.message ||
+        err.response?.data?.message ||
+        err.message ||
+        "Failed to add medicine. Please ensure proper permissions.";
+      setModalError(errMsg);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleToggleActive = async (med: MedicineItem) => {
+    const updatedActive = !med.isActive;
+    // Optimistic update
+    setMedicines((prev) =>
+      prev.map((m) => (m.id === med.id ? { ...m, isActive: updatedActive } : m))
+    );
+    try {
+      await api.patch(`/medicines/${med.id}`, { isActive: updatedActive });
+    } catch (err) {
+      console.error("Failed to toggle medicine status", err);
+      await loadMedicines();
+    }
   };
 
   const filteredMedicines = medicines.filter((med) => {
@@ -112,6 +166,22 @@ export default function MedicinesFormularyPage() {
           <span className="text-on-surface font-semibold">Drug Catalog & Formulary</span>
         </div>
 
+        {/* Success Alert Banner */}
+        {successMessage && (
+          <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-3 rounded-xl flex items-center justify-between text-sm animate-in fade-in">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-emerald-600 text-base">check_circle</span>
+              <span className="font-medium">{successMessage}</span>
+            </div>
+            <button
+              onClick={() => setSuccessMessage(null)}
+              className="text-emerald-600 hover:text-emerald-900 text-xs font-semibold"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-space-4 border-b border-outline-variant/30 pb-space-4">
           <div>
@@ -131,7 +201,14 @@ export default function MedicinesFormularyPage() {
                 Dispensary Queue
               </Button>
             </Link>
-            <Button variant="primary" onClick={() => setShowAddModal(true)} className="gap-space-2">
+            <Button
+              variant="primary"
+              onClick={() => {
+                setModalError(null);
+                setShowAddModal(true);
+              }}
+              className="gap-space-2"
+            >
               <span className="material-symbols-outlined text-[18px]">add</span>
               Add Medicine
             </Button>
@@ -154,7 +231,7 @@ export default function MedicinesFormularyPage() {
           </div>
 
           <div className="flex items-center gap-space-2 overflow-x-auto w-full sm:w-auto">
-            {["ALL", "TABLET", "CAPSULE", "INJECTION", "SYRUP"].map((form) => (
+            {["ALL", "TABLET", "CAPSULE", "INJECTION", "SYRUP", "CREAM"].map((form) => (
               <button
                 key={form}
                 onClick={() => setSelectedForm(form)}
@@ -236,13 +313,7 @@ export default function MedicinesFormularyPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() =>
-                          setMedicines(
-                            medicines.map((m) =>
-                              m.id === med.id ? { ...m, isActive: !m.isActive } : m
-                            )
-                          )
-                        }
+                        onClick={() => handleToggleActive(med)}
                       >
                         {med.isActive ? "Deactivate" : "Activate"}
                       </Button>
@@ -261,6 +332,14 @@ export default function MedicinesFormularyPage() {
               <h3 className="font-headline-sm text-headline-sm font-bold text-on-surface">
                 Add Medicine to Formulary (PHA-02)
               </h3>
+
+              {modalError && (
+                <div className="bg-rose-50 border border-rose-200 text-rose-800 px-3.5 py-2.5 rounded-xl text-xs flex items-center gap-2">
+                  <span className="material-symbols-outlined text-rose-600 text-base">error</span>
+                  <span>{modalError}</span>
+                </div>
+              )}
+
               <form onSubmit={handleAddMedicine} className="space-y-space-4">
                 <div className="grid grid-cols-2 gap-space-4">
                   <div>
@@ -365,11 +444,19 @@ export default function MedicinesFormularyPage() {
                 </div>
 
                 <div className="flex items-center justify-end gap-space-2 pt-space-2">
-                  <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={isSubmitting}
+                    onClick={() => {
+                      setShowAddModal(false);
+                      setModalError(null);
+                    }}
+                  >
                     Cancel
                   </Button>
-                  <Button type="submit" variant="primary">
-                    Register Medicine
+                  <Button type="submit" variant="primary" disabled={isSubmitting}>
+                    {isSubmitting ? "Registering..." : "Register Medicine"}
                   </Button>
                 </div>
               </form>

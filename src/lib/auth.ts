@@ -52,9 +52,9 @@ export function getAuthUser(req: NextRequest): TokenPayload | null {
     // Also support custom testing header if enabled
     const mockRole = req.headers.get("x-mock-role") as UserRole | null;
     const mockUser = req.headers.get("x-mock-user-id");
-    if (mockRole && mockUser) {
+    if (mockRole) {
       return {
-        sub: mockUser,
+        sub: mockUser || "mock-session-user",
         role: mockRole,
         name: "Mock Session User",
       };
