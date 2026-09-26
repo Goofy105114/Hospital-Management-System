@@ -181,7 +181,7 @@ export default function PurchaseOrdersPage() {
               Pipeline Valuation
             </span>
             <span className="text-headline-sm font-extrabold text-on-surface font-mono mt-1 block">
-              ${totalValuation.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+              ₹{totalValuation.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
             </span>
           </div>
         </div>
@@ -242,7 +242,7 @@ export default function PurchaseOrdersPage() {
                           </span>
                         </td>
                         <td className="py-space-3 px-space-4 font-mono font-bold text-on-surface">
-                          ${po.totalAmount.toFixed(2)}
+                          ₹{po.totalAmount.toFixed(2)}
                         </td>
                         <td className="py-space-3 px-space-4">
                           <Badge
@@ -330,7 +330,7 @@ export default function PurchaseOrdersPage() {
                   </div>
                   <div>
                     <label className="block text-label-md font-semibold text-on-surface mb-space-1">
-                      Estimated Total ($)
+                      Estimated Total (₹)
                     </label>
                     <input
                       type="number"

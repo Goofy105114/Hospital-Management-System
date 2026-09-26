@@ -32,8 +32,8 @@ export default function PatientLoginPage() {
   } = useForm<PatientLoginFormValues>({
     resolver: zodResolver(patientLoginSchema),
     defaultValues: {
-      identifier: "eleanor.vance@example.com",
-      password: "Password123!",
+      identifier: "",
+      password: "",
     },
   });
 
