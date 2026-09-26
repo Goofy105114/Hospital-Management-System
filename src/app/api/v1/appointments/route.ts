@@ -73,7 +73,16 @@ export async function POST(req: NextRequest) {
   try {
     const auth = getAuthUser(req);
     if (!auth) return apiError("UNAUTHENTICATED", "Authentication required", 401);
-    if (!requireRole(auth, [UserRole.PATIENT, UserRole.RECEPTIONIST, UserRole.DOCTOR, UserRole.NURSE])) {
+    if (
+      !requireRole(auth, [
+        UserRole.PATIENT,
+        UserRole.RECEPTIONIST,
+        UserRole.DOCTOR,
+        UserRole.NURSE,
+        UserRole.ADMIN,
+        UserRole.SUPER_ADMIN,
+      ])
+    ) {
       return apiError("UNAUTHORIZED_ROLE", "Role cannot book appointments", 403);
     }
     const body = await req.json();
@@ -123,14 +132,24 @@ export async function POST(req: NextRequest) {
       }
       targetPatientId = patient.id;
     } else {
-      // Non-patient booking (Receptionist / Admin / Staff)
-      if (!targetPatientId) {
-        const defaultPatient = await prisma.patient.findFirst({
+      // Non-patient booking (Receptionist / Admin / Doctor / Staff)
+      let resolvedPatient: any = null;
+      if (targetPatientId) {
+        resolvedPatient = await prisma.patient.findFirst({
+          where: {
+            OR: [{ id: targetPatientId }, { userId: targetPatientId }],
+            deletedAt: null,
+          },
+          select: { id: true },
+        });
+      }
+      if (!resolvedPatient) {
+        resolvedPatient = await prisma.patient.findFirst({
           where: { deletedAt: null },
           select: { id: true },
         });
-        targetPatientId = defaultPatient?.id;
       }
+      targetPatientId = resolvedPatient?.id;
     }
 
     if (!targetPatientId || !doctorId || !slotStart || !slotEnd) {

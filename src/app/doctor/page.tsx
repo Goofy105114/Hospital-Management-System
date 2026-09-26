@@ -63,39 +63,67 @@ export default function DoctorWorkspacePage() {
   const [selectedPatient, setSelectedPatient] = useState<QueuePatient | null>(null);
   const [activeTab, setActiveTab] = useState<"SOAP" | "DIAGNOSIS" | "RX" | "LABS">("SOAP");
 
-  React.useEffect(() => {
-    let isMounted = true;
+  const mapAndSetQueue = React.useCallback((list: any[]) => {
+    const mapped: QueuePatient[] = list.map((tok: any) => ({
+      id: tok.patientId || tok.id,
+      tokenNumber: tok.tokenNumber,
+      name: tok.patientName || tok.patient?.name || "Patient",
+      mrn: tok.patientMrn || tok.patient?.mrn || "MRN-000",
+      age: tok.patient?.age || 38,
+      gender: tok.patient?.gender || "Female",
+      bloodGroup: tok.patient?.bloodGroup || "A+",
+      allergies: tok.patient?.allergies || [],
+      reason: tok.reason || "Clinical evaluation",
+      time: tok.checkedInAt
+        ? new Date(tok.checkedInAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+        : "Today",
+      status:
+        tok.status === "IN_PROGRESS" ||
+        tok.status === "CALLED" ||
+        tok.status === "IN_CONSULTATION"
+          ? "IN_ROOM"
+          : "WAITING",
+    }));
+    setPatientsQueue(mapped);
+    setSelectedPatient((prev) => {
+      if (prev && mapped.some((m) => m.id === prev.id)) {
+        return prev;
+      }
+      return mapped.length > 0 ? mapped[0] : null;
+    });
+  }, []);
+
+  const fetchQueue = React.useCallback(() => {
+    const doctorParam = user?.doctorId || (user?.role === "DOCTOR" ? user.id : undefined);
+    const url = doctorParam ? `/queue/tokens?doctorId=${doctorParam}` : "/queue/tokens";
     api
-      .get("/queue/tokens")
+      .get(url)
       .then((res) => {
-        if (!isMounted) return;
-        const list = res.data?.data;
+        let list = res.data?.data;
+        if (doctorParam && (!Array.isArray(list) || list.length === 0)) {
+          api
+            .get("/queue/tokens")
+            .then((fallbackRes) => {
+              const fList = fallbackRes.data?.data;
+              if (Array.isArray(fList)) mapAndSetQueue(fList);
+            })
+            .catch(() => {});
+          return;
+        }
         if (Array.isArray(list)) {
-          const mapped: QueuePatient[] = list.map((tok: any) => ({
-            id: tok.patientId || tok.id,
-            tokenNumber: tok.tokenNumber,
-            name: tok.patientName || tok.patient?.name || "Patient",
-            mrn: tok.patientMrn || tok.patient?.mrn || "MRN-000",
-            age: tok.patient?.age || 38,
-            gender: tok.patient?.gender || "Female",
-            bloodGroup: tok.patient?.bloodGroup || "A+",
-            allergies: tok.patient?.allergies || [],
-            reason: tok.reason || "Clinical evaluation",
-            time: tok.checkedInAt ? new Date(tok.checkedInAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "Today",
-            status: tok.status === "IN_PROGRESS" || tok.status === "CALLED" ? "IN_ROOM" : "WAITING",
-          }));
-          setPatientsQueue(mapped);
-          if (mapped.length > 0) {
-            setSelectedPatient(mapped[0]);
-          }
+          mapAndSetQueue(list);
         }
       })
       .catch(() => {});
+  }, [user, mapAndSetQueue]);
+
+  React.useEffect(() => {
+    fetchQueue();
+    const interval = setInterval(fetchQueue, 8000);
 
     api
       .get("/medicines")
       .then((res) => {
-        if (!isMounted) return;
         const list = res.data?.data;
         if (Array.isArray(list) && list.length > 0) {
           const meds = list.map((m: any) => ({
@@ -112,9 +140,9 @@ export default function DoctorWorkspacePage() {
       .catch(() => {});
 
     return () => {
-      isMounted = false;
+      clearInterval(interval);
     };
-  }, []);
+  }, [fetchQueue]);
 
   // SOAP State
   const [subjective, setSubjective] = useState("");
