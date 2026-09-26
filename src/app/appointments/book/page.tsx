@@ -50,6 +50,13 @@ const DEPT_ICONS: Record<string, string> = {
   ONCO: "biotech",
 };
 
+function formatLocalDate(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export default function BookAppointmentPage() {
   const router = useRouter();
   const { user } = useAuthStore();
@@ -59,8 +66,8 @@ export default function BookAppointmentPage() {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>("");
 
-  // Default to today in YYYY-MM-DD
-  const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  // Default to today in local YYYY-MM-DD
+  const todayIso = useMemo(() => formatLocalDate(new Date()), []);
   const [selectedDate, setSelectedDate] = useState<string>(todayIso);
 
   const [slots, setSlots] = useState<Slot[]>([]);
@@ -72,12 +79,12 @@ export default function BookAppointmentPage() {
   const [confirmedSuccess, setConfirmedSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Generate 7 upcoming day chips starting from today
+  // Generate 7 upcoming day chips starting from today using local calendar dates
   const upcomingDays = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date();
       d.setDate(d.getDate() + i);
-      const iso = d.toISOString().slice(0, 10);
+      const iso = formatLocalDate(d);
       return {
         iso,
         day: d.toLocaleDateString("en-US", { weekday: "short" }),
@@ -224,6 +231,20 @@ export default function BookAppointmentPage() {
     }
   }, [selectedDate]);
 
+  const hasAnyAvailableSlot = useMemo(() => slots.some((s) => s.available), [slots]);
+
+  const handleNextDay = () => {
+    try {
+      const [y, m, d] = selectedDate.split("-").map(Number);
+      const next = new Date(y, m - 1, d + 1);
+      setSelectedDate(formatLocalDate(next));
+    } catch {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      setSelectedDate(formatLocalDate(tomorrow));
+    }
+  };
+
   const handleBooking = async () => {
     if (!selectedDoctorId || !selectedSlot) {
       setErrorMessage("Please select a doctor, date, and available time slot.");
@@ -233,8 +254,26 @@ export default function BookAppointmentPage() {
     setIsSubmitting(true);
     setErrorMessage(null);
 
+    // Resolve patientId from authenticated state or stored profile
+    let resolvedPatientId = user?.id;
+    if (!resolvedPatientId && typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("authUser");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          resolvedPatientId = parsed.id;
+        }
+        if (!resolvedPatientId) {
+          resolvedPatientId = localStorage.getItem("mockUserId") || undefined;
+        }
+      } catch {
+        // Handled gracefully
+      }
+    }
+
     try {
       await api.post("/appointments", {
+        patientId: resolvedPatientId,
         doctorId: selectedDoctorId,
         slotStart: selectedSlot.start,
         slotEnd: selectedSlot.end,
@@ -554,9 +593,43 @@ export default function BookAppointmentPage() {
                     The physician holds clinic sessions on weekdays (Monday - Friday). Please select
                     an upcoming weekday.
                   </p>
+                  <div className="mt-4">
+                    <button
+                      type="button"
+                      onClick={handleNextDay}
+                      className="px-3.5 py-1.5 rounded-lg bg-primary text-white text-xs font-semibold hover:bg-primary/90 transition-all inline-flex items-center gap-1.5 shadow-sm"
+                    >
+                      <span>Jump to Next Day</span>
+                      <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-4 mt-4">
+                  {!hasAnyAvailableSlot && (
+                    <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-amber-600 text-[20px] shrink-0">
+                          schedule
+                        </span>
+                        <div>
+                          <p className="font-bold">Clinic hours concluded for this day</p>
+                          <p className="text-[11px] text-amber-800">
+                            All slots on {formattedSelectedDate} have concluded or are booked. Select the next available day to reserve your appointment.
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleNextDay}
+                        className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shrink-0 transition-colors flex items-center justify-center gap-1 self-start sm:self-center"
+                      >
+                        <span>Next Day</span>
+                        <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+                      </button>
+                    </div>
+                  )}
+
                   {morningSlots.length > 0 && (
                     <div>
                       <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
