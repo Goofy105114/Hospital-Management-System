@@ -40,8 +40,8 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    // Fallback: If no patient resolved from auth/params, query the first active patient from DB
-    if (!patient && !patientIdParam && !mrnParam) {
+    // Fallback: If no patient resolved and no user authenticated, query the first active patient from DB for offline demo
+    if (!patient && !auth?.sub && !patientIdParam && !mrnParam) {
       patient = await prisma.patient.findFirst({
         where: { deletedAt: null },
         include: {

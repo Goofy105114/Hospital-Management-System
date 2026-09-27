@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     if (!result.success) {
       return apiError(
         result.code || "REGISTRATION_FAILED",
-        "Registration failed",
+        result.message || "Registration failed",
         result.status || 400
       );
     }

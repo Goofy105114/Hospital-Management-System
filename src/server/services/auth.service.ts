@@ -169,12 +169,19 @@ export class AuthService {
     // Check duplicate
     const existing = await prisma.user.findFirst({
       where: {
-        OR: [{ email: data.email }, { phone: data.phone }],
+        OR: [
+          { email: data.email.toLowerCase().trim() },
+          { phone: data.phone.trim() },
+        ],
       },
     });
 
     if (existing) {
-      return { success: false, code: "REG_DUPLICATE_IDENTITY", status: 409 };
+      const isEmailMatch = existing.email?.toLowerCase() === data.email.toLowerCase().trim();
+      const reason = isEmailMatch
+        ? "An account with this email address already exists. Please sign in or use a different email."
+        : "An account with this mobile phone number already exists. Please use a different phone number.";
+      return { success: false, code: "REG_DUPLICATE_IDENTITY", message: reason, status: 409 };
     }
 
     const passwordHash = await hashPassword(data.password);
