@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { AppLayout } from "@/components/shared/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,10 +33,22 @@ export default function BillingPage() {
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState("CARD");
 
-  const fetchInvoices = async () => {
+  const fetchInvoices = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await api.get("/billing/invoices");
+      const params = new URLSearchParams();
+      if (isPatient) {
+        params.set("role", "PATIENT");
+        if (user?.mrn) {
+          params.set("mrn", user.mrn);
+        }
+        if (user?.id) {
+          params.set("userId", user.id);
+        }
+      }
+      const queryString = params.toString();
+      const url = queryString ? `/billing/invoices?${queryString}` : "/billing/invoices";
+      const res = await api.get(url);
       const data = res.data?.data;
       if (Array.isArray(data)) {
         const mapped: InvoiceItem[] = data.map((inv: any) => ({
@@ -86,11 +98,11 @@ export default function BillingPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isPatient, user?.mrn, user?.id]);
 
   useEffect(() => {
     fetchInvoices();
-  }, []);
+  }, [fetchInvoices]);
 
   const handleRecordPayment = async (e: React.FormEvent) => {
     e.preventDefault();
