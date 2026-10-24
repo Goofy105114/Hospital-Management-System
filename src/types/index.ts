@@ -187,3 +187,27 @@ export interface BedDTO {
   dailyRate: number;
   patientName?: string | null;
 }
+
+export interface TraceabilityItemDTO {
+  id: string;
+  code: string;
+  featureId: string;
+  domain: string;
+  title: string;
+  category: string;
+  sprint: string;
+  status: string;
+  testCoverage?: string | null;
+  apiPath?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TraceabilitySummaryDTO {
+  totalItems: number;
+  byDomain: Record<string, number>;
+  bySprint: Record<string, number>;
+  byStatus: Record<string, number>;
+  byCategory: Record<string, number>;
+}
+
